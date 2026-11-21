@@ -56,3 +56,11 @@
 - 决策：主进程保留 `reason: 'missing' | 'unreachable'` 区分（网络不可达更精确），渲染层统一按「找不到该位置」+ 重新选择/删除处理；判断集中在 `src/renderer/src/lib/links.ts` 的 `isLinkUnavailable(result)`。
 - 理由：docs/03-DATA-MODEL.md:127 规定失效统一返回 missing 并提示「找不到该位置」，docs/04 的 opener 片段只列 missing；主进程实现额外区分了 unreachable。保留区分可让日志/诊断更准确，UI 仍符合规格文案。
 - 影响：Manager/Widget/EditorModal 三处用同一 helper；docs/09 已登记 `lib/links.ts`。
+
+## D9 · 2026-11-22 · 胶囊自绘拖动 + 日期浮层内嵌点击 + 桌面形态轻投影
+
+- 决策：胶囊拖动不再用 `-webkit-app-region: drag`（它会吞掉点击、只剩窄条可拖），改为 renderer pointer 事件 + 主进程 `setBounds`：新增 IPC `widget:beginDrag` / `widget:dragMove` / `widget:endDrag`（shared/preload/ipc 同步），位移≥4px 才开始拖动并抑制展开，松手写回 `capsuleBounds`；胶囊整体可点击展开。
+- 决策：`Popover` 的 document mousedown 外部点击判断把 portal 出来的 `.pop/.dp-pop/.overlay` 视为内部（`FLOATING_LAYER_SELECTOR` + `isInsideFloatingLayer`，见 `src/renderer/src/components/anchoredPosition.ts`），修复完整窗口 composer 日期面板一点就关闭的问题。
+- 决策：桌面形态（widget/capsule）不使用 tokens 里的 08 原型大投影 `--shadow-widget/--shadow-capsule`，改为基于 tokens 的轻投影 + 1px 内描边。理由：widget 窗口 `transparent: true`，大投影在浅色桌面上会渲染成一块灰色矩形（用户测试反馈 #1）；tokens.css 保持原样，仅在 app.css 窗口形态规则覆盖。
+- 理由与证据：用户 m02712 的 7 项反馈；CDP 验证 boxShadow 变化、胶囊单击/拖动、`.dp-pop` 内点击不再关闭父 Popover；截图 `.agents/reports/screens/m6-fix-datepicker.png`。
+- 影响：新增 3 个 IPC 通道与 4 个单测；`docs/04` IPC 表为最小补充（与 D4 同类偏差），最终答复说明。

@@ -24,3 +24,7 @@
 2026-11-21 23:40 | create | C:\Users\lazasons\Desktop\桌面待办-交付物\使用说明.txt | 交付给用户的启动/路径/SmartScreen/数据备份/快捷键/卸载说明
 2026-11-21 23:40 | update | release/*.exe + 桌面交付目录 | 用包含挂件高度修正的代码重新打包（portable 97,690,655B / setup 106,239,961B），复制到桌面交付目录
 2026-11-21 23:40 | update | .agents/open-items.md | 记录 workspace GUI 限制为用户可见问题、已通过桌面交付目录规避
+2026-11-22 00:45 | fix | src/renderer/src/styles/app.css, src/renderer/src/app/Capsule.tsx, src/main/windows.ts, src/main/ipc.ts, src/preload/index.ts, src/shared/types.ts, src/renderer/src/components/Popover.tsx, src/renderer/src/components/anchoredPosition.ts | 用户 m02712 的 4 项 BUG 修复：轻投影去灰色底板、胶囊整块单击展开/自绘拖动、日期浮层内嵌点击不关闭
+2026-11-22 00:45 | test | src/renderer/src/components/anchoredPosition.test.ts | 新增 4 用例（isInsideFloatingLayer），全量 12 文件 165 用例通过
+2026-11-22 00:45 | create | design/prototype-adjust/ | 临时调整原型 A/B/C（不改 design/app），含 CHANGES.md；供用户确认后再同步
+2026-11-22 00:45 | update | .agents/memory/decisions.md (D9), open-items.md | 胶囊自绘拖动/内嵌浮层/轻投影决策；临时原型待确认项
