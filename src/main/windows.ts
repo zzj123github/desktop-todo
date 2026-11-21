@@ -61,17 +61,18 @@ function preloadPath(): string {
   return join(__dirname, '../preload/index.js')
 }
 
-function loadView(win: BrowserWindow, view: 'widget' | 'manager' | 'quickadd'): void {
+function loadView(
+  win: BrowserWindow,
+  view: 'widget' | 'manager' | 'quickadd',
+  params: Record<string, string> = {}
+): void {
+  const file = view === 'quickadd' ? 'quickadd.html' : 'index.html'
+  const search = new URLSearchParams({ view, ...params }).toString()
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   if (devUrl) {
-    void win.loadURL(
-      `${devUrl}/${view === 'quickadd' ? 'quickadd.html' : 'index.html'}?view=${view}`
-    )
+    void win.loadURL(`${devUrl}/${file}?${search}`)
   } else {
-    void win.loadFile(
-      join(__dirname, `../renderer/${view === 'quickadd' ? 'quickadd.html' : 'index.html'}`),
-      { search: `?view=${view}` }
-    )
+    void win.loadFile(join(__dirname, `../renderer/${file}`), { search: `?${search}` })
   }
 }
 
@@ -461,8 +462,8 @@ export function createWindows(options: CreateWindowsOptions = {}): void {
   widgetWindow.once('ready-to-show', () => {
     if (!options.silent) showWidget()
   })
-  managerWindow = createManagerWindow()
-  loadView(managerWindow, 'manager')
+  // 完整窗口按需创建：常驻挂件时不必承担第二个渲染进程的内存开销
+  // （docs/07 H：挂件常驻内存 < 300MB）。首次打开由 showManager() 懒加载。
   bindDisplayListeners()
 }
 
@@ -497,11 +498,50 @@ export function toggleWidget(): void {
   else showWidget()
 }
 
+function revealManager(): void {
+  const win = managerWindow
+  if (!win || win.isDestroyed()) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+/**
+ * 取得完整窗口；未创建或已被销毁（渲染层 window.close()）时按需创建。
+ * @param initialView 首次打开时要定位的内置视图（Alt+1..5），通过 URL 参数传递
+ */
+function ensureManagerWindow(initialView?: string): BrowserWindow {
+  if (managerWindow && !managerWindow.isDestroyed()) return managerWindow
+  const win = createManagerWindow()
+  managerWindow = win
+  loadView(win, 'manager', initialView ? { nav: initialView } : {})
+  return win
+}
+
 export function showManager(): void {
-  if (!managerWindow || managerWindow.isDestroyed()) return
-  if (managerWindow.isMinimized()) managerWindow.restore()
-  managerWindow.show()
-  managerWindow.focus()
+  const win = ensureManagerWindow()
+  if (win.webContents.isLoadingMainFrame()) {
+    win.once('ready-to-show', revealManager)
+    return
+  }
+  revealManager()
+}
+
+/** 打开完整窗口并定位到指定内置视图（全局快捷键 Alt+1..5） */
+export function showManagerView(viewId: string): void {
+  if (!managerWindow || managerWindow.isDestroyed()) {
+    const win = ensureManagerWindow(viewId)
+    win.once('ready-to-show', revealManager)
+    return
+  }
+  if (managerWindow.webContents.isLoadingMainFrame()) {
+    managerWindow.webContents.once('did-finish-load', () => {
+      broadcast('app:navigate', { viewId })
+    })
+  } else {
+    broadcast('app:navigate', { viewId })
+  }
+  revealManager()
 }
 
 export function broadcast(channel: string, payload?: unknown): void {

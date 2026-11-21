@@ -12,6 +12,7 @@ import { app, Menu, Tray, nativeImage } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { MenuItemConstructorOptions, NativeImage } from 'electron'
+import { buildTrayMenuTemplate, formatTrayTooltip } from './tray-menu'
 import { countTodayPending } from './repo/tasks'
 import { getBooleanSetting } from './settings'
 import { isLoginItemEnabled, setLaunchAtLogin } from './login'
@@ -63,62 +64,32 @@ function loadTrayIcon(): NativeImage | null {
 }
 
 function tooltipText(): string {
-  let pending = 0
   try {
-    pending = countTodayPending()
+    return formatTrayTooltip(countTodayPending())
   } catch {
     // DB 尚未打开/已关闭：只显示标题
-    return '桌面待办'
+    return formatTrayTooltip(null)
   }
-  return `桌面待办 · 今天 ${pending} 项`
 }
 
 function menuItems(): MenuItemConstructorOptions[] {
-  const widgetVisible = isWidgetVisible()
-  const loginChecked = (() => {
-    try {
-      return isLoginItemEnabled()
-    } catch {
-      return getBooleanSetting('launchAtLogin')
+  return buildTrayMenuTemplate({
+    widgetVisible: isWidgetVisible(),
+    loginChecked: (() => {
+      try {
+        return isLoginItemEnabled()
+      } catch {
+        return getBooleanSetting('launchAtLogin')
+      }
+    })(),
+    actions: {
+      toggleWidget,
+      showWidget,
+      showManager,
+      setLaunchAtLogin,
+      quit: () => app.quit()
     }
-  })()
-
-  return [
-    {
-      label: widgetVisible ? '隐藏挂件' : '显示挂件',
-      click: () => {
-        toggleWidget()
-      }
-    },
-    {
-      label: '快速添加',
-      click: () => {
-        showWidget()
-      }
-    },
-    {
-      label: '打开完整窗口',
-      click: () => {
-        showManager()
-      }
-    },
-    { type: 'separator' },
-    {
-      label: '开机自启',
-      type: 'checkbox',
-      checked: loginChecked,
-      click: (item) => {
-        setLaunchAtLogin(item.checked)
-      }
-    },
-    { type: 'separator' },
-    {
-      label: '退出',
-      click: () => {
-        app.quit()
-      }
-    }
-  ]
+  }) as unknown as MenuItemConstructorOptions[]
 }
 
 function updateTooltip(): void {

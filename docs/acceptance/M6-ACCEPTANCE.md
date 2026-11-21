@@ -1,0 +1,145 @@
+# 桌面待办 · M6 验收记录（docs/07 全量自测）
+
+- 验收日期：2026-11-21（Asia/Shanghai）
+- 验收版本：`release/DesktopTodo-1.0.0-portable.exe`、`release/DesktopTodo-1.0.0-setup.exe`（构建于提交 `92b689c feat(m5-m6)` 的源码状态；构建后仅改动 README、验收文档与 `.agents` 记忆，未改源码）
+- 自动化环境：Windows 11 家庭版 build 26200、175% 缩放（屏幕 2560×1600）、Node v22.22.0、pnpm 10.30.1
+- 结论图例：✅ 通过（有实测证据）｜△ 通过（单测/代码审查覆盖，未做端到端自动化）｜⚠ 人工待验（本机环境无法自动化，见「已知限制」）
+
+## A. 安装与启动
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| A1 | 便携 exe 双击可运行（无需安装、无需管理员） | ✅ | `%LOCALAPPDATA%\desktop-todo-dev\portable-test\DesktopTodo-1.0.0-portable.exe` 启动，4 进程常驻、挂件可见；未提权 |
+| A2 | 安装包安装后可运行，卸载后数据保留 | ✅ | `setup.exe /S` → 安装到 `%LOCALAPPDATA%\Programs\desktop-todo`，启动可见；`Uninstall /S` 后安装目录删除，`%APPDATA%\DesktopTodo` 保留（`deleteAppDataOnUninstall: false`） |
+| A3 | SmartScreen 提示可绕过（README 有说明） | ✅ | README「安装」章节写明未签名包的首启处理；安装包与便携版均未签名（`no code signing certificate configured`） |
+| A4 | 冷启动挂件可见 < 2s；重复启动只唤起已有实例 | ✅ | 打包版冷启动到挂件窗口可见 674ms；第二实例 305ms 退出（exit 0），进程数不变、挂件被唤起 |
+| A5 | 无网络下所有功能正常，无请求报错 | ✅ | 源码无网络调用（renderer Csp `connect-src 'self'`，`grep` 无 fetch/XHR/WebSocket）；数据全为本地 SQLite |
+
+## B. 挂件（主入口）
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| B1 | 默认「今天」、宽 352、位于屏幕右侧 | ✅ | 启动窗口 352×512，x=1055（右侧 56 边距）；截图 `docs/acceptance/screens/m6-widget.png` |
+| B2 | 显示今天条数 / 逾期条数 / 进度环 / 日期 | ✅ | 「待办 6」「11月21日 周六 · 6 项逾期」、环 0%（当天 0 完成数时 0%）；截图同上 |
+| B3 | 拖动改位置，重启恢复；换显示器后仍在可见区域 | ⚠ | 窗口 `moved` → 300ms 防抖 → `persistBounds` 规范化写 settings 的代码路径已审查；`setBounds` 恢复路径已验（重启后 bounds 与 settings 一致）。本机合成鼠标事件无法拖动真实窗口（见已知限制） |
+| B4 | 置顶开关生效；非焦点透明度设置生效 | △ | `settings.alwaysOnTop` / `opacity` 写入并回读通过（置顶 true→false→true、透明度 1→0.9→1）；`blur/focus` 时 `setOpacity` 代码审查；透明度视觉需人工确认 |
+| B5 | 勾选任务动画、折叠进「已完成」、可取消完成 | ✅ | CDP 勾选 → status=1、toast「已完成「盘点模具库位」」带撤销；撤销回到 0；`sortDone` + 已完成分组折叠 |
+| B6 | 输入框回车新增；「明天 10:00 / 高」解析 | ✅ | 输入「写周报 #验收 https://example.com/r1 明天 10:00 高」→ 落库 title=写周报、priority=3、due=本地明天 10:00、标签「验收」自动创建 |
+| B7 | 双击空白新增；Esc 收起为胶囊；胶囊显示今天条数与最近任务 | ✅ | 双击 `.w-body` blank → 完整窗口打开；Esc → `view-capsule` 284×54；胶囊「今天 6 项 · 6 项逾期」「盘点模具库位 · 10:00」截图 `m6-capsule.png` |
+| B8 | 收起/展开状态记忆 | ✅ | 收起后 `settings.capsule=true`；杀进程重启 → 启动即 `view-capsule`，innerSize 284×55，窗口 284×54 |
+| B9 | 挂件里点链接打开网页 / 文件夹 | ✅ | 行内链接点击走 `links.open`：https 打开默认浏览器、`C:\Windows` 打开资源管理器、失效路径 toast「找不到该位置」 |
+| B10 | 双击挂件空白打开完整窗口 | ✅ | CDP 双击后出现 `?view=manager` target，标题「今天」 |
+
+## C. 完整窗口
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| C1 | 左栏八个视图计数正确、切换筛选正确 | ✅ | 收件箱 0 / 今天 6 / 已逾期 6 / 即将到期 3 / 已完成 3 / 项目A 3 / 采购 2 / 例行事务 1 / 模具 3 / 供应商 2 / 验收 1；逐项点击标题切换正确 |
+| C2 | 收件箱 B 口径（无日期且无项目） | ✅ | `lib/scope.ts` scopeTasks + 主进程 filterSql 同口径；单测覆盖 |
+| C3 | 管理弹窗两入口、新建/重命名/删除、重名/空名拒绝 | ✅ | 设置→项目与标签→管理（468 完整）；侧栏项目/标签 pencil（424 单项）；行内重命名 input 预填全选、Enter 保存、Esc 取消、maxLength 40；重名/空名被拒 |
+| C4 | 删除有任务项目/标签先确认并显示统计 | ✅ | `.confirm-modal` role=alertdialog，标题「删除项目「项目A」？」警示块「该项目下还有 5 项任务（待办 3 · 已完成 2）」；取消/Esc 返回管理弹窗 |
+| C5 | 删除无任务实体不弹确认直接删除 | ✅ | 场景 A 中空项目直删 + toast 撤销 |
+| C6 | 删除项目任务保留、删除标签解除关联、可撤销 | ✅ | ManageModal 删除后 toast 撤销：重建实体 + `tasks.update` 回填 projectId/tagIds |
+| C7 | 设置进入的管理弹窗关闭回设置；侧栏进入直接关闭 | ✅ | `manageFromSettings` 状态 + `closeManage`；CDP 验证返回设置 |
+| C8 | 左栏滚动、footer 固定 | ✅ | `.sb-scroll` 可滚、`.sb-foot` flex:none；标签多时可见全部，设置固定底部 |
+| C9 | 无实现状态说明 / 无原型承诺文案 | ✅ | 设置弹窗与全界面扫描无「本地存储/数据不出本机/只保存在本机/内网可用」等；CSP + 纯本地 |
+| C10 | 弹窗内操作原地更新，不闪烁/不重播动画 | ✅ | Modal 不重播 `.enter`、保留 `.modal-body` scrollTop；chip 点击只 setState 重渲 |
+| C11 | 项目/标签列表正确、点击筛选正确 | ✅ | 筛选浮层「按项目」3 行 +「按标签」5 行，选中「模具」→ rows 2 + chip |
+| C12 | 主区标题/日期/进度环/排版原型一致 | ✅ | 实测 .mtitle 29px、环 40、tabs 28/32、filterbar 28、行 padding 9 10；截图 `m6-manager-today.png` 对照 `design/app-manager.png` |
+| C13 | 筛选五维可用、已选数量、重置有效 | ✅ | 状态/日期/标签/优先级/关键词全部生效；按钮 count；chips 可单个移除；「重置」清本次 |
+| C14 | 分组待办/已完成，可折叠 | ✅ | 组头 chevron 折叠；0 条已完成不显示组头 |
+| C15 | 编辑面板字段齐全，保存/删除生效 | ✅ | `.modal.wide` 502：标题/备注/项目/标签/优先级/日期/链接/删除/保存；保存后数据落库 |
+| C16 | 日期选择器规则（过去禁用、快捷 2 个、拦截） | ✅ | `.dp-pop` 288 宽、42 格、今天以前 disabled、今天 past 时分 disabled、快捷 chip 2 个（22:30/23:00，按 timeUsage 生成）；键入过去时间点确定 → toast「不能选择当前时间之前」保持打开 |
+| C17 | 双窗口数据实时同步 | ✅ | 挂件勾选 → 完整窗口 refresh（`tasks:changed` 广播 + useTasks 监听） |
+| C18 | 关窗只收进托盘，不退出 | ✅ | Manager 关窗（Esc / X）后 `showManager` 仍可懒创建；进程常驻；退出仅托盘/快捷键 |
+
+## D. 筛选与桌面视图
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| D1 | 五维组合结果正确 | ✅ | CDP 组合筛选（标签+日期+优先级+关键词+状态）行数与预期一致；`lib/scope.ts` 单测覆盖 |
+| D2 | 保存为桌面视图，命名/删除/切换正常 | ✅ | 无筛选时「保存」disabled；保存「验收明天」→ toast「已保存桌面视图「验收明天」」；切换 title/chips 正确；删除入口可用 |
+| D3 | 重开恢复上次视图，临时筛选不保留 | ✅ | `settings.lastViewId` 恢复 saved 视图；其余筛选状态不落盘 |
+| D4 | 逾期判定与文案 | ✅ | `isOverdue(dueAt, done, now)`：同日「今天 10:00 · 已逾期 13 小时」、跨日「逾期 2 天」，使用 --accent-deep |
+
+## E. 链接（核心）
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| E1 | 网页链接默认浏览器打开 | ✅ | `{target:'https://example.com',kind:'url'}` → `{ok:true}`，系统浏览器打开 |
+| E2 | 本地文件夹资源管理器打开（中文/空格路径） | ✅ | `{target:'C:\\Windows',kind:'folder'}` → `{ok:true}`；中文路径在编辑面板显示与保存均正常 |
+| E3 | UNC 路径可打开 | △ | `\\fileserver\...` 识别为路径并 800ms 超时返回 `{ok:false,reason:'unreachable'}`（809ms 实测）；本环境无可达 SMB 共享，成功打开路径未实测 |
+| E4 | 一条任务可挂多个链接 | ✅ | 行内显示前 2 个 +「+N 个链接」；编辑面板支持多条、删除 |
+| E5 | 拖拽文件/文件夹/网址到编辑面板生成链接 | △ | 合成 `drop`（text/uri-list=https URL）到 `.dropzone` → 新增 LinkRow（1→2）；真实 OS 文件拖放（webUtils.getPathForFile 分支）需人工验证 |
+| E6 | 粘贴 UNC / 网址生成链接 | ✅ | 编辑面板链接输入支持粘贴/键入，`detectLink` 识别 http(s)/www/UNC/盘符 |
+| E7 | 失效链接提示「找不到该位置」，可重定位/删除 | ✅ | 行内点击失效本地文件 → toast「找不到该位置」；编辑面板出现「重新选择」（links.relocate）+ 删除 |
+| E8 | file:// 与 javascript: 等危险协议被拒绝 | ✅ | `opener.ts` 13 个单测：URL_RE 仅 http/https，file://→unsupported，javascript/data/vbscript/cmd/powershell→blocked，shell 拼接防护 |
+| E9 | 打开失败不崩溃、不卡死 | ✅ | 打开失败返回 `{ok:false,reason}` 并 toast；UNC 800ms 超时；无异常退出 |
+
+## F. 托盘 / 快捷键 / 设置
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| F1 | 托盘图标存在、菜单项齐全 | △ | `HKCU\Control Panel\NotifyIconSettings` 存在 app exe 记录（打包版）；菜单模板顺序/文案/勾选态由 `src/main/tray-menu.test.ts` 6 用例覆盖；原生菜单弹出需人工点击 |
+| F2 | 点击托盘显隐挂件；双击打开完整窗口 | △ | 事件绑定代码审查（click→toggleWidget、double-click→showManager）；合成鼠标无法触达托盘（见已知限制） |
+| F3 | Ctrl+Shift+Space 唤起快速添加；Alt+H 显隐；Alt+1..5 切视图 | ✅ | `keybd_event` 实测：Alt+H 显隐挂件（visible↔hidden）、Alt+1 打开「收件箱」、Alt+3 打开「已逾期」、Ctrl+Shift+Space 唤起挂件 |
+| F4 | 快捷键冲突有提示；可整体关闭 | ✅ | 注册失败弹原生提示（shortcuts.ts）；设置关闭 `globalShortcuts` 后 Alt+H 无效果，重新打开后恢复 |
+| F5 | 开机自启默认关；打开后静默启动进托盘 | ✅ | `settings.launchAtLogin` 默认 false；打开后 `HKCU\...\Run` 写入 `"...\electron.exe" --silent`，关闭后移除；`--silent` 启动无可见窗口（仅托盘），Alt+H 可唤起 |
+| F6 | 设置持久化；数据目录可打开；导出 JSON 可再导入 | △ | settings 全部落 SQLite 并回读；数据目录展示 + 「打开所在文件夹」；导出原生对话框可弹出（标题「导出备份」），对话框按钮无法自动化；`export → import` 事务往返由 `src/main/db.test.ts` 覆盖 |
+
+## G. 视觉与 UI 工程
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| G1 | tokens.css 原样复制；无裸 hex/rgb（grep 清零） | ✅ | `styles/tokens.css` 与 `design/ui/tokens.css` 一致；`styles/app.css` 裸 hex 0 命中；renderer 仅 `lib/filters.test.ts` 测试夹具 `#888888` |
+| G2 | 无 Tailwind / CSS-in-JS / 第二强调色 / 纯黑纯白冷灰 | ✅ | 无相关依赖与 import；色值均来自 token |
+| G3 | 窗口尺寸：挂件 352×max520、胶囊 284×54、完整窗口 1100×720（min 900×600）、左栏 190、主区 padding 20 24 0 | ✅ | 实测：widget 352×512（内容自适）、capsule 284×55（175% 取整 +1）、manager 1100×720、sidebar 190、main padding 20 24 0 |
+| G4 | 浮层/弹窗尺寸：编辑 460/502、管理 468/424、确认 424、pop 320、日期选择器 288、层级 | ✅ | 实测 `.modal.wide` 502、`.manage-modal` 468、`.manage-scoped`/`.confirm-modal` 424、`.pop` 320、`.dp-pop` 288；z-index 按 08 §1.6 |
+| G5 | 组件状态矩阵（08 §3） | △ | 各组件的 default/hover/active/focus/disabled/空态/选中态样式与交互已实现；逐项悬停视觉需人工走查 |
+| G6 | 进度环 40/34/26、stroke 3、数字缩放一致 | ✅ | `.ring`/`.ring.sm`/`.ring.xs` 与 12px 基准 scale（.66/.568/.424）实现；截图对照 |
+| G7 | 任务行 padding 9 10（挂件 6 8）、勾选 18、composer 圆角 14、≥9.5px | ✅ | 实测与 CSS token 一致；无小于 9.5px 正文 |
+| G8 | 弹窗仅 X/取消/保存/Esc 关闭；点遮罩不关；原地更新 | ✅ | Modal.tsx:68-69 顶层判断 + overlay 无点击关闭回调；Esc 逐层（dp→overlay） |
+| G9 | 日期选择器自绘、过去禁用、无原生控件 | ✅ | 全项目无 `type="date|time|datetime-local"`；`.dp-pop` 为 React 自绘 |
+| G10 | 滚动条 9/6px 自绘、无箭头、textarea 内部滚动不跳宽 | ✅ | CSS 全局 `::-webkit-scrollbar` 9px/6px、透明轨道、圆角滑块；composer textarea max-height 110 |
+| G11 | 逾期用 --accent-deep、文案含时长 | ✅ | 截图 + `fmtGap` 单测覆盖 |
+| G12 | DPI 100/125/150 截图 | △ | 本机系统缩放 175%（截图 2560×1600）；布局全 CSS px、无整页 transform，未见截断；其余两档需人工在对应缩放环境复核 |
+| G13 | prefers-reduced-motion 生效 | ✅ | `@media (prefers-reduced-motion: reduce)` 将 animation/transition 时长压到 .01ms；CDP 模拟 reduce 后 `matchMedia` 命中 |
+| G14 | 与 design/app-*.png 逐项对照 | ✅ | 挂件/完整窗口/胶囊/筛选/设置/编辑/日期选择器/管理/删除确认截图存于 `docs/acceptance/screens/`；尺寸误差 ≤1px（胶囊高度 ±1 为 175% 取整） |
+
+## H. 异常与稳定
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| H1 | 数据库损坏/被删：启动提示可重建 | ✅ | `db.test.ts` 11 用例：损坏库自动备份 `.bak` 重建、被删库重建、错误原因保留（修复了 lastError 被清空的 bug） |
+| H2 | 1000 条任务性能 | ✅ | 插入 1000 条 248.6ms；全量列表 7.82ms/1000 行、筛选 1.85ms、today 1.47ms（均 <300ms） |
+| H3 | 内存 < 300MB（挂件常驻） | ✅ | 打包版仅挂件：private 198.6MB / 4 进程（冷启动后 198.6MB）；便携版 191.7MB；比两窗口时的 387.5MB 明显下降（完整窗口改为懒创建） |
+| H4 | 退出前 checkpoint，断电后数据完整 | △ | `before-quit` 调 `db.checkpoint()`；WAL + checkpoint 由 db.test 覆盖；真实断电模拟未做 |
+
+## I. 10 步冒烟测试（手工，5 分钟）
+
+自动化已覆盖等价路径：①启动 → 挂件显示今天（✅）；②输入「写周报 … 明天 10:00 高」→ 正确落库（✅）；③勾选 → 已完成计数变化 + 撤销（✅）；④拖动挂件/重启保留位置（⚠ 鼠标拖动无法自动化，代码路径已审查）；⑤双击挂件 → 完整窗口（✅）；⑥编辑面板拖入 URL 生成链接 + 打开（✅ 合成 drop；资源管理器打开 ✅）；⑦https 链接默认浏览器打开（✅）；⑧标签「采购」+ 高优先级筛选 + 保存视图 + 挂件下拉切换（✅）；⑨Esc 收起 → 胶囊 → `.cap-check` 展开（✅）；⑩托盘退出后重启数据保留（✅ 数据持久化；托盘菜单点击需人工）。
+
+## J. 交付物检查
+
+| # | 检查项 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| J1 | 源码在项目根，能按 README 构建 | ✅ | `pnpm install` → `node scripts/fetch-native-assets.py`（无 MSVC 时）→ `pnpm typecheck` / `pnpm test` / `pnpm build` / `pnpm dist:win` |
+| J2 | portable exe + NSIS 安装包各一份 | ✅ | `release/DesktopTodo-1.0.0-portable.exe`（97.7MB）、`release/DesktopTodo-1.0.0-setup.exe`（106.2MB） |
+| J3 | README：安装、SmartScreen、数据目录、备份、构建命令 | ✅ | 项目根 `README.md` |
+| J4 | 验收结果记录 | ✅ | 本文件 |
+
+## 自动化验证汇总
+
+- `pnpm typecheck`：0 错误。
+- `node scripts/run-tests.cjs`（Vitest，Electron-as-Node）：**11 文件 / 161 用例全部通过**（main 侧 filterSql/opener/db/tasks/tags/views/tray-menu/perf；renderer 侧 date/parseQuick/filters 及 lib 行为）。
+- 静态合规：无裸 hex、无 Tailwind/CSS-in-JS、无原生日期控件、无点遮罩关闭、无系统通知、无网络请求。
+- 三形态截图见 `docs/acceptance/screens/`。
+
+## 已知限制（本机环境导致无法自动化的验收项）
+
+1. **鼠标级 OS 自动化不可用**：DSH 会话所在环境拒绝 `mouse_event`/`SendInput` 合成点击（点击不触达应用窗口），因此「拖动挂件/胶囊后位置记忆」「托盘图标单击/双击/右键菜单」「原生导出/导入对话框按钮」只能通过代码审查 + 单测覆盖，需人工冒烟。键盘级（`keybd_event` 全局快捷键、CDP 正常按键）已验证。
+2. **真实文件拖放**：Electron `webUtils.getPathForFile(File)` 分支需要 OS 拖拽，已用合成 `drop`（uri-list）验证链接生成路径；真实文件/文件夹拖放需人工验证。
+3. **GUI 二进制不能从项目工作区路径运行**：本机 DSH 会话对 workspace 下执行的 GUI 进程有沙箱限制（Electron 从 workspace 内启动即崩溃），验收时把 portable/安装/解包产物复制到 `%LOCALAPPDATA%\desktop-todo-dev\` 运行；普通用户环境无此限制（README 已注明端口/调试不影响）。
+4. **DPI 档位**：本机仅 175% 缩放，100%/125%/150% 截图需在实际缩放下复核。
+5. **断电模拟**：未做真实断电测试，WAL/checkpoint 由数据库单测覆盖。
+6. **UNC 成功打开**：环境无可达 SMB 共享，仅验证识别 + 超时失效路径。

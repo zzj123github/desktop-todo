@@ -136,7 +136,9 @@ export function FilterBar({
   const resetScopes = (): void => onSetFilter({ ...filter, tagIds: [] })
 
   const clickDateMode = (mode: DateRow['mode']): void => {
-    onSetDate(filter.date.mode === mode ? 'any' : mode)
+    // 原型（interactions.js filterPopHtml/date 分支）：行点击直接应用该日期范围，再次点击同一行不取消；
+    // 取消请用「重置」或清除 chips。
+    onSetDate(mode)
   }
 
   const resetDate = (): void => onSetDate('any')
@@ -299,22 +301,18 @@ export function FilterBar({
 
       {openPop === 'scopes' ? (
         <Popover anchor={scopesRef.current} onClose={() => closePop('scopes')}>
-          <div className="pop-title">{`${zh.common.project} / ${zh.common.tag}`}</div>
-          {projects.length > 0 ? (
-            <>
-              <div className="pop-sec">{zh.common.project}</div>
-              <div className="pop-list">{projects.map(renderScopeRow)}</div>
-            </>
-          ) : null}
-          {tags.length > 0 ? (
-            <>
-              <div className="pop-sec">{zh.common.tag}</div>
-              <div className="pop-list">{tags.map(renderScopeRow)}</div>
-            </>
-          ) : null}
-          {projects.length === 0 && tags.length === 0 ? (
-            <div className="pop-title">{zh.filter.noTags}</div>
-          ) : null}
+          <div className="pop-title">{zh.filter.byProject}</div>
+          <div className="pop-list">
+            {projects.length > 0 ? (
+              projects.map(renderScopeRow)
+            ) : (
+              <div className="pop-empty">{zh.filter.noTags}</div>
+            )}
+          </div>
+          <div className="pop-sec">{zh.filter.byTag}</div>
+          <div className="pop-list">
+            {tags.length > 0 ? tags.map(renderScopeRow) : <div className="pop-empty">{zh.filter.noTags}</div>}
+          </div>
           <div className="pop-foot">
             <button type="button" className="ghost-btn" onClick={resetScopes}>
               {zh.filter.reset}
@@ -328,7 +326,7 @@ export function FilterBar({
 
       {openPop === 'date' ? (
         <Popover anchor={dateRef.current} onClose={() => closePop('date')}>
-          <div className="pop-title">{zh.filter.date}</div>
+          <div className="pop-title">{zh.filter.byDate}</div>
           <div className="pop-list">
             {DATE_ROWS.map((row) => (
               <button
@@ -344,14 +342,14 @@ export function FilterBar({
               </button>
             ))}
           </div>
-          <div className="pop-sec">{zh.filter.custom}</div>
+          <div className="pop-sec">{zh.filter.customDate}</div>
           <DateTimePicker
             mode="date"
             value={customValue}
             onChange={pickCustomDate}
             usage={timeUsage}
             onPickTime={onTimeUsage}
-            ariaLabel={zh.filter.custom}
+            ariaLabel={zh.filter.customDate}
           />
           <div className="pop-foot">
             <button type="button" className="ghost-btn" onClick={resetDate}>
@@ -366,7 +364,10 @@ export function FilterBar({
 
       {openPop === 'priority' ? (
         <Popover anchor={priorityRef.current} onClose={() => closePop('priority')}>
-          <div className="pop-title">{zh.filter.priority}</div>
+          <div className="pop-title">
+            {zh.filter.byPriority}
+            <span className="pop-title-hint">{zh.filter.multiHint}</span>
+          </div>
           <div className="pop-list">
             {PRIORITY_ROWS.map((row) => (
               <button

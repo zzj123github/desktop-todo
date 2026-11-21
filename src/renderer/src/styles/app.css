@@ -891,3 +891,13 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 /* 胶囊形态：窗口即卡片，.cap-wrap 铺满窗口（原型里 cap-wrap 只用于桌面绝对定位） */
 .view-capsule .cap-wrap{position:absolute;inset:0;width:100%;height:100%;transition:none}
 .view-capsule .cap-wrap .capsule{cursor:grab}
+
+/* ── 筛选浮层标题补充（原型 pop-title 内的 faint 提示） ─────────── docs/08 §3.10 */
+.pop-title .pop-title-hint {
+  margin-left: 5px;
+  color: var(--faint);
+  font-family: var(--sans);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-400);
+  letter-spacing: 0;
+}

@@ -29,3 +29,31 @@
 
 - 现象：`electron` / `better-sqlite3` 安装后没有二进制。
 - 规避：`package.json` 的 `pnpm.onlyBuiltDependencies` 放行；但本项目实际用 `pnpm install --ignore-scripts` + `scripts/fetch-native-assets.py` 放置预编译二进制（本机无编译器）。
+
+## 2026-11-21 · 鼠标级 OS 自动化不可用（本机沙箱）
+
+- 现象：`mouse_event`/`SendInput` 合成的鼠标点击、拖动都不到达本应用窗口（点挂件收起按钮/拖动挂件/点托盘溢出箭头均无反应）；但 `keybd_event` 能触发全局快捷键（RegisterHotKey 系统级）。
+- 影响：拖动位置记忆、托盘菜单点击、原生对话框按钮、真实文件拖放无法自动验收，只能代码审查 + 单测 + 人工冒烟。
+- 规避：键盘交互用 `keybd_event`（`.agents/tmp/keys.ps1`）；页面内交互用 CDP `Runtime.evaluate`/`Input.dispatchKeyEvent`；截图用 CDP `Page.captureScreenshot`（可指定 deviceMetrics）。
+
+## 2026-11-21 · PowerShell 5.1 执行无 BOM UTF-8 脚本会误解码中文
+
+- 现象：`powershell.exe -File xxx.ps1` 中含中文路径/进程名的脚本报「系统找不到指定的文件」，但同样代码用 `-Command` 传入却正常。
+- 原因：PowerShell 5.1 对无 BOM 的 UTF-8 脚本按 ANSI 解码，中文字符串被破坏。
+- 规避：自动化脚本保持纯 ASCII（用 `Get-ChildItem` 枚举 exe、用 `$_.Path` 过滤进程），或写带 BOM 的 UTF-8。生成脚本时可直接写 ASCII 版本。
+
+## 2026-11-21 · settings.get/set 入参是对象
+
+- 现象：`window.api.settings.get('capsule')` 报「参数格式不正确」。
+- 规避：`settings.get({ key })`、`settings.set({ key, value })`（preload 契约按 docs/04 的对象入参）。
+
+## 2026-11-21 · `node -e` 顶层 await 报 ERR_AMBIGUOUS_MODULE_SYNTAX
+
+- 规避：用 `node --input-type=module -e '...'`；或把脚本写成 `.mjs`。
+
+## 2026-11-21 · 打包下载需 npmmirror 镜像
+
+- `pnpm dist:win` 默认从 GitHub 下 Electron/NSIS 资源会 ECONNRESET；必须设置
+  `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 与
+  `ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/`。
+- 打包产物（win-unpacked/portable）在本机 workspace 内启动会崩，需复制到 `%LOCALAPPDATA%\desktop-todo-dev\` 下运行；启动时用 `Set-Location` 切到产物目录再 `Start-Process`，否则子进程继承 workspace cwd 同样受影响。

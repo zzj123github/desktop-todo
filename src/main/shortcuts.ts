@@ -13,10 +13,9 @@
 import { dialog, globalShortcut } from 'electron'
 import { getBooleanSetting } from './settings'
 import {
-  broadcast,
   getManagerWindow,
   getWidgetWindow,
-  showManager,
+  showManagerView,
   showWidget,
   toggleWidget
 } from './windows'
@@ -52,8 +51,8 @@ let lastFailures: ShortcutFailure[] = []
 let notifyTimer: NodeJS.Timeout | null = null
 
 function openView(viewId: ShortcutViewId): void {
-  showManager()
-  broadcast('app:navigate', { viewId })
+  // 完整窗口按需创建：传 initialView 让新窗口直接落在目标视图
+  showManagerView(viewId)
 }
 
 function definitions(): ShortcutDefinition[] {

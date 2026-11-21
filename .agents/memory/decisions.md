@@ -35,3 +35,24 @@
 - 决策：`pnpm dev` / `pnpm start` 与测试通过 `scripts/electron-runtime.cjs` 把 Electron 运行时复制到 `%LOCALAPPDATA%\desktop-todo-dev\electron-<version>` 再执行；打包产物验收也从 workspace 外目录启动。
 - 理由：本机 DSH 会话对 workspace 路径下执行的进程有沙箱限制：GUI 模式静默崩溃（0x80000003），`ELECTRON_RUN_AS_NODE` 下只能写 workspace（写 %TEMP% EPERM）。复制到 workspace 外即恢复正常；这是本机环境限制，不影响用户从任意目录运行打包后的 exe。
 - 影响：dev/test/验收脚本共享 `scripts/electron-runtime.cjs`；README 记录该限制仅存在于本机开发会话。
+
+## D6 · 2026-11-21 · 挂件窗口透明 + 同窗切换胶囊；bounds 规范化持久化
+
+- 决策：挂件 BrowserWindow `transparent: true`、`backgroundColor: '#00000000'`、`hasShadow: false`、`roundedCorners: false`，窗口不重建；挂件/胶囊在同一 renderer 内切换视图，主进程只 `setBounds`（挂件 352×自适应高，胶囊 284×54）。渲染层通过 `widget:setHeight`/`widget:setCollapsed` 驱动。
+- 理由：docs/08 视觉契约要求挂件圆角 16、胶囊圆角 999，非透明无边框窗口无法做到（Windows DWM 圆角达不到该半径）；docs/04 的 `transparent:false` 与 08 冲突时按 08 §7「08 > 04 示例」优先视觉契约。
+- 影响：`persistBounds` 只存位置 + 规范化尺寸（widget 宽 352、高 clamp(96,520)，capsule 284×54，manager 原样），避免 `getBounds` 在 175% 缩放下回读中间态把窗口撑大；`bindBoundsPersistence` 300ms 防抖。
+
+## D7 · 2026-11-21 · 完整窗口懒创建，Alt+1..5 用 `?nav=` 直达视图
+
+- 决策：启动只创建挂件窗口；`showManager()` 按需创建；已销毁后再次调用重建；`showManagerView(viewId)` 对未创建窗口用 `?view=manager&nav=<viewId>` 直接加载目标视图，对加载中窗口等 `did-finish-load` 再广播 `app:navigate`。
+- 理由：
+  1. 渲染层 `window.close()` 会真销毁 BrowserWindow（`close` 事件 preventDefault 拦不住），原 `showManager` 在销毁后直接 return，导致完整窗口再也打不开。
+  2. 内存指标 docs/07 H 要求挂件常驻 <300MB；原实现启动即建完整窗口，实测 private 387.5MB；懒创建后 198.6MB。
+  3. 快捷键首次唤起时渲染层尚未挂载，广播会丢；URL 参数 + 二次广播双保险。
+- 影响：`windows.ts` 导出 `ensureManagerWindow/revealManager/showManagerView`；`shortcuts.ts` 的 openView 改为 `showManagerView`；`Manager.tsx` 初始 nav 读 `?nav=` 并校验。
+
+## D8 · 2026-11-21 · 链接不可用的 UI 文案统一（missing/unreachable）
+
+- 决策：主进程保留 `reason: 'missing' | 'unreachable'` 区分（网络不可达更精确），渲染层统一按「找不到该位置」+ 重新选择/删除处理；判断集中在 `src/renderer/src/lib/links.ts` 的 `isLinkUnavailable(result)`。
+- 理由：docs/03-DATA-MODEL.md:127 规定失效统一返回 missing 并提示「找不到该位置」，docs/04 的 opener 片段只列 missing；主进程实现额外区分了 unreachable。保留区分可让日志/诊断更准确，UI 仍符合规格文案。
+- 影响：Manager/Widget/EditorModal 三处用同一 helper；docs/09 已登记 `lib/links.ts`。

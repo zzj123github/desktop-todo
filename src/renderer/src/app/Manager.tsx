@@ -74,7 +74,13 @@ export function Manager(): ReactElement {
 
   const { filter, setFilter, reset, counts, active, chips, toggleTag, togglePriority, setDate, setKeyword } = useFilter()
   const [tab, setTab] = useState<Tab>('all')
-  const [nav, setNav] = useState<Nav>({ type: 'today' })
+  const [nav, setNav] = useState<Nav>(() => {
+    // 全局快捷键 Alt+1..5 首次打开窗口时通过 ?nav= 指定落地视图（避免导航事件早于渲染层挂载）
+    const initial = new URLSearchParams(window.location.search).get('nav')
+    const simple: SimpleNavType[] = ['inbox', 'today', 'overdue', 'upcoming', 'done']
+    if (initial && (simple as string[]).includes(initial)) return { type: initial as SimpleNavType }
+    return { type: 'today' }
+  })
   const [pendingCollapsed, setPendingCollapsed] = useState(false)
   const [doneCollapsed, setDoneCollapsed] = useState(false)
   const [editor, setEditor] = useState<{ task: TaskDTO | null; initialDue?: number | null; initialTitle?: string } | null>(null)
@@ -333,12 +339,20 @@ export function Manager(): ReactElement {
     [openNew]
   )
 
-  // Ctrl+N / Ctrl+F（docs/01 FR-5.4）
+  // Ctrl+N / Ctrl+F / Esc（docs/01 FR-5.4、docs/04 无边框窗口）
+  // Esc：先由弹窗/浮层/日期选择器自行消费；无浮层时收起完整窗口（window.close() 被主进程拦截为 hide）。
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
         event.preventDefault()
         openNew()
+      }
+      if (event.key === 'Escape') {
+        if (document.querySelector('.overlay, .dp-pop, .pop')) return
+        const target = event.target as HTMLElement | null
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+        event.preventDefault()
+        window.close()
       }
     }
     window.addEventListener('keydown', onKey)

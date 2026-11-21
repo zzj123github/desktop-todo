@@ -11,3 +11,10 @@
 2026-11-21 | create | scripts/* | make-icons.py、fetch-native-assets.py、electron-runtime.cjs、dev-launch.cjs、run-tests.cjs、screenshot.ps1
 2026-11-21 | create | .agents/reports/m6-main-acceptance.md | task-3 主进程 M6 验收证据：docs/07 A/F/H 逐条对照、测试/性能实测、遗留 GUI 冒烟项
 2026-11-21 | update | electron-builder.yml, src/main/tray.ts, src/main/db.ts | 打包 tray.ico extraResources；托盘图标 packaged/dev 优先级；修复损坏库自动重建后 error 未暴露；新增 src/main/db.test.ts 与 src/main/repo/tasks.perf.test.ts
+2026-11-21 | update | docs/acceptance/M6-ACCEPTANCE.md, docs/acceptance/screens/* | M6 全量验收记录（docs/07 A–J 逐条 + 证据 + 已知限制）与三形态/弹窗截图归档
+2026-11-21 | update | src/main/windows.ts, src/main/shortcuts.ts, src/renderer/src/app/Manager.tsx | 完整窗口懒创建 + 销毁后重建；showManagerView 与 ?nav= 直达视图（修 window.close 后无法再打开、降内存 387.5→198.6MB）
+2026-11-21 | update | src/main/tray-menu.ts(+test), src/main/tray.ts | 托盘菜单模板抽纯函数 + 6 用例覆盖顺序/勾选/tooltip
+2026-11-21 | update | src/renderer/src/lib/links.ts, Manager/Widget/EditorModal | 链接不可用文案统一（missing/unreachable → 「找不到该位置」+ 重选/删除）
+2026-11-21 | update | src/renderer/src/app/Manager.tsx | 从设置进入的管理弹窗关闭后返回设置；Esc 关闭完整窗口（隐藏至托盘）
+2026-11-21 | update | README.md | 交付说明：安装/SmartScreen/数据目录与备份/快捷键/构建命令/目录结构/已知限制
+2026-11-21 | update | .agents/memory/project-overview.md, decisions.md, gotchas.md, open-items.md | M0–M6 完成状态、D6–D8 决策、沙箱与 PowerShell 坑、人工冒烟清单
