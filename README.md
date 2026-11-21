@@ -77,8 +77,8 @@ pnpm dist:nsis              # 只打安装包
 
 | 文件 | 说明 |
 | --- | --- |
-| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 97.7 MB，双击运行 |
-| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 106.2 MB |
+| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,691,335 B），双击运行 |
+| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,240,687 B） |
 | `release/win-unpacked/` | 解包目录（调试用） |
 
 本机无 MSVC 环境时，better-sqlite3 使用与 Electron ABI 匹配的预编译产物：`python scripts/fetch-native-assets.py`（脚本从 npmmirror 镜像取 Electron 与预编译 `.node`）。打包配置已设 `npmRebuild: false`，直接用预编译产物。
@@ -115,13 +115,18 @@ design/        UI 契约（tokens.css）与交互原型
 - 未签名 + 部分杀软可能对便携版做启发式拦截，可加入白名单后使用。
 - 高 DPI（125%/150%/175%）下窗口尺寸按 DIP 取整，个别窗口高度可能有 ±1px 差异。
 
-## 交付物校验（2026-11-21 重新打包）
+## 交付物校验（2026-11-22 重新打包）
 
 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- |
-| `DesktopTodo-1.0.0-portable.exe` | 97,690,655 B（93.2 MiB） | `e8e1d3c85bf3b51b256532a1…`（见 `release/` 下实际文件） |
-| `DesktopTodo-1.0.0-setup.exe` | 106,239,961 B（101.3 MiB） | `9b230b05eb6e2d6a2046c50a…` |
+| `DesktopTodo-1.0.0-portable.exe` | 97,691,335 B（93.2 MiB） | `135e1b7d37236cca78f3e91c7eb9ee1cab0b53fd7930147d5422b743229ac385` |
+| `DesktopTodo-1.0.0-setup.exe` | 106,240,687 B（101.3 MiB） | `0b50c5a3b3ab8f10004760481cf0797e907abf658b9e07a5636327d6476513c7` |
 
-本次重打包包含一项修正：空列表时挂件高度按内容自适应（此前会停在 512px 留下大块空白）。干净首次启动实测窗口 353×231，展开挂件、空态正常。
+本次重打包包含桌面形态的 4 项缺陷修复：
+
+- 挂件 / 胶囊下方不再出现灰色矩形底板（透明窗口改用轻投影 + 1px 内描边，不再用原型大投影）。
+- 胶囊整体可单击展开（此前只有左侧对勾圆可点）；整块可拖动，位移 ≥4px 才拖动、单击不会误拖。
+- 完整窗口输入框的日期面板可正常选择日期/时间（此前点击面板内部会关闭父浮层）。
+- 空列表时挂件高度按内容自适应（此前会停在 512px 留下大块空白）。
 
 桌面交付目录 `C:\Users\lazasons\Desktop\桌面待办-交付物\` 内即为本次校验的两个文件与 `使用说明.txt`。

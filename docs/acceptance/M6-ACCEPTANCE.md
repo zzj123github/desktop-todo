@@ -165,3 +165,30 @@
 - `explorer.exe` 模拟双击新 portable（桌面交付目录）→ 5 进程、可见窗口 `桌面待办` @ 1055,88、352×230 ✓。
 - 新 portable 第二实例（`--silent`）→ 解压后退出，进程数回到 5，单实例生效 ✓。
 - 新 setup.exe 静默安装 → 安装目录与 `resources\tray.ico` 就位；启动安装版 → 可见窗口 352×230 ✓；静默卸载 → 安装目录删除、`%APPDATA%\DesktopTodo` 数据保留 ✓（卸载完成是异步的，需等待约 10s）。
+
+## 补充验收（2026-11-22 00:50，用户测试反馈 7 项后：4 项 BUG 修复）
+
+用户测试反馈分两类：**BUG（直接修）** = 透明底色块、胶囊单击/拖动、完整窗口日期面板无法选择；**交互调整（先出临时原型待确认）** = 挂件/胶囊位置一致、三态互切、挂件输入折叠。以下为 BUG 修复的验收证据。
+
+| 反馈 | 根因 | 修复 | 验证 |
+| --- | --- | --- | --- |
+| 挂件/胶囊下有灰色底板 | 透明窗口沿用了 08 原型的大投影 `--shadow-widget/--shadow-capsule`，在浅色桌面上渲染成灰色矩形 | `src/renderer/src/styles/app.css` 桌面形态改用 token 派生轻投影 + 1px 内描边；`.unpinned` 更轻；tokens.css 未改 | CDP `getComputedStyle(...).boxShadow` = `0 4px 16px color(ink 10%) + 1px ink 8%`；OS 截图确认无灰色矩形 |
+| 胶囊只有左侧对勾可点开 | 胶囊主体是 `-webkit-app-region: drag` 拖动区，吞掉点击 | 改用 renderer pointer 事件 + 主进程 `setBounds`：新增 `widget:beginDrag/dragMove/endDrag`；整块可点，位移 ≥4px 才进入拖动并抑制展开 | CDP `Input.dispatchMouseEvent`：点胶囊中部 → `view-widget` ✓；点对勾圆 → 展开 ✓；拖动 6 步后仍 `view-capsule`（未误展开）且 `settings.capsuleBounds` 从 {994,77} 写回 {1162,182} ✓ |
+| 胶囊很难拖动 | 同上，只有拖动区可用 | 同上，整块可拖；松手写回 `capsuleBounds`（clamp 到 workArea） | 同上；另设 `.view-capsule .capsule{cursor:grab}`、`.dragging{cursor:grabbing}` |
+| 完整窗口输入框下方日期面板一点就关、无法选择 | `Popover` 的 outside-click 把 portal 出来的 `.dp-pop` 当成外部点击 | `anchoredPosition.ts` 增加 `FLOATING_LAYER_SELECTOR='.pop, .dp-pop, .overlay'` + `isInsideFloatingLayer()`；`Popover` mousedown 判断命中内嵌浮层则不关闭 | CDP：composer 日期浮层 → 打开 `.dp-pop` → 点 25 日 → `.pop`/`.dp-pop` 均保持打开 → 点「确定」→ 生效为「11月25日 00:30」并关闭；截图 `.agents/reports/screens/m6-fix-datepicker.png` |
+
+附带修复：空列表挂件高度（353×231，见上一节）。
+
+**自动化回归**：`pnpm typecheck` 0 错误；`node scripts/run-tests.cjs` **12 文件 / 165 用例全部通过**（新增 `src/renderer/src/components/anchoredPosition.test.ts` 4 用例）。
+
+**重打包产物（2026-11-22）**：
+- portable 97,691,335 B / SHA-256 `135e1b7d37236cca78f3e91c7eb9ee1cab0b53fd7930147d5422b743229ac385`
+- setup 106,240,687 B / SHA-256 `0b50c5a3b3ab8f10004760481cf0797e907abf658b9e07a5636327d6476513c7`
+- 已复制到 `C:\Users\lazasons\Desktop\桌面待办-交付物\` 覆盖旧版（`使用说明.txt` 同步更新）。
+
+**未实施（等待用户确认临时原型）**：
+1. 挂件 ↔ 胶囊切换后位置一致（与 docs/08 §2.4「胶囊位置独立记忆」冲突，需回写规范）。
+2. 主界面 / 挂件 / 胶囊三态互切（主界面标题行两个图标按钮；胶囊单击展开、双击进主界面）。
+3. 挂件添加任务默认折叠为小按钮，点击展开完整输入。
+
+临时原型：`design/prototype-adjust/index.html`（双击打开，离线可用，说明见同目录 `CHANGES.md`）。
