@@ -14,6 +14,10 @@ asar: true
 npmRebuild: false
 asarUnpack:
   - '**/*.node'
+# 托盘图标放在 asar 外，打包后由 tray.ts 从 process.resourcesPath 读取（dev 态读 build/）
+extraResources:
+  - from: build/tray.ico
+    to: tray.ico
 win:
   icon: build/icon.ico
   target:

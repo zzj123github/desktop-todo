@@ -20,7 +20,9 @@ desktop-todo/
 ├─ src/                      # 应用源码
 │  ├─ main/                  # Electron 主进程
 │  │  └─ repo/               # SQLite 数据访问
-│  ├─ preload/               # contextBridge 白名单
+│  ├─ preload/              # contextBridge 白名单
+│  ├─ shared/
+│  │  └─ types.ts            # 跨层 DTO / API 类型（main + preload + renderer 共用，纯类型）
 │  └─ renderer/              # React 渲染层
 │     └─ src/
 │        ├─ app/             # Widget / Manager / Capsule / QuickAdd
@@ -86,6 +88,8 @@ src/
 │     └─ views.ts
 ├─ preload/
 │  └─ index.ts          # contextBridge 白名单 API
+├─ shared/
+│  └─ types.ts          # 跨层 DTO / API 类型（纯类型，无运行时代码、无 Node 依赖）
 └─ renderer/
    ├─ index.html        # 主窗口 HTML 入口
    ├─ quickadd.html     # 快速添加小窗 HTML 入口
@@ -106,6 +110,7 @@ renderer (浏览器)  →  window.api (preload)  →  IPC  →  main (Node/Elect
 ```
 
 - `renderer/` **禁止**直接 import `main/` 或 `preload/` 源码，也禁止使用 Node API、`fs`、`path`、SQL；只能通过 `window.api` 访问能力。
+- `src/shared/types.ts` 是唯一的跨层类型层：main / preload / renderer 都可用 `import type` 引用；它只允许出现类型与 `type` 别名，禁止运行时代码与 Node/Electron 导入。preload 对外 `export type { ... } from '../shared/types'` 保持引用兼容。
 - `preload/` 只做 `contextBridge` 白名单和类型声明，不放业务逻辑、不发 SQL、不读文件。
 - `main/` 不 import `renderer/`；窗口只加载构建后的 HTML/JS。
 - `repo/` 只被 `main/` 调用；SQL 集中在 `repo/` 与 `db.ts`，不写进 `ipc.ts` 或组件。
@@ -201,10 +206,17 @@ desktop-todo/
 
 以下内容在实施中新增，先登记于此再使用：
 
-- `src/renderer/src/lib/`：渲染层共享模块目录，按领域聚合（`date.ts` 时间与逾期文案、`parseQuick.ts` 输入解析、`filters.ts` 筛选状态与 chips、`format.ts` 文本/链接格式化）。不为单个函数拆文件。
+- `src/renderer/src/lib/`：渲染层共享模块目录，按领域聚合（`date.ts` 时间与逾期文案、`parseQuick.ts` 输入解析、`filters.ts` 筛选状态与 chips、`format.ts` 文本/链接格式化、`links.ts` 链接打开结果判定）。不为单个函数拆文件。
 - `src/renderer/src/styles/`：`tokens.css`（从 `design/ui/tokens.css` 原样复制）、`app.css`（全局基础样式、`@font-face`、滚动条）、`inter-variable.woff2`、`noto-serif-variable.woff2`（从 `design/fonts/` 复制，随渲染层打包）。
 - `scripts/`：`make-icons.py`（生成 `build/icon.ico` / `tray.ico`）、`fetch-native-assets.py`（离线放置 Electron 与 better-sqlite3 预编译二进制）、`screenshot.ps1`（DPI 感知验收截图）、`run-tests.cjs`（用 Electron 自带 Node 运行 Vitest，解决 better-sqlite3 ABI 与浏览器同版本）、`dev-launch.cjs`（从工作区外副本启动 Electron，规避本机 workspace 路径下 GUI 进程限制）。
 - `vitest.config.ts`：M1 增加的 Vitest 根配置（node 环境、`src/**/*.test.ts`）。
+- `src/shared/types.ts`（M2 登记）：跨层 DTO / API 类型（`TaskDTO`、`FilterDTO`、`DesktopTodoApi` 等），只放类型；preload 从这里 `import type` 并 `export type { ... } from '../shared/types'` 对外转出，renderer 用 `import type` 引用，避免 renderer 直接 import preload 源码。
+- `src/renderer/src/app/`（M2/M3 登记）：页面与页面级组合，M0 只有 `main.tsx`，现按视图拆为 `App.tsx`（按 `?view=` 路由 + ToastProvider + 挂件/胶囊形态切换）、`Widget.tsx`、`Manager.tsx`、`Capsule.tsx`、`QuickAdd.tsx`、`FilterBar.tsx`（筛选行与四个浮层）、`SettingsModal.tsx`、`ViewMenu.tsx`（桌面视图下拉）。页面层只做组合与数据接线，不复制组件样式。
+- `src/renderer/src/components/`（M2 登记）：`Icons.tsx`、`anchoredPosition.ts`、`Button.tsx`、`IconButton.tsx`、`Checkbox.tsx`、`Chip.tsx`、`ProgressRing.tsx`、`EmptyState.tsx`、`Modal.tsx`、`Popover.tsx`、`Toast.tsx`、`LinkRow.tsx`、`TaskRow.tsx`、`DateTimePicker.tsx`、`Composer.tsx`、`EditorModal.tsx`、`ManageModal.tsx`、`DeleteConfirm.tsx`，与 docs/08 §6 落点一致。
+- `src/renderer/src/lib/links.ts`（M4 登记）：`isLinkUnavailable(result)` 统一「找不到该位置」判定（missing + 网络位置 unreachable，docs/03 第 127 行）。
+- `src/renderer/src/lib/scope.ts`（M2 登记）：九视图作用域、五维筛选、Tab、排序、分组、计数、进度环、胶囊摘要等纯函数；渲染层一次性拉全量任务后本地计算（IPC `FilterDTO` 无法表达收件箱/即将到期/保存视图的作用域语义）。
+- `src/renderer/src/hooks/useFilter.ts`、`useTimeUsage.ts`（M2 登记）：筛选状态与快捷时间使用统计（读 settings `timeUsage`，写入用 `settings.set`）。
+- `src/renderer/quickadd.html`（M5 登记）：快速添加独立窗口入口，与 `index.html` 共用同一 renderer bundle（`main.tsx?view=quickadd`）。
 - `docs/acceptance/`（M6）：验收截图与记录，只读证据，不参与运行时。
 - 依赖版本补充：`electron` 固定 `40.10.2`（满足 docs/04「Electron 32+」；33.x 在本机 Windows 11 build 26200 的 GUI 进程启动即崩溃，且 better-sqlite3 `12.11.1` 有对应 `electron-v143` 预编译包）。`electron-builder.yml` 的 `npmRebuild: false` 与此配套。
 

@@ -9,3 +9,5 @@
 2026-11-21 | create | src/renderer/src/styles/tokens.css | 从 design/ui/tokens.css 原样复制（M0 token 契约）
 2026-11-21 | create | build/icon.ico, icon.png, tray.ico, tray.png | scripts/make-icons.py 生成的打包/托盘图标（陶土方+白勾）
 2026-11-21 | create | scripts/* | make-icons.py、fetch-native-assets.py、electron-runtime.cjs、dev-launch.cjs、run-tests.cjs、screenshot.ps1
+2026-11-21 | create | .agents/reports/m6-main-acceptance.md | task-3 主进程 M6 验收证据：docs/07 A/F/H 逐条对照、测试/性能实测、遗留 GUI 冒烟项
+2026-11-21 | update | electron-builder.yml, src/main/tray.ts, src/main/db.ts | 打包 tray.ico extraResources；托盘图标 packaged/dev 优先级；修复损坏库自动重建后 error 未暴露；新增 src/main/db.test.ts 与 src/main/repo/tasks.perf.test.ts

@@ -1,12 +1,26 @@
 /**
- * windows · widget / manager / capsule / quickadd 窗口
- * Contract: docs/04-TECH-PLAN.md §窗口 · docs/08-UI-ENGINEERING-SPEC.md §2
+ * windows · widget / capsule / manager 窗口
+ * Contract: docs/04-TECH-PLAN.md §窗口 · docs/08-UI-ENGINEERING-SPEC.md §2 · Lead m00124/m00232
  *
- * 挂件与胶囊是同一个 BrowserWindow 内的两个 React 视图（不新建第二个窗口），
- * 从而共享状态、避免两个窗口的焦点竞争。完整窗口是独立 BrowserWindow。
+ * 挂件与胶囊是同一个 BrowserWindow 的两个形态（只 setBounds，不重建窗口）：
+ * - 挂件：352 宽，高度由 renderer 上报（widget:setHeight，夹 96..min(520, workArea.height)）；
+ * - 胶囊：284×54，位置由 renderer 拖动后上报（widget:saveCapsulePosition）。
+ * 透明窗口（CSS 画圆角/阴影），完整窗口保持不透明。
+ * bounds 持久化到 settings 的 widgetBounds / capsuleBounds / managerBounds，
+ * 结构 { x, y, width, height, displayId }，防抖 300ms。
  */
 import { BrowserWindow, screen, type Rectangle } from 'electron'
 import { join } from 'node:path'
+import type { SettingsKey } from '../shared/types'
+import {
+  getBooleanSetting,
+  getNumberSetting,
+  readBounds,
+  writeBounds,
+  writeSetting,
+  type WindowBoundsKey,
+  type WindowBoundsRecord
+} from './settings'
 
 export const WIDGET_WIDTH = 352
 export const WIDGET_MAX_HEIGHT = 520
@@ -23,9 +37,17 @@ const WIDGET_DEFAULT_MARGIN_TOP = 88
 const CAPSULE_DEFAULT_MARGIN_RIGHT = 56
 const CAPSULE_DEFAULT_MARGIN_BOTTOM = 70
 
+/** bounds 写库防抖（docs/04 §窗口：move/resize 300ms 防抖） */
+const BOUNDS_SAVE_DEBOUNCE_MS = 300
+
+export type WidgetMode = 'widget' | 'capsule'
+
 let widgetWindow: BrowserWindow | null = null
 let managerWindow: BrowserWindow | null = null
+let widgetMode: WidgetMode = 'widget'
 let quitting = false
+const boundsTimers = new Map<'widget' | 'capsule' | 'manager', NodeJS.Timeout>()
+let displayListenersBound = false
 
 export function setQuitting(value: boolean): void {
   quitting = value
@@ -42,23 +64,51 @@ function preloadPath(): string {
 function loadView(win: BrowserWindow, view: 'widget' | 'manager' | 'quickadd'): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   if (devUrl) {
-    void win.loadURL(`${devUrl}/${view === 'quickadd' ? 'quickadd.html' : 'index.html'}?view=${view}`)
+    void win.loadURL(
+      `${devUrl}/${view === 'quickadd' ? 'quickadd.html' : 'index.html'}?view=${view}`
+    )
   } else {
-    void win.loadFile(join(__dirname, `../renderer/${view === 'quickadd' ? 'quickadd.html' : 'index.html'}`), {
-      search: `?view=${view}`
-    })
+    void win.loadFile(
+      join(__dirname, `../renderer/${view === 'quickadd' ? 'quickadd.html' : 'index.html'}`),
+      { search: `?view=${view}` }
+    )
   }
+}
+
+// ---------------------------------------------------------------------------
+// 位置计算 / clamp（多显示器、负坐标副屏）
+// ---------------------------------------------------------------------------
+
+function clampBoundsToWorkArea(bounds: Rectangle, workArea: Rectangle): Rectangle {
+  const width = Math.max(1, Math.min(Math.round(bounds.width), workArea.width))
+  const height = Math.max(1, Math.min(Math.round(bounds.height), workArea.height))
+  const x = Math.min(Math.max(Math.round(bounds.x), workArea.x), workArea.x + workArea.width - width)
+  const y = Math.min(
+    Math.max(Math.round(bounds.y), workArea.y),
+    workArea.y + workArea.height - height
+  )
+  return { x, y, width, height }
 }
 
 /** 把矩形夹进某个显示器工作区，避免多显示器拔插后窗口消失 */
 export function clampToWorkArea(bounds: Rectangle): Rectangle {
-  const display = screen.getDisplayMatching(bounds)
-  const wa = display.workArea
-  const width = Math.min(bounds.width, wa.width)
-  const height = Math.min(bounds.height, wa.height)
-  const x = Math.min(Math.max(bounds.x, wa.x), wa.x + wa.width - width)
-  const y = Math.min(Math.max(bounds.y, wa.y), wa.y + wa.height - height)
-  return { x, y, width, height }
+  return clampBoundsToWorkArea(bounds, screen.getDisplayMatching(bounds).workArea)
+}
+
+function findDisplayById(displayId: number | undefined): Electron.Display | undefined {
+  if (displayId === undefined || displayId === null) return undefined
+  return screen.getAllDisplays().find((display) => display.id === displayId)
+}
+
+/** 恢复持久化位置：优先 displayId 对应显示器，找不到则夹到主屏工作区 */
+function resolveSavedBounds(saved: WindowBoundsRecord | null, fallback: Rectangle): Rectangle {
+  if (!saved) return clampToWorkArea(fallback)
+  const display = findDisplayById(saved.displayId)
+  const workArea = display ? display.workArea : screen.getPrimaryDisplay().workArea
+  return clampBoundsToWorkArea(
+    { x: saved.x, y: saved.y, width: saved.width, height: saved.height },
+    workArea
+  )
 }
 
 export function defaultWidgetBounds(): Rectangle {
@@ -81,20 +131,226 @@ export function defaultCapsuleBounds(): Rectangle {
   }
 }
 
-function createWidgetWindow(): BrowserWindow {
-  const bounds = defaultWidgetBounds()
+function widgetBoundsForMode(mode: WidgetMode): Rectangle {
+  if (mode === 'capsule') {
+    return resolveSavedBounds(readBounds('capsuleBounds'), defaultCapsuleBounds())
+  }
+  return resolveSavedBounds(readBounds('widgetBounds'), defaultWidgetBounds())
+}
+
+function displayIdFor(bounds: Rectangle): number {
+  return screen.getDisplayMatching(bounds).id
+}
+
+// ---------------------------------------------------------------------------
+// bounds 持久化（防抖）
+// ---------------------------------------------------------------------------
+
+function boundsKeyFor(kind: 'widget' | 'capsule' | 'manager'): WindowBoundsKey {
+  if (kind === 'manager') return 'managerBounds'
+  return kind === 'capsule' ? 'capsuleBounds' : 'widgetBounds'
+}
+
+function persistBounds(kind: 'widget' | 'capsule' | 'manager'): void {
+  const win = kind === 'manager' ? managerWindow : widgetWindow
+  if (!win || win.isDestroyed()) return
+  const bounds = win.getBounds()
+  // 形态尺寸是固定契约（08 §2.1：挂件宽 352、胶囊 284×54）。高 DPI 下 Windows
+  // 会把 setBounds 的 DIP 尺寸四舍五入到物理像素，getBounds 可能回读 ±1px 甚至
+  // 中间态尺寸；这里只持久化位置 + 规范化后的尺寸，避免下次启动把窗口撑大。
+  const width = kind === 'capsule' ? CAPSULE_WIDTH : kind === 'widget' ? WIDGET_WIDTH : bounds.width
+  const height =
+    kind === 'capsule'
+      ? CAPSULE_HEIGHT
+      : kind === 'widget'
+        ? Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(bounds.height, WIDGET_MAX_HEIGHT)))
+        : bounds.height
+  writeBounds(boundsKeyFor(kind), {
+    x: bounds.x,
+    y: bounds.y,
+    width,
+    height,
+    displayId: displayIdFor(bounds)
+  })
+}
+
+function scheduleBoundsSave(kind: 'widget' | 'capsule' | 'manager'): void {
+  const existing = boundsTimers.get(kind)
+  if (existing) clearTimeout(existing)
+  boundsTimers.set(
+    kind,
+    setTimeout(() => {
+      boundsTimers.delete(kind)
+      try {
+        persistBounds(kind)
+      } catch {
+        // 退出过程中设置表可能已关闭：忽略，避免崩溃
+      }
+    }, BOUNDS_SAVE_DEBOUNCE_MS)
+  )
+}
+
+function flushBoundsSaves(): void {
+  for (const [kind, timer] of boundsTimers) {
+    clearTimeout(timer)
+    boundsTimers.delete(kind)
+    try {
+      persistBounds(kind)
+    } catch {
+      // 同上
+    }
+  }
+}
+
+function bindBoundsPersistence(win: BrowserWindow, kind: 'manager'): void
+function bindBoundsPersistence(win: BrowserWindow, kind: 'widget'): void
+function bindBoundsPersistence(win: BrowserWindow, kind: 'manager' | 'widget'): void {
+  const handler = (): void => {
+    scheduleBoundsSave(kind === 'widget' && widgetMode === 'capsule' ? 'capsule' : kind)
+  }
+  win.on('moved', handler)
+  win.on('resized', handler)
+}
+
+// ---------------------------------------------------------------------------
+// 透明度 / 置顶
+// ---------------------------------------------------------------------------
+
+/** 非焦点时按设置降低不透明度（仅挂件；Windows 支持 setOpacity） */
+export function applyWidgetOpacity(): void {
+  if (!widgetWindow || widgetWindow.isDestroyed()) return
+  const configured = getNumberSetting('opacity')
+  const focused = widgetWindow.isFocused()
+  const target = focused ? 1 : Math.min(1, Math.max(0.2, configured))
+  try {
+    widgetWindow.setOpacity(target)
+  } catch {
+    // 某些平台/环境不支持 setOpacity
+  }
+}
+
+export function applyAlwaysOnTop(enabled: boolean): void {
+  if (!widgetWindow || widgetWindow.isDestroyed()) return
+  if (enabled) widgetWindow.setAlwaysOnTop(true, 'floating')
+  else widgetWindow.setAlwaysOnTop(false)
+}
+
+/** settings:set 后由 ipc 调用：把与窗口相关的设置立即生效 */
+export function applySettingsChange(key: SettingsKey, value: unknown): void {
+  switch (key) {
+    case 'alwaysOnTop':
+      applyAlwaysOnTop(Boolean(value))
+      break
+    case 'opacity':
+      applyWidgetOpacity()
+      break
+    case 'capsule':
+      setWidgetCollapsed(Boolean(value))
+      break
+    default:
+      break
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 挂件 / 胶囊形态
+// ---------------------------------------------------------------------------
+
+export function getWidgetMode(): WidgetMode {
+  return widgetMode
+}
+
+export function isWidgetCollapsed(): boolean {
+  return widgetMode === 'capsule'
+}
+
+/** renderer 上报内容高度：夹 96..min(520, workArea.height)，底边不超出工作区 */
+export function setWidgetContentHeight(height: number): void {
+  if (!widgetWindow || widgetWindow.isDestroyed()) return
+  if (widgetMode === 'capsule') return
+  const bounds = widgetWindow.getBounds()
+  const wa = screen.getDisplayMatching(bounds).workArea
+  const maxHeight = Math.min(WIDGET_MAX_HEIGHT, wa.height)
+  const nextHeight = Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(height, maxHeight)))
+  const maxY = Math.max(wa.y, wa.y + wa.height - nextHeight)
+  const y = Math.min(Math.max(bounds.y, wa.y), maxY)
+  if (bounds.height === nextHeight && bounds.y === y && bounds.width === WIDGET_WIDTH) return
+  widgetWindow.setBounds({
+    x: Math.min(Math.max(bounds.x, wa.x), wa.x + wa.width - WIDGET_WIDTH),
+    y,
+    width: WIDGET_WIDTH,
+    height: nextHeight
+  })
+}
+
+/** 兼容旧调用：等同 setWidgetContentHeight */
+export function resizeWidgetHeight(height: number): void {
+  setWidgetContentHeight(height)
+}
+
+/** 切换挂件/胶囊形态：同一窗口 setBounds，不重建窗口 */
+export function setWidgetCollapsed(collapsed: boolean): void {
+  const nextMode: WidgetMode = collapsed ? 'capsule' : 'widget'
+  if (widgetMode === nextMode && widgetWindow && !widgetWindow.isDestroyed()) {
+    writeSetting('capsule', collapsed)
+    return
+  }
+  // 先落盘旧形态位置，再切换
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    persistBounds(widgetMode === 'capsule' ? 'capsule' : 'widget')
+  }
+  widgetMode = nextMode
+  writeSetting('capsule', collapsed)
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    const bounds = widgetBoundsForMode(nextMode)
+    widgetWindow.setBounds(bounds)
+    if (nextMode === 'widget') applyWidgetOpacity()
+  }
+  broadcast('widget:collapsed', { collapsed })
+}
+
+/** 胶囊拖动结束后上报位置：clamp 写入 capsuleBounds，胶囊形态下立即 setBounds */
+export function saveCapsulePosition(x: number, y: number): void {
+  const wa = screen.getDisplayMatching({
+    x: Math.round(x),
+    y: Math.round(y),
+    width: CAPSULE_WIDTH,
+    height: CAPSULE_HEIGHT
+  }).workArea
+  const bounds = clampBoundsToWorkArea(
+    { x, y, width: CAPSULE_WIDTH, height: CAPSULE_HEIGHT },
+    wa
+  )
+  writeBounds('capsuleBounds', {
+    x: bounds.x,
+    y: bounds.y,
+    width: CAPSULE_WIDTH,
+    height: CAPSULE_HEIGHT,
+    displayId: displayIdFor(bounds)
+  })
+  if (widgetWindow && !widgetWindow.isDestroyed() && widgetMode === 'capsule') {
+    widgetWindow.setBounds(bounds)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 窗口创建
+// ---------------------------------------------------------------------------
+
+function createWidgetWindow(initialMode: WidgetMode): BrowserWindow {
+  const bounds = widgetBoundsForMode(initialMode)
   const win = new BrowserWindow({
     ...bounds,
     title: '桌面待办',
     frame: false,
-    transparent: false,
-    backgroundColor: '#FAF8F2',
-    roundedCorners: true,
-    hasShadow: true,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    roundedCorners: false,
     show: false,
     resizable: false,
     maximizable: false,
-    minimizable: true,
+    minimizable: false,
     fullscreenable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
@@ -106,8 +362,10 @@ function createWidgetWindow(): BrowserWindow {
       sandbox: true
     }
   })
-  win.setAlwaysOnTop(true, 'floating')
+  applyAlwaysOnTop(getBooleanSetting('alwaysOnTop'))
   win.setVisibleOnAllWorkspaces(false)
+  win.on('focus', () => applyWidgetOpacity())
+  win.on('blur', () => applyWidgetOpacity())
   win.on('close', (event) => {
     if (quitting) return
     event.preventDefault()
@@ -116,17 +374,27 @@ function createWidgetWindow(): BrowserWindow {
   win.on('closed', () => {
     widgetWindow = null
   })
+  bindBoundsPersistence(win, 'widget')
   return win
 }
 
 function createManagerWindow(): BrowserWindow {
+  const saved = readBounds('managerBounds')
+  const bounds = saved
+    ? resolveSavedBounds(saved, {
+        x: 0,
+        y: 0,
+        width: MANAGER_WIDTH,
+        height: MANAGER_HEIGHT
+      })
+    : { width: MANAGER_WIDTH, height: MANAGER_HEIGHT }
   const win = new BrowserWindow({
-    width: MANAGER_WIDTH,
-    height: MANAGER_HEIGHT,
+    ...bounds,
     minWidth: MANAGER_MIN_WIDTH,
     minHeight: MANAGER_MIN_HEIGHT,
     title: '桌面待办',
     frame: false,
+    transparent: false,
     backgroundColor: '#FAF8F2',
     roundedCorners: true,
     hasShadow: true,
@@ -149,7 +417,36 @@ function createManagerWindow(): BrowserWindow {
   win.on('closed', () => {
     managerWindow = null
   })
+  bindBoundsPersistence(win, 'manager')
   return win
+}
+
+/** 显示器增删/分辨率变化后把已存在窗口重新夹进可见工作区 */
+function reclampWindows(): void {
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    const bounds = widgetWindow.getBounds()
+    const target =
+      widgetMode === 'capsule'
+        ? clampBoundsToWorkArea(bounds, screen.getDisplayMatching(bounds).workArea)
+        : clampBoundsToWorkArea(bounds, screen.getDisplayMatching(bounds).workArea)
+    widgetWindow.setBounds(target)
+    scheduleBoundsSave(widgetMode === 'capsule' ? 'capsule' : 'widget')
+  }
+  if (managerWindow && !managerWindow.isDestroyed()) {
+    const bounds = managerWindow.getBounds()
+    managerWindow.setBounds(
+      clampBoundsToWorkArea(bounds, screen.getDisplayMatching(bounds).workArea)
+    )
+    scheduleBoundsSave('manager')
+  }
+}
+
+function bindDisplayListeners(): void {
+  if (displayListenersBound) return
+  displayListenersBound = true
+  screen.on('display-added', reclampWindows)
+  screen.on('display-removed', reclampWindows)
+  screen.on('display-metrics-changed', reclampWindows)
 }
 
 export interface CreateWindowsOptions {
@@ -158,13 +455,15 @@ export interface CreateWindowsOptions {
 }
 
 export function createWindows(options: CreateWindowsOptions = {}): void {
-  widgetWindow = createWidgetWindow()
+  widgetMode = getBooleanSetting('capsule') ? 'capsule' : 'widget'
+  widgetWindow = createWidgetWindow(widgetMode)
   loadView(widgetWindow, 'widget')
   widgetWindow.once('ready-to-show', () => {
     if (!options.silent) showWidget()
   })
   managerWindow = createManagerWindow()
   loadView(managerWindow, 'manager')
+  bindDisplayListeners()
 }
 
 export function getWidgetWindow(): BrowserWindow | null {
@@ -177,6 +476,9 @@ export function getManagerWindow(): BrowserWindow | null {
 
 export function showWidget(): void {
   if (!widgetWindow || widgetWindow.isDestroyed()) return
+  // 显示前确保 bounds 与当前形态一致（例如上次退出时位置数据已更新）
+  widgetWindow.setBounds(widgetBoundsForMode(widgetMode))
+  applyWidgetOpacity()
   widgetWindow.show()
   widgetWindow.focus()
 }
@@ -202,18 +504,6 @@ export function showManager(): void {
   managerWindow.focus()
 }
 
-export function resizeWidgetHeight(height: number): void {
-  if (!widgetWindow || widgetWindow.isDestroyed()) return
-  const nextHeight = Math.max(WIDGET_MIN_HEIGHT, Math.min(Math.round(height), WIDGET_MAX_HEIGHT))
-  const bounds = widgetWindow.getBounds()
-  if (bounds.height === nextHeight) return
-  const display = screen.getDisplayMatching(bounds)
-  const wa = display.workArea
-  const maxHeight = Math.min(nextHeight, wa.height - 16)
-  const y = Math.min(bounds.y, wa.y + wa.height - maxHeight)
-  widgetWindow.setBounds({ x: bounds.x, y, width: WIDGET_WIDTH, height: maxHeight })
-}
-
 export function broadcast(channel: string, payload?: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.webContents.send(channel, payload)
@@ -224,4 +514,9 @@ export function broadcastToOthers(channel: string, payload: unknown, senderId: n
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed() && win.webContents.id !== senderId) win.webContents.send(channel, payload)
   }
+}
+
+/** 退出前把防抖中的位置立即写库（before-quit 调用） */
+export function flushWindowBounds(): void {
+  flushBoundsSaves()
 }

@@ -1,0 +1,40 @@
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9222
+
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/e1a87a8c-33cf-4082-a2b0-9a552c47034f
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9222
+
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/9f571872-4e12-4504-968e-03b8a834b97d
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9222
+
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/73041d15-7fa9-4902-a75c-6617aae4cacb
+Error occurred in handler for 'settings:get': Error: 参数格式不正确
+    at C:\Users\lazasons\Workspace\desktop-todo\out\main\index.js:2087:13
+    at Session.<anonymous> (node:electron/js2c/browser_init:2:115338)
+    at Session.emit (node:events:509:28)
+Error occurred in handler for 'settings:get': Error: 参数格式不正确
+    at C:\Users\lazasons\Workspace\desktop-todo\out\main\index.js:2087:13
+    at Session.<anonymous> (node:electron/js2c/browser_init:2:115338)
+    at Session.emit (node:events:509:28)
+Error occurred in handler for 'settings:get': Error: 参数格式不正确
+    at C:\Users\lazasons\Workspace\desktop-todo\out\main\index.js:2087:13
+    at Session.<anonymous> (node:electron/js2c/browser_init:2:115338)
+    at Session.emit (node:events:509:28)
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9222
+
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/0113e245-5bc4-4a65-8a5c-6378c7f85849
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9222
+
+[7540:1121/221055.424:ERROR:net\socket\tcp_socket_win.cc:530] bind() returned an error: 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。 (0x2740)
+[7540:1121/221055.424:ERROR:content\browser\devtools\devtools_http_handler.cc:307] Cannot start http server for devtools.
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9222
+
+[64268:1121/221412.065:ERROR:net\socket\tcp_socket_win.cc:530] bind() returned an error: 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。 (0x2740)
+[64268:1121/221412.066:ERROR:content\browser\devtools\devtools_http_handler.cc:307] Cannot start http server for devtools.
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9222
+
+[43740:1121/221659.262:ERROR:net\socket\tcp_socket_win.cc:530] bind() returned an error: 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。 (0x2740)
+[43740:1121/221659.262:ERROR:content\browser\devtools\devtools_http_handler.cc:307] Cannot start http server for devtools.
