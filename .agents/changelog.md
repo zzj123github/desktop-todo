@@ -28,3 +28,6 @@
 2026-11-22 00:45 | test | src/renderer/src/components/anchoredPosition.test.ts | 新增 4 用例（isInsideFloatingLayer），全量 12 文件 165 用例通过
 2026-11-22 00:45 | create | design/prototype-adjust/ | 临时调整原型 A/B/C（不改 design/app），含 CHANGES.md；供用户确认后再同步
 2026-11-22 00:45 | update | .agents/memory/decisions.md (D9), open-items.md | 胶囊自绘拖动/内嵌浮层/轻投影决策；临时原型待确认项
+2026-11-22 00:52 | update | release/*.exe, C:\\Users\\lazasons\\Desktop\\桌面待办-交付物\\* | 重新打包（portable 97,691,335B / setup 106,240,687B），覆盖桌面交付目录旧版并更新 使用说明.txt（胶囊整块点击/拖动、修复版说明与哈希前缀）
+2026-11-22 00:52 | verify | 打包版（从桌面交付目录启动，CDP 9226） | view-widget 353×242、轻投影生效、任务数据保留；setCollapsed→view-capsule 284×55，点击胶囊中部→view-widget；app.quit 后进程 0
+2026-11-22 00:52 | update | README.md, docs/acceptance/M6-ACCEPTANCE.md | 2026-11-22 重打包校验表（新哈希/大小）与 4 项 BUG 修复验收记录、待确认的 3 项交互调整
