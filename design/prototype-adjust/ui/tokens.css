@@ -1,0 +1,190 @@
+/* =========================================================
+   桌面待办 · UI 令牌（唯一来源）
+   Source: design/ui/tokens.css
+   Contract: docs/08-UI-ENGINEERING-SPEC.md
+   规则：组件只能通过 var(--token) 使用；禁止在组件里写裸色值。
+   ========================================================= */
+:root{
+  /* ---------- 颜色 · 原始令牌（与 design/app/css/app.css 对齐） ---------- */
+  --canvas:#F9F6EE;
+  --paper:#FAF8F2;
+  --card:#FFFDFA;
+  --sidebar:#F0EDE3;
+  --ink:#1F1E1D;
+  --ink-2:#54514A;
+  --muted:#8B8474;
+  --faint:#A8A18F;
+  --hairline:#E6E0D2;
+  --hairline-soft:#F0ECE2;
+  --accent:#D97757;
+  --accent-deep:#C4553B;
+  --accent-soft:#FBEAE2;
+  --link:#184F95;
+  --success:#7F9A6D;
+  --hover:rgba(31,30,29,.045);
+  --selected:rgba(31,30,29,.065);
+  --shadow:0 14px 34px rgba(60,50,30,.12);
+
+  /* 组件状态色：由原始令牌派生，不允许另起色系 */
+  --accent-hover:#D26A48;
+  --border-hover:#D6CDBA;
+  --border-focus:#CFC6B4;
+  --focus-halo:0 0 0 3.5px rgba(31,30,29,.14);
+  --focus-soft:0 0 0 3.5px rgba(31,30,29,.05);
+  --overlay:rgba(32,27,20,.30);
+  --selection:rgba(217,119,87,.22);
+  --chip-bg:#F1EEE5;
+  --chip-ink:#6B6557;
+  --chip-tag-bg:#F4F1E8;
+  --chip-selected-border:#F2D3C6;
+  --danger-hover:rgba(196,85,59,.08);
+  --toast-hover:rgba(255,255,255,.08);
+  --field-bg:#FCFAF4;
+  --check-border:#D9D2C2;
+  --icon:#7B7466;
+  --tab-bg:#F0ECE2;
+  --warn-border:#F0DBD2;
+  --priority-med:#B98A3C;
+  --priority-low:#7F9A6D;
+  --toast-bg:#2B271F;
+  --toast-ink:#F7F2E6;
+  --toast-accent:#F0B69F;
+  --toast-icon:#E9A98F;
+  --ring-track:#EBE5D8;
+  --ring-label:#6F695B;
+  --on-accent:#FFFDFA;
+
+  /* ---------- 字体 ---------- */
+  --sans:'InterVariable','Inter','Microsoft YaHei UI','Microsoft YaHei',system-ui,sans-serif;
+  --serif:'NotoSerifVariable','Noto Serif SC','Source Han Serif SC','SimSun',serif;
+  --mono:Consolas,'SFMono-Regular',monospace;
+
+  --fs-display:29px;          /* 管理视图大标题 */
+  --lh-display:1.15;
+  --fs-widget-title:20px;     /* 挂件标题 */
+  --lh-widget-title:1.2;
+  --fs-modal-title:18px;      /* 弹窗标题 */
+  --lh-modal-title:1.3;
+  --fs-brand:15px;            /* 左栏品牌 */
+  --lh-brand:1.2;
+  --fs-panel-title:14.5px;    /* 日期选择器月份 */
+  --fs-body:13px;
+  --lh-body:1.45;
+  --fs-task:13px;
+  --fs-task-widget:12.5px;
+  --fs-small:11.5px;
+  --fs-meta:10.5px;
+  --lh-meta:1.4;
+  --fs-label:10.5px;
+  --fs-foot:9.5px;
+  --lh-foot:1.4;
+  --fs-chip:9.5px;
+  --fs-button:12px;
+  --fs-tab:12px;
+  --fs-nav:12.5px;
+  --fs-side-sec:10px;
+  --fs-toast:12px;
+
+  --fw-regular:400;
+  --fw-medium:500;
+  --fw-semi:550;
+  --fw-bold:600;
+  --fw-heavy:650;
+  --tracking-label:.02em;
+  --tracking-sec:.03em;
+
+  /* ---------- 间距（4px 基准，允许 2px 半格；组件精确值见 08） ---------- */
+  --space-0:0;
+  --space-0-5:2px;
+  --space-1:4px;
+  --space-1-5:6px;
+  --space-2:8px;
+  --space-2-5:10px;
+  --space-3:12px;
+  --space-3-5:14px;
+  --space-4:16px;
+  --space-5:20px;
+  --space-6:24px;
+  --space-7:28px;
+  --space-8:32px;
+  --space-9:36px;
+  --space-10:40px;
+  --space-12:48px;
+  --space-14:56px;
+
+  /* ---------- 圆角 ---------- */
+  --radius-xs:4px;
+  --radius-chip:4.5px;
+  --radius-sm:6px;
+  --radius-7:7px;
+  --radius-md:8px;
+  --radius-9:9px;
+  --radius-10:10px;
+  --radius-lg:12px;
+  --radius-xl:14px;
+  --radius-2xl:16px;
+  --radius-pill:999px;
+
+  /* ---------- 边框 / 阴影 ---------- */
+  --border-w:1px;
+  --shadow-card:0 2px 6px rgba(60,50,30,.045);
+  --shadow-card-strong:0 2px 8px rgba(60,50,30,.05);
+  --shadow-pop:0 18px 40px rgba(60,50,30,.16),0 2px 6px rgba(60,50,30,.06);
+  --shadow-modal:0 34px 90px rgba(40,30,15,.34),0 0 0 1px rgba(60,50,30,.06);
+  --shadow-widget:0 24px 60px rgba(20,15,10,.35),0 0 0 1px rgba(255,255,255,.12) inset;
+  --shadow-widget-unpinned:0 14px 34px rgba(20,15,10,.22),0 0 0 1px rgba(255,255,255,.10) inset;
+  --shadow-capsule:0 18px 50px rgba(20,15,10,.36),0 0 0 1px rgba(255,255,255,.10) inset;
+  --shadow-capsule-hover:0 22px 56px rgba(20,15,10,.42),0 0 0 1px rgba(255,255,255,.12) inset;
+  --shadow-manager:0 30px 80px rgba(50,40,25,.20),0 0 0 1px rgba(60,50,30,.06);
+  --shadow-toast:0 16px 36px rgba(20,15,5,.32);
+
+  /* ---------- 动效（数值即 08 §1.5，禁止随手改） ---------- */
+  --dur-instant:80ms;
+  --dur-feedback:120ms;
+  --dur-reveal:120ms;
+  --dur-surface:150ms;
+  --dur-open:250ms;
+  --dur-enter:320ms;
+  --dur-exit:120ms;
+  --dur-bounce:350ms;
+  --ease-standard:cubic-bezier(.2,.9,.3,1);
+  --ease-pop:cubic-bezier(.2,.9,.3,1.08);
+  --ease-modal:cubic-bezier(.2,.9,.3,1.04);
+  --ease-dp:cubic-bezier(.2,.9,.3,1.05);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --ease-capsule:cubic-bezier(.34,1.4,.64,1);
+  --ease-toast:cubic-bezier(.2,.9,.3,1.06);
+
+  /* ---------- 层级 ---------- */
+  --z-widget:20;
+  --z-taskbar:30;
+  --z-demo-bar:90;
+  --z-overlay:120;
+  --z-popover-layer:130;
+  --z-popover:131;
+  --z-datepicker:190;
+  --z-toast:200;
+
+  /* ---------- 滚动条 ---------- */
+  --sb-w:9px;
+  --sb-w-compact:6px;
+  --sb-thumb:#D9D2C3;
+  --sb-thumb-hover:#C6BDA9;
+  --sb-thumb-active:#B5AA94;
+  --sb-radius:var(--radius-pill);
+  --sb-inset:2px;
+
+  /* ---------- 不透明度 / 尺寸常量 ---------- */
+  --opacity-disabled:.45;
+  --opacity-muted:.75;
+  --widget-w:352px;
+  --widget-max-h:520px;
+  --capsule-w:284px;
+  --capsule-h:54px;
+  --manager-w:1100px;
+  --manager-h:720px;
+  --manager-min-w:900px;
+  --manager-min-h:600px;
+  --sidebar-w:190px;
+  --sidebar-w-compact:168px;
+}
