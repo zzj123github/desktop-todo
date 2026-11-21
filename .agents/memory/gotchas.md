@@ -69,3 +69,15 @@
 - 现象：设置 80% 透明度后拖动挂件/胶囊，松手变成 100%，需再点别处才恢复。
 - 原因：拖动使窗口获得焦点，主进程按「非焦点才应用设定透明度」规则设为 1。
 - 规避：窗口 moved/resized 落盘回调与胶囊拖动结束时调用 `settleWidgetIdleOpacity()`（仍在焦点且透明度 <100% 时主动 blur）；透明度只由主进程 `setOpacity` 控制，渲染层不要再叠加 inline opacity。
+
+- 现象：桌面形态四个圆角看起来有灰黑色底板/不透明。
+- 原因：Electron 透明窗口尺寸＝卡片尺寸时，CSS `box-shadow` 外投影会被窗口边界裁掉，只在圆角缺口露出阴影；透明本身没问题（CDP 页面截图角点 alpha=0）。
+- 规避：桌面形态只用 `inset` 内描边；外投影只能在窗口大于卡片（四周留 padding）时使用。
+- 现象：挂件内 Popover/日历被裁切或布局错乱。
+- 原因：挂件窗口按内容高度（约 243px），容不下 320×241 浮层与 288×351 日历；且 Popover 用「当前被压后的高度」定位，窗口变高后不再长高。
+- 规避：浮层打开时把窗口临时加高到 520（anchor bottom 保底边），定位取 `scrollHeight` 自然高度；内容高度上报加 1px 余量。
+- `cdp.mjs` 的 `screenshot()` 会调用 `Emulation.setDeviceMetricsOverride`，之后页面里读到的 `innerWidth/innerHeight` 是模拟值，不可用于校验真实窗口尺寸；用主进程 `win-state.ps1` 读 client rect。
+
+- 现象：`pnpm dist:win` 反复报 `EBUSY/EPERM ... default_app.asar` 或 `app.asar`，重试与杀进程无效，`release/win-unpacked*` 也删不掉。
+- 原因：本机 VS Code 以该项目为工作区，其进程（Restart Manager 查询显示 `pid=... name=Visual Studio Code`）会短暂持有刚解包的 asar；杀毒软件也可能参与。可用 `.agents/tmp/who-locks.ps1 -Path <file>`（Restart Manager API）定位占用进程。
+- 规避：把 electron-builder 输出目录放到工作区外再打包：`pnpm exec electron-builder --win -c.directories.output=C:/Users/lazasons/AppData/Local/desktop-todo-dev/release-build`；产物再从外部目录复制回 `release/` 和桌面交付目录。不要为此杀 VS Code（可能有未保存文件）。

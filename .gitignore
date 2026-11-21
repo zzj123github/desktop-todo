@@ -11,3 +11,6 @@ Thumbs.db
 .agents/reports/
 .agents/experiments/
 .worktrees/
+
+# 本机 VS Code 偶尔锁定工作区内构建暂存目录时的备用输出（正常构建仍用 release/）
+release2/

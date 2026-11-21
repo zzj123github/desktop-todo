@@ -280,8 +280,13 @@ export function isWidgetCollapsed(): boolean {
   return widgetMode === 'capsule'
 }
 
-/** renderer 上报内容高度：夹 96..min(520, workArea.height)，底边不超出工作区 */
-export function setWidgetContentHeight(height: number): void {
+/**
+ * renderer 上报内容高度：夹 96..min(520, workArea.height)，不超出工作区。
+ *
+ * anchor='bottom'：保持窗口底边不动、向上生长（用于挂件内打开浮层/日期选择时
+ * 临时加高窗口，让浮层有空间显示；浮层关闭后同样以 bottom 收起，回到原位）。
+ */
+export function setWidgetContentHeight(height: number, anchor: 'top' | 'bottom' = 'top'): void {
   if (!widgetWindow || widgetWindow.isDestroyed()) return
   if (widgetMode === 'capsule') return
   const bounds = widgetWindow.getBounds()
@@ -289,7 +294,8 @@ export function setWidgetContentHeight(height: number): void {
   const maxHeight = Math.min(WIDGET_MAX_HEIGHT, wa.height)
   const nextHeight = Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(height, maxHeight)))
   const maxY = Math.max(wa.y, wa.y + wa.height - nextHeight)
-  const y = Math.min(Math.max(bounds.y, wa.y), maxY)
+  const desiredY = anchor === 'bottom' ? bounds.y + bounds.height - nextHeight : bounds.y
+  const y = Math.min(Math.max(desiredY, wa.y), maxY)
   if (bounds.height === nextHeight && bounds.y === y && bounds.width === WIDGET_WIDTH) return
   widgetWindow.setBounds({
     x: Math.min(Math.max(bounds.x, wa.x), wa.x + wa.width - WIDGET_WIDTH),

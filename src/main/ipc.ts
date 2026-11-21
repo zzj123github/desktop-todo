@@ -474,7 +474,11 @@ export function registerIpcHandlers(): void {
     if (typeof height !== 'number' || !Number.isFinite(height)) {
       throw new Error('缺少参数：height')
     }
-    setWidgetContentHeight(height)
+    const anchor = payload.anchor
+    if (anchor !== undefined && anchor !== 'top' && anchor !== 'bottom') {
+      throw new Error('参数格式不正确：anchor')
+    }
+    setWidgetContentHeight(height, anchor === 'bottom' ? 'bottom' : 'top')
     return { ok: true as const }
   })
 

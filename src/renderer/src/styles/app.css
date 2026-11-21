@@ -720,25 +720,24 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 .widget .w-title-row{-webkit-app-region:no-drag;cursor:default}
 .mgr-drag{position:absolute;left:0;right:0;top:0;height:8px;z-index:5;-webkit-app-region:drag;cursor:grab}
 
-/* 挂件窗口：透明窗口 + CSS 圆角 16 / 阴影（08 §2.1）
-   透明窗口在浅色桌面上会把 08 原型的大投影渲染成灰色底板（用户反馈），
-   桌面形态改用「细描边 + 极浅投影」，只为轮廓提供可辨识度。 */
+/* 挂件窗口：透明窗口 + CSS 圆角 16（08 §2.1）
+   Electron 窗口边界＝卡片边界，投影画在卡片外侧会被矩形窗口裁掉，
+   只在四个圆角缺口里漏出一块灰边（用户反馈「四角有灰黑色底」）。
+   桌面形态因此不用外投影，改用内描边勾勒轮廓；四角完全透明。 */
 .view-widget .widget{width:100%;height:100%;max-height:none;border-radius:var(--radius-2xl);
-  box-shadow:0 4px 16px color-mix(in srgb, var(--ink) 10%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent)}
-.view-widget .widget.unpinned{box-shadow:0 2px 10px color-mix(in srgb, var(--ink) 8%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent)}
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent)}
+.view-widget .widget.unpinned{
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent)}
 .view-widget .w-body{flex:1;min-height:0}
 .view-widget .w-add{flex:none}
 .view-widget .w-foot{flex:none}
 
-/* 胶囊窗口：284×54 透明窗口 + 999 圆角（轻投影理由同上） */
+/* 胶囊窗口：284×54 透明窗口 + 999 圆角（不用外投影，理由同上） */
 .view-capsule .capsule{position:relative;right:auto;bottom:auto;width:100%;height:100%;
   border-radius:var(--radius-pill);
-  box-shadow:0 4px 16px color-mix(in srgb, var(--ink) 10%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent)}
-.view-capsule .capsule:hover{box-shadow:0 6px 20px color-mix(in srgb, var(--ink) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);transform:translateY(-2px)}
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent)}
+.view-capsule .capsule:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
+  transform:translateY(-2px)}
 
 /* 完整窗口：铺满浏览器窗口，圆角交给系统 */
 .view-manager .manager-scene{padding:0;background:var(--paper);align-items:stretch;justify-content:stretch;

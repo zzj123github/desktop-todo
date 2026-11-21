@@ -38,3 +38,5 @@
 2026-11-22 01:08 | update | README.md, docs/acceptance/M6-ACCEPTANCE.md, .agents/memory/decisions.md (D10/D11), gotchas.md | 内存优化与两条交互修复的文档、验收证据与决策记录
 2026-11-22 | update | docs/acceptance/M6-ACCEPTANCE.md | 透明度拖动修复补真机证据（真实鼠标拖动挂件/胶囊后窗口 alpha 255→204），B4 状态改 ✓ | 用户 m03355 反馈复核
 2026-11-22 | update | .agents/tmp/verify-opacity.mjs + win-state.ps1 + drag-real.ps1 | 新增透明度端到端验证脚本（CDP 编排 + GetLayeredWindowAttributes + 真实鼠标拖动） | 说明见验收记录
+2026-11-22 | update | src/main/{windows,ipc}.ts, src/preload/index.ts, src/shared/types.ts, src/renderer/src/app/Widget.tsx, src/renderer/src/components/Popover.tsx, src/renderer/src/styles/app.css, docs/acceptance/M6-ACCEPTANCE.md, .agents/memory/decisions.md(D12), gotchas.md | 修复挂件/胶囊四角灰底（inset 描边替代外投影）与挂件内日期面板被裁（浮层打开临时加高 520 + anchor bottom + scrollHeight 定位） | 用户 m03408 反馈
+2026-11-22 | update | release/, C:\\Users\\lazasons\\Desktop\\桌面待办-交付物\\ | 重打包 portable+setup（输出目录改到工作区外规避 VS Code 文件锁），新哈希 e2997a3f…/2b771c3d…；README/验收记录/使用说明同步 | 四角透明与日期面板修复交付

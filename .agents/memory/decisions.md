@@ -78,3 +78,10 @@
 - 决策：`src/main/windows.ts` 新增 `settleWidgetIdleOpacity()`，在窗口 moved/resized 的 300ms 落盘回调与 `endCapsuleDrag()` 里调用：若透明度设置 <100% 且窗口仍聚焦，则 `blur()` 让设定值立即生效；同时移除 Widget 渲染层重复的 inline opacity（此前与主进程会双重叠加）。
 - 决策：`.widget .w-title-row` 设 `-webkit-app-region: no-drag`。原因：app-region: drag 区域内的 DOM 鼠标事件不会送达渲染层，`onDoubleClick` 无法触发，「双击标题展开完整窗口」失效；拖动仍可用顶部六点拖拽条与头部其余空白。
 - 证据：打包版 CDP 双击 `.w-title` → 出现 `?view=manager`；设置 opacity=0.8 后 beginDrag/dragMove/endDrag → `document.hasFocus()=false`（立即恢复 80%）。
+
+## D12 · 2026-11-22 · 桌面形态去掉外投影、浮层打开时窗口临时加高
+
+- 决策：桌面形态（挂件/胶囊）不再使用 tokens 里的外投影，改为 `inset 0 0 0 1px` 内描边（`--ink` 8%；unpinned 6%；capsule hover 12%）。原因：Electron 窗口边界＝卡片边界，外投影被矩形窗口裁掉，只在四个圆角缺口里露出灰黑色阴影，用户明确反馈「四角有灰黑底」。
+- 决策：挂件浮层（`.pop` / `.dp-pop`）打开期间窗口临时加高到 520、`anchor:'bottom'` 保持底边不动；关闭后按内容自然高度以同样锚点收回。原因：挂件窗口按内容高度（约 243px）时，320×241 的浮层与 288×351 的日历无法容纳，会被窗口裁切。
+- 决策：`Popover.computePosition` 用 `scrollHeight` 计算内容自然高度（含翻转判断），否则被上一次 maxHeight 压住后窗口变高也不再长高。内容高度上报加 1px 余量，避免小数取整导致 1px 溢出滚动条。
+- 证据：真机 OS 截图四角像素与背景一致（挂件 `(247,249,255)`、胶囊 `(251,252,255)`，仅 1px 描边）；CDP 窗口高度 243→520→243，`.pop` 320×241 无内滚，`.dp-pop` 288×351 完整可见；`node scripts/run-tests.cjs` 165 用例通过。

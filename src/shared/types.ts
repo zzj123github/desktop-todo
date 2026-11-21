@@ -191,7 +191,7 @@ export interface DesktopTodoApi {
   }
   widget: {
     /** 挂件内容高度变化时上报，主进程按内容收缩窗口（max 520） */
-    setHeight(input: { height: number }): Promise<{ ok: true }>
+    setHeight(input: { height: number; anchor?: 'top' | 'bottom' }): Promise<{ ok: true }>
     /** 挂件收起为胶囊 / 从胶囊展开 */
     setCollapsed(input: { collapsed: boolean }): Promise<{ ok: true }>
     /** 胶囊独立位置拖拽结束写回 */

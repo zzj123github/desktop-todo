@@ -235,3 +235,39 @@
   - portable 97,666,895 B / SHA-256 `8aa2bf1df8bbddf605677403f5dc5c400b52669e97e88ec79afa49940b94ee0a`
   - setup 106,240,887 B / SHA-256 `6eabdc1f564c088778814e7596a0952b36281be0d7af7dd895783170930356d2`
   - 已覆盖 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，`使用说明.txt` 同步更新。
+
+---
+
+## 补充验收（2026-11-22 01:45）：四角灰底 + 挂件内日期面板
+
+用户反馈（原文）：「1. 挂件和胶囊的4个角仍不是透明底，仍是存在一层灰黑色的底；2. 挂件点开日期选择时，布局错乱，不是正常的日期时间选择区」。
+
+### 1) 挂件/胶囊四角灰底
+
+- 根因：Electron 窗口边界＝卡片边界（`transparent:true` 但尺寸与卡片一致）。卡片外侧的 CSS 投影被矩形窗口裁掉，只会在四个圆角的缺口里露出一圈深色阴影，看起来像「四角灰黑色底板」。像素证据：背景 `(247,249,255)` → 阴影带 `(224,226,231)` → 卡片 `(255,253,250)`。
+- 修复：桌面形态不再使用外投影，改为 `inset 0 0 0 1px` 内描边（`--ink` 8%，unpinned 6%），四角完全透明。见 `src/renderer/src/styles/app.css` 的 `.view-widget .widget` / `.view-capsule .capsule`。
+- 验证（打包版 CDP + 真机 OS 截图，175% DPI）：窗口四角像素与背景一致（挂件角落 `(247,249,255)`、胶囊角落 `(251,252,255)`），沿卡片边缘只有 1px 描边，无灰色矩形；挂件与胶囊实际窗口仍为 352×N / 284×54。
+
+### 2) 挂件内日期面板布局错乱/被裁切
+
+- 根因：挂件窗口只有内容高度（实测 353×241），而日期 chip 的 Popover 内容自然高度 241（被压到 155 出现内部滚动），「指定日期…」打开的日历 `.dp-pop` 为 288×351，超出窗口高度直接被裁切。原 Popover 定位用「当前被压后的高度」计算，窗口变高后不会重新长高。
+- 修复：
+  1. 浮层（`.pop` / `.dp-pop`）打开期间，挂件窗口临时加高到 520 且**底边不动**（`widget.setHeight` 新增可选 `anchor:'top'|'bottom'`，主进程 `setWidgetContentHeight(height, anchor)` 按底部锚点生长）；关闭后按缓存的内容自然高度、同样以 bottom 锚点收回原位。
+  2. `Popover.computePosition` 改用 `scrollHeight` 取内容自然高度，避免被上一次 `maxHeight` 压住后不再长高。
+  3. 内容高度上报加 1px 安全余量，消除小数高度取整造成的 1px 溢出滚动条。
+- 验证（dev + 打包版 CDP，窗口坐标来自主进程）：
+  - 关闭状态 innerHeight 243；打开日期浮层 → **520**，`.pop` = 320×241、`scrollHeight = clientHeight = 241`（无裁切/无内滚）；点「指定日期…」→ `.dp-pop` = 288×351 @ (34,15)，完整位于窗口内；关闭后 innerHeight 回到 **243**（窗口 client 352×242）。
+  - 选择日期 25 日 →「确定」→ 浮层关闭、composer 日期按钮变为「11月25日 02:00」（默认下一半点）；点「无日期」清除后恢复「日期」，窗口高度回落 243。
+  - 证据截图：`.agents/reports/screens/m6-fix-widget-datepop.png`、`m6-fix-widget-calendar.png`、`m6-fix-capsule.png`。
+- 回归：`npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` **12 文件 / 165 用例全部通过**。
+
+### 3) 自动化回归与产物（2026-11-22 01:46 重打包）
+
+- `npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` **12 文件 / 165 用例全部通过**。
+- 因 VS Code 占用工作区内构建暂存文件（Restart Manager 查询确认），本次改在**工作区外输出**打包：
+  `pnpm exec electron-builder --win -c.directories.output=C:/Users/lazasons/AppData/Local/desktop-todo-dev/release-build`（带 `ELECTRON_MIRROR` / `ELECTRON_BUILDER_BINARIES_MIRROR` 镜像变量）。
+- 产物：
+  - portable 97,685,204 B / SHA-256 `e2997a3f1889026c45408ad31089a292974a138d45f54f0052dae0d0f19e9122`
+  - setup 106,241,253 B / SHA-256 `2b771c3d4d4122a55c594064976a73a3a7331448e1dd0cea58925d7c972e7068`
+  - 已覆盖 `release/` 与桌面交付目录 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，`使用说明.txt` 同步更新。
+- 证据截图（`docs/acceptance/screens/`）：`m6-fix-widget-corners-os.png`（真机 OS 截图，四角透明）、`m6-fix-capsule-corners-os.png`、`m6-fix-widget-datepop.png`（320×241 浮层无裁切）、`m6-fix-widget-calendar.png`（日历完整位于 520 高窗口内）、`m6-fix-widget-calendar-os.png`（真机 OS 截图）。

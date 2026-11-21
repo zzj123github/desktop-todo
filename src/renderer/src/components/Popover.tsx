@@ -28,6 +28,9 @@ interface Position {
 function computePosition(anchor: HTMLElement, el: HTMLElement, width: number): Position {
   const rect = anchor.getBoundingClientRect()
   const popRect = el.getBoundingClientRect()
+  // 上一次定位可能已用 maxHeight 压过高度；用 scrollHeight 取内容自然高度，
+  // 否则视口/窗口变大（或挂件临时加高）后浮层会一直停在旧高度、内容被裁切。
+  const contentHeight = Math.max(el.scrollHeight, Math.round(popRect.height))
   const popWidth = width || popRect.width || 320
   const viewportW = window.innerWidth
   const viewportH = window.innerHeight
@@ -35,9 +38,9 @@ function computePosition(anchor: HTMLElement, el: HTMLElement, width: number): P
   left = Math.max(MARGIN, left)
   const below = viewportH - rect.bottom - GAP - MARGIN
   const above = rect.top - GAP - MARGIN
-  const height = Math.min(popRect.height || 240, Math.max(below, above))
+  const height = Math.min(contentHeight, Math.max(below, above))
   let top = rect.bottom + GAP
-  if (below < Math.min(popRect.height || 240, 160) && above > below) {
+  if (below < Math.min(contentHeight, 160) && above > below) {
     top = Math.max(MARGIN, rect.top - GAP - height)
   }
   return { left, top, maxHeight: Math.max(120, height) }

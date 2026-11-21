@@ -37,6 +37,9 @@ const ALL_FILTER: FilterDTO = {
   keyword: ''
 }
 
+/** docs/08 §2.1：挂件最大高度 520px（主进程会再按工作区夹一次） */
+const WIDGET_MAX_HEIGHT = 520
+
 export function Widget(): ReactElement {
   const { showToast } = useToast()
   const now = useNow()
@@ -65,10 +68,17 @@ export function Widget(): ReactElement {
   const pin = settings.alwaysOnTop !== false
 
   // 高度上报：窗口高度跟随内容（主进程夹在 96..520）
+  // 浮层（日期/标签/优先级/链接 Popover、日期选择器）portal 到 body，
+  // 在小窗口里会被裁切；打开期间把窗口临时加高到 520 并保持底边不动（anchor=bottom），
+  // 关闭后再以 bottom 收回到内容高度，视觉上输入区不移动。
   useEffect(() => {
     const element = rootRef.current
     if (!element) return
     let frame = 0
+    let lastAnchor: 'top' | 'bottom' = 'top'
+    const overlayOpen = { current: false }
+    const overlayWasOpen = { current: false }
+    const naturalRef = { current: 0 }
     // 窗口高度会反过来限制 .widget 自身（height:100%），所以按各区块自然高度求和：
     // 拖拽区 + 头部固定高度 + 列表子项自然高度之和 + 输入区 + footer。
     // 注意不能用 .w-body.scrollHeight：它在 flex 拉伸后等于视口高度，会和窗口高度互相锁死。
@@ -90,12 +100,23 @@ export function Widget(): ReactElement {
           gap * Math.max(0, children.length - 1) +
           padding
       }
-      const height = Math.ceil(
+      // +1px 安全余量：子项高度可能是小数，整除后 1px 溢出会误触发滚动条
+      const natural = Math.ceil(
         part('.w-drag') + part('.w-head') + bodyHeight + part('.w-add') + part('.w-foot')
-      )
-      if (height === lastHeight.current || height <= 0) return
+      ) + 1
+      const expanded = overlayOpen.current
+      // 加高后的窗口会让 .w-body 拉伸，此时再量会得到「被撑开的」高度，
+      // 因此只在未展开时记录内容自然高度，收起时用它恢复。
+      if (!expanded && natural > 0) naturalRef.current = natural
+      const base = naturalRef.current || natural
+      const height = expanded ? Math.max(base, WIDGET_MAX_HEIGHT) : base
+      const anchor: 'top' | 'bottom' = expanded || overlayWasOpen.current ? 'bottom' : 'top'
+      overlayWasOpen.current = expanded
+      if (height <= 0) return
+      if (height === lastHeight.current && anchor === lastAnchor) return
       lastHeight.current = height
-      void window.api.widget.setHeight({ height })
+      lastAnchor = anchor
+      void window.api.widget.setHeight({ height, anchor })
     }
     const schedule = (): void => {
       if (frame) return
@@ -104,11 +125,21 @@ export function Widget(): ReactElement {
         report()
       })
     }
+    const syncOverlay = (): void => {
+      const next = document.body.querySelector('.pop, .dp-pop') !== null
+      if (next === overlayOpen.current) return
+      overlayOpen.current = next
+      // 立即上报：浮层刚挂载/卸载时马上加高或收回，避免内容在旧高度里被裁一帧
+      report()
+    }
     report()
     const observer = new ResizeObserver(schedule)
     observer.observe(element)
+    const overlayObserver = new MutationObserver(syncOverlay)
+    overlayObserver.observe(document.body, { childList: true, subtree: true })
     return () => {
       observer.disconnect()
+      overlayObserver.disconnect()
       if (frame) window.cancelAnimationFrame(frame)
     }
   }, [tasks.length, pending.length, done.length, doneOpen])

@@ -41,3 +41,7 @@
 ## 仍待用户确认（2026-11-22）
 
 - 临时原型 A/B/C（`design/prototype-adjust/index.html`）：位置共用锚点、三态互切、挂件输入折叠。确认后才实施到 `src/`、回写 `docs/08`，并删除临时原型目录。
+
+## 已闭环（2026-11-22 01:50）
+
+- 用户反馈「挂件/胶囊四角灰黑底」「挂件内日期面板错乱/被裁」：已修复（inset 内描边替代外投影；浮层打开时窗口临时加高 520 + bottom 锚点 + scrollHeight 定位），打包版真机验证四角像素与背景一致、日历完整可见、关闭后高度恢复。证据见 `docs/acceptance/M6-ACCEPTANCE.md` 2026-11-22 01:45 节与 `docs/acceptance/screens/m6-fix-*`。
