@@ -1,0 +1,180 @@
+{
+  "generatedFrom": "design/static-prototype.html",
+  "note": "开发用演示数据；正式版首次启动不要自动导入",
+  "tags": [
+    {
+      "id": "p-a",
+      "name": "项目A",
+      "color": "#C7A98C",
+      "kind": "project"
+    },
+    {
+      "id": "p-buy",
+      "name": "采购",
+      "color": "#A9B39A",
+      "kind": "project"
+    },
+    {
+      "id": "p-routine",
+      "name": "例行事务",
+      "color": "#C4B7A0",
+      "kind": "project"
+    },
+    {
+      "id": "t-mould",
+      "name": "模具",
+      "color": "#D9C7A7",
+      "kind": "tag"
+    },
+    {
+      "id": "t-supplier",
+      "name": "供应商",
+      "color": "#CBB9A4",
+      "kind": "tag"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "审核 IEOP 模具图纸 v3",
+      "note": "重点看 3.2 节的型腔尺寸与公差表；确认后同步给工艺组。",
+      "status": 0,
+      "priority": 3,
+      "dueAt": "今天 10:00",
+      "tags": [
+        "项目A",
+        "模具"
+      ],
+      "links": [
+        {
+          "kind": "folder",
+          "target": "\\\\fileserver\\项目A\\IEOP-模具图纸",
+          "display": "IEOP-模具图纸"
+        },
+        {
+          "kind": "url",
+          "target": "https://wiki.company.com/ieop/review",
+          "display": "评审说明 · wiki"
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "title": "整理 Q4 采购需求清单",
+      "note": "",
+      "status": 0,
+      "priority": 2,
+      "dueAt": "明天",
+      "tags": [
+        "采购"
+      ],
+      "links": [
+        {
+          "kind": "folder",
+          "target": "\\\\fileserver\\采购\\采购共享盘",
+          "display": "采购共享盘"
+        }
+      ]
+    },
+    {
+      "id": "t3",
+      "title": "与供应商确认交期",
+      "note": "",
+      "status": 0,
+      "priority": 3,
+      "dueAt": "逾期 1 天",
+      "tags": [
+        "采购",
+        "供应商"
+      ],
+      "links": [
+        {
+          "kind": "url",
+          "target": "https://supplier.company.com",
+          "display": "供应商门户"
+        }
+      ]
+    },
+    {
+      "id": "t4",
+      "title": "更新部门周报",
+      "note": "",
+      "status": 0,
+      "priority": 1,
+      "dueAt": "今天 17:00",
+      "tags": [
+        "例行事务"
+      ],
+      "links": [
+        {
+          "kind": "folder",
+          "target": "C:\\Users\\lazasons\\Documents\\周报模板",
+          "display": "周报模板"
+        },
+        {
+          "kind": "url",
+          "target": "https://wiki.company.com/dept/board",
+          "display": "部门看板"
+        }
+      ]
+    },
+    {
+      "id": "t5",
+      "title": "归档项目会议纪要",
+      "note": "",
+      "status": 1,
+      "priority": 2,
+      "dueAt": null,
+      "tags": [
+        "项目A"
+      ],
+      "links": [
+        {
+          "kind": "folder",
+          "target": "\\\\fileserver\\项目A\\会议纪要",
+          "display": "会议纪要"
+        }
+      ]
+    },
+    {
+      "id": "t6",
+      "title": "回复设计评审意见",
+      "note": "",
+      "status": 1,
+      "priority": 2,
+      "dueAt": null,
+      "tags": [
+        "项目A"
+      ],
+      "links": [
+        {
+          "kind": "url",
+          "target": "https://wiki.company.com/ieop/review",
+          "display": "评审说明 · wiki"
+        }
+      ]
+    }
+  ],
+  "savedViews": [
+    {
+      "name": "采购本周",
+      "filter": {
+        "status": "todo",
+        "date": {
+          "mode": "week"
+        },
+        "tagIds": [
+          "p-buy"
+        ],
+        "priorities": [],
+        "keyword": ""
+      }
+    }
+  ],
+  "settings": {
+    "alwaysOnTop": true,
+    "opacity": 1,
+    "launchAtLogin": false,
+    "globalShortcuts": true
+  }
+}

@@ -1,0 +1,37 @@
+appId: com.lazasons.desktoptodo
+productName: 桌面待办
+copyright: Copyright © 2026 lazasons
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - resources/**/*
+  - package.json
+asar: true
+# 本机无 MSVC，better-sqlite3 使用 electron-ABI 预编译产物（见 scripts/fetch-native-assets.py），
+# 打包阶段不再执行 native 重建，避免 electron-builder 去 GitHub 取编译工具链。
+npmRebuild: false
+asarUnpack:
+  - '**/*.node'
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+portable:
+  artifactName: DesktopTodo-${version}-portable.exe
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 桌面待办
+  artifactName: DesktopTodo-${version}-setup.exe
+  deleteAppDataOnUninstall: false

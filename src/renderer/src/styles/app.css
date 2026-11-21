@@ -1,0 +1,181 @@
+/* =========================================================
+   桌面待办 · 基础样式
+   Contract: docs/08-UI-ENGINEERING-SPEC.md §1.2 字体 / §1.5 动效 / §1.7 滚动条
+   只允许通过 var(--token) 取值；禁止裸色值。
+   ========================================================= */
+
+@font-face {
+  font-family: 'InterVariable';
+  src: url('./inter-variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NotoSerifVariable';
+  src: url('./noto-serif-variable.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--card);
+  user-select: none;
+}
+
+html[data-view='manager'] body {
+  background: var(--paper);
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  outline: none;
+  -webkit-app-region: no-drag;
+  user-select: text;
+}
+
+textarea {
+  resize: none;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--selection);
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ---------- 滚动条：全应用自绘，无箭头（08 §1.7） ---------- */
+::-webkit-scrollbar {
+  width: var(--sb-w);
+  height: var(--sb-w);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb);
+  border-radius: var(--sb-radius);
+  border: var(--sb-inset) solid transparent;
+  background-clip: padding-box;
+  min-height: 32px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sb-thumb-hover);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--sb-thumb-active);
+}
+
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-corner {
+  display: none;
+  background: transparent;
+}
+
+.scroll-compact::-webkit-scrollbar {
+  width: var(--sb-w-compact);
+}
+
+.scroll-compact {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) transparent;
+}
+
+/* ---------- M0 骨架占位（里程碑完成后由真实页面替换） ---------- */
+.boot-widget,
+.boot-manager {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--card);
+}
+
+.boot-manager {
+  background: var(--paper);
+}
+
+.boot-title {
+  font-family: var(--serif);
+  font-size: var(--fs-widget-title);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.boot-sub {
+  font-size: var(--fs-meta);
+  color: var(--muted);
+}
+
+/* ---------- 减少动效（08 §1.5） ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "name": "desktop-todo",
+  "version": "1.0.0",
+  "description": "桌面待办 · 纯本地桌面任务清单",
+  "main": "./out/main/index.js",
+  "author": "lazasons",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev-launch.cjs --build",
+    "start": "node scripts/dev-launch.cjs",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/run-tests.cjs run",
+    "test:watch": "node scripts/run-tests.cjs watch",
+    "rebuild:native": "electron-builder install-app-deps",
+    "icons": "python scripts/make-icons.py",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:portable": "electron-vite build && electron-builder --win portable",
+    "dist:nsis": "electron-vite build && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "better-sqlite3": "12.11.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "4.7.0",
+    "electron": "40.10.2",
+    "electron-builder": "26.18.0",
+    "electron-vite": "2.3.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "^5.7.2",
+    "vite": "5.4.21",
+    "vitest": "2.1.9"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "electron",
+      "electron-builder",
+      "esbuild"
+    ]
+  }
+}
