@@ -715,6 +715,9 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 .w-drag,.w-head{-webkit-app-region:drag;cursor:grab}
 .w-drag:active,.w-head:active{cursor:grabbing}
 .w-head button,.w-drag button{-webkit-app-region:no-drag}
+/* 标题行必须 no-drag：app-region:drag 的区域内收不到 DOM 鼠标事件，
+   双击标题展开完整窗口会失效（用户反馈）。拖动仍可用顶部拖拽条/头部其余空白。 */
+.widget .w-title-row{-webkit-app-region:no-drag;cursor:default}
 .mgr-drag{position:absolute;left:0;right:0;top:0;height:8px;z-index:5;-webkit-app-region:drag;cursor:grab}
 
 /* 挂件窗口：透明窗口 + CSS 圆角 16 / 阴影（08 §2.1）

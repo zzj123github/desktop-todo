@@ -10,7 +10,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactElement
 } from 'react'
 import type { FilterDTO, LinkDTO, SavedViewDTO, TaskDTO } from '../../../shared/types'
@@ -282,7 +281,6 @@ export function Widget(): ReactElement {
     <div
       className={`widget${pin ? '' : ' unpinned'}`}
       ref={rootRef}
-      style={{ opacity: pin ? 1 : (settings.opacity as number | undefined) ?? 1 } as CSSProperties}
     >
       <div className="w-drag" title={zh.widget.dragHint} aria-hidden="true">
         <i />

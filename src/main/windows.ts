@@ -187,6 +187,7 @@ function scheduleBoundsSave(kind: 'widget' | 'capsule' | 'manager'): void {
       } catch {
         // 退出过程中设置表可能已关闭：忽略，避免崩溃
       }
+      settleWidgetIdleOpacity()
     }, BOUNDS_SAVE_DEBOUNCE_MS)
   )
 }
@@ -228,6 +229,20 @@ export function applyWidgetOpacity(): void {
   } catch {
     // 某些平台/环境不支持 setOpacity
   }
+}
+
+/**
+ * 拖动/移动窗口结束时恢复「失焦透明度」。
+ *
+ * 用户反馈：设置透明度 80% 后拖动挂件/胶囊，窗口因拖动获得焦点而变成 100%，
+ * 必须再点一下别处才恢复 80%。拖动不是文本输入，结束后主动失焦即可立即恢复设定值。
+ */
+function settleWidgetIdleOpacity(): void {
+  if (!widgetWindow || widgetWindow.isDestroyed() || quitting) return
+  const configured = getNumberSetting('opacity')
+  if (configured >= 1) return
+  if (!widgetWindow.isFocused()) return
+  widgetWindow.blur()
 }
 
 export function applyAlwaysOnTop(enabled: boolean): void {
@@ -315,6 +330,7 @@ export function endCapsuleDrag(): void {
   if (capsuleDragLast) saveCapsulePosition(capsuleDragLast.x, capsuleDragLast.y)
   capsuleDragOrigin = null
   capsuleDragLast = null
+  settleWidgetIdleOpacity()
 }
 
 /** 兼容旧调用：等同 setWidgetContentHeight */

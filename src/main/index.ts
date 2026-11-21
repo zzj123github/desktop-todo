@@ -28,6 +28,24 @@ import {
 
 const APP_USER_MODEL_ID = 'com.lazasons.desktoptodo'
 
+/**
+ * 渲染策略：默认关闭硬件加速（docs/07 §H 内存指标）。
+ *
+ * 本机实测（Win11 26200 / AMD GPU / ANGLE D3D11 / 175% DPI，打包版）：
+ *   硬件合成：GPU 进程 private 常驻约 114 MB（仅挂件）～244 MB（含完整窗口），
+ *             含完整窗口时 6 个进程 private 合计约 416 MB，超出 300 MB 目标；
+ *   软件合成：GPU 进程 private 约 27 MB，挂件+完整窗口+弹窗合计约 220 MB，
+ *             文本、圆角、阴影视觉一致，空闲 CPU 10s 仅 0.02s。
+ * 透明挂件窗口 + 本机 GPU 合成的固定开销是主要来源，因此默认走软件合成。
+ * 需要硬件加速时设置环境变量 DESKTOP_TODO_GPU=1（用于对比或高刷场景）。
+ */
+function applyRenderingPolicy(): void {
+  if (process.env.DESKTOP_TODO_GPU === '1') return
+  app.disableHardwareAcceleration()
+}
+
+applyRenderingPolicy()
+
 /** 是否带 --silent（开机自启静默进托盘） */
 function hasFlag(flag: string): boolean {
   return process.argv.includes(flag)

@@ -57,3 +57,15 @@
   `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 与
   `ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/`。
 - 打包产物（win-unpacked/portable）在本机 workspace 内启动会崩，需复制到 `%LOCALAPPDATA%\desktop-todo-dev\` 下运行；启动时用 `Set-Location` 切到产物目录再 `Start-Process`，否则子进程继承 workspace cwd 同样受影响。
+
+## 2026-11-22 · `-webkit-app-region: drag` 区域收不到 DOM 鼠标事件
+
+- 现象：挂件标题 `onDoubleClick` 永不触发，双击标题无法打开完整窗口。
+- 原因：Electron 把 drag 区域交给系统拖动，渲染层收不到 mousedown/click/dblclick。
+- 规避：把需要交互的子元素（如 `.w-title-row`）显式设为 `-webkit-app-region: no-drag`；只能通过指针事件实现的交互（自绘拖动）不要依赖 app-region。
+
+## 2026-11-22 · 拖动窗口会抢焦点，失焦透明度设置被覆盖
+
+- 现象：设置 80% 透明度后拖动挂件/胶囊，松手变成 100%，需再点别处才恢复。
+- 原因：拖动使窗口获得焦点，主进程按「非焦点才应用设定透明度」规则设为 1。
+- 规避：窗口 moved/resized 落盘回调与胶囊拖动结束时调用 `settleWidgetIdleOpacity()`（仍在焦点且透明度 <100% 时主动 blur）；透明度只由主进程 `setOpacity` 控制，渲染层不要再叠加 inline opacity。

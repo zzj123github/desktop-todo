@@ -192,3 +192,41 @@
 3. 挂件添加任务默认折叠为小按钮，点击展开完整输入。
 
 临时原型：`design/prototype-adjust/index.html`（双击打开，离线可用，说明见同目录 `CHANGES.md`）。
+
+## 补充验收（2026-11-22 01:10，内存占用过大反馈 + 两条交互反馈）
+
+用户反馈：任务管理器里「桌面待办 (5)」合计约 592.5 MB，其中 1 个进程 437.4 MB，要求优化；另有两条排队反馈（双击标题无法打开完整窗口、拖动后失焦透明度变 100%）。
+
+### 1) 内存：GPU 进程是主因，默认改用软件合成
+
+测量方法：PowerShell `Win32_Process.CommandLine` 区分主进程 / renderer / gpu-process / utility / portable wrapper，汇总 private 与 workingSet（脚本 `.agents/tmp/mem.ps1`，临时验收工具）。
+
+| 场景（打包版） | 硬件合成（旧默认） | 软件合成（新默认） |
+| --- | --- | --- |
+| 仅挂件 | 5 进程 private 243.6 MB、working set 404.5 MB；GPU 进程 private 113.8 MB | 5 进程 private **149.3 MB**、working set 339.3 MB；GPU 进程 private **18.2 MB** |
+| 挂件 + 完整窗口 + 设置弹窗 | 6 进程 private 416.0 MB、working set 638.1 MB；GPU 进程 private 244.5 MB | 6 进程 private **198.8 MB**、working set 489.5 MB；GPU 进程 private **26.9 MB** |
+
+- 根因：AMD 显卡 + ANGLE/D3D11 + `directComposition:true` + 175% DPI 下，透明挂件窗口的 GPU 合成固定开销很高（仅开挂件就 114 MB），不是渲染层泄漏（renderer 稳定 36–44 MB）。
+- 修复：`src/main/index.ts` 增加 `applyRenderingPolicy()`，在 `app ready` 前调用 `app.disableHardwareAcceleration()`；环境变量 `DESKTOP_TODO_GPU=1` 可恢复硬件加速（逃生口，便于对比/特殊设备）。
+- 视觉与 CPU 验证：软件合成下 CDP 截图（`.agents/tmp/shot-sw-manager.png`、`shot-sw-widget.png`）与硬件合成逐项一致（文字、卡片、圆角、轻投影）；空闲 10 秒 CPU 合计 0.02 秒；`--disable-gpu` 下 `SystemInfo` 正常、无渲染异常。
+- 结论：两场景均低于 docs/07 §H「挂件常驻 < 300 MB」，较旧版下降约 40%–50%。
+
+### 2) 双击挂件标题无法打开完整窗口
+
+- 根因：`.w-head` 为 `-webkit-app-region: drag` 拖动区，该区域内的 DOM 鼠标事件不会送达渲染层，`onDoubleClick` 永远不触发。
+- 修复：`app.css` 增加 `.widget .w-title-row{-webkit-app-region:no-drag}`，标题行恢复接收事件；拖动仍可用顶部六点拖拽条与头部其余空白。
+- 验证（打包版 CDP）：向 `.w-title` 派发 `dblclick` → 完整窗口 target 出现（`?view=manager`）✓。
+
+### 3) 透明度 80% 拖动后变 100%
+
+- 根因：拖动会使窗口获得焦点，主进程按「非焦点才应用设定透明度」的规则把窗口设为 100%，必须再点别处才失焦恢复。
+- 修复：`src/main/windows.ts` 新增 `settleWidgetIdleOpacity()`；`bindBoundsPersistence` 的 300ms 保存防抖回调与 `endCapsuleDrag()` 结束时调用：若设置了 <100% 透明度且窗口仍聚焦，则 `blur()` 让设定值立即生效。同时移除 Widget 渲染层重复的 inline opacity（此前与主进程双重叠加）。
+- 验证（打包版 CDP）：设置 opacity=0.8 → 点击挂件聚焦（`document.hasFocus()=true`）→ `beginDrag/dragMove/endDrag` 后 `document.hasFocus()=false`（立即恢复 80%）✓。
+
+### 4) 自动化回归与产物
+
+- `pnpm typecheck` 0 错误；`node scripts/run-tests.cjs` **12 文件 / 165 用例全部通过**。
+- 重打包（2026-11-22 01:03）：
+  - portable 97,666,895 B / SHA-256 `8aa2bf1df8bbddf605677403f5dc5c400b52669e97e88ec79afa49940b94ee0a`
+  - setup 106,240,887 B / SHA-256 `6eabdc1f564c088778814e7596a0952b36281be0d7af7dd895783170930356d2`
+  - 已覆盖 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，`使用说明.txt` 同步更新。

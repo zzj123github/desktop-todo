@@ -31,3 +31,8 @@
 2026-11-22 00:52 | update | release/*.exe, C:\\Users\\lazasons\\Desktop\\桌面待办-交付物\\* | 重新打包（portable 97,691,335B / setup 106,240,687B），覆盖桌面交付目录旧版并更新 使用说明.txt（胶囊整块点击/拖动、修复版说明与哈希前缀）
 2026-11-22 00:52 | verify | 打包版（从桌面交付目录启动，CDP 9226） | view-widget 353×242、轻投影生效、任务数据保留；setCollapsed→view-capsule 284×55，点击胶囊中部→view-widget；app.quit 后进程 0
 2026-11-22 00:52 | update | README.md, docs/acceptance/M6-ACCEPTANCE.md | 2026-11-22 重打包校验表（新哈希/大小）与 4 项 BUG 修复验收记录、待确认的 3 项交互调整
+2026-11-22 01:06 | update | src/main/index.ts | 默认关闭硬件加速（DESKTOP_TODO_GPU=1 逃生口），注释记录内存测量与理由
+2026-11-22 01:06 | update | src/main/windows.ts, src/renderer/src/app/Widget.tsx, src/renderer/src/styles/app.css | 拖动结束恢复失焦透明度（settleWidgetIdleOpacity，移除重复 inline opacity）；标题行 no-drag 修复双击标题打开完整窗口
+2026-11-22 01:03 | update | release/*.exe, C:\\Users\\lazasons\\Desktop\\桌面待办-交付物\\* | 重打包（portable 97,666,895B / setup 106,240,887B），覆盖交付目录与 使用说明.txt（软件合成内存优化 + 两条交互修复）
+2026-11-22 01:06 | verify | 打包版（桌面交付目录，CDP 9227） | 仅挂件 private 149.3MB；挂件+完整窗口+设置 198.8MB；双击标题→manager；opacity 0.8 拖动后失焦恢复
+2026-11-22 01:08 | update | README.md, docs/acceptance/M6-ACCEPTANCE.md, .agents/memory/decisions.md (D10/D11), gotchas.md | 内存优化与两条交互修复的文档、验收证据与决策记录

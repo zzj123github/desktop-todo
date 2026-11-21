@@ -64,3 +64,17 @@
 - 决策：桌面形态（widget/capsule）不使用 tokens 里的 08 原型大投影 `--shadow-widget/--shadow-capsule`，改为基于 tokens 的轻投影 + 1px 内描边。理由：widget 窗口 `transparent: true`，大投影在浅色桌面上会渲染成一块灰色矩形（用户测试反馈 #1）；tokens.css 保持原样，仅在 app.css 窗口形态规则覆盖。
 - 理由与证据：用户 m02712 的 7 项反馈；CDP 验证 boxShadow 变化、胶囊单击/拖动、`.dp-pop` 内点击不再关闭父 Popover；截图 `.agents/reports/screens/m6-fix-datepicker.png`。
 - 影响：新增 3 个 IPC 通道与 4 个单测；`docs/04` IPC 表为最小补充（与 D4 同类偏差），最终答复说明。
+
+## D10 · 2026-11-22 · 默认关闭硬件加速以降低常驻内存
+
+- 背景：用户反馈任务管理器里「桌面待办 (5)」合计约 592.5 MB、单个进程 437.4 MB。
+- 测量（打包版，Win11 26200 + AMD + 175% DPI，`Win32_Process` 按 CPU 时间差 10 秒取值）：仅挂件 5 进程 private 243.6 MB（GPU 进程 113.8 MB）；挂件+完整窗口 6 进程 private 416.0 MB（GPU 244.5 MB）。
+- 决策：`src/main/index.ts` 在 `app ready` 前调用 `app.disableHardwareAcceleration()`（环境变量 `DESKTOP_TODO_GPU=1` 可恢复硬件加速）。软件合成后：仅挂件 5 进程 private 149.3 MB（GPU 18.2 MB）；挂件+完整窗口+设置 198.8 MB（GPU 26.9 MB），均低于 docs/07 §H 的 300 MB；空闲 10s CPU 0.02s，CDP 截图与硬件合成逐项一致。
+- 理由：内存大头是透明挂件窗口在本机 AMD/ANGLE D3D11 合成路径上的固定 GPU 开销，不是渲染层泄漏（renderer 稳定 36–44 MB）；桌面待办的动画/滚动负载低，软件合成代价可忽略，收益是常驻内存减半。
+- 影响：README 增加「性能与内存」对照表与逃生口说明；`docs/acceptance/M6-ACCEPTANCE.md` 增加测量证据；未来若做重 GPU 功能需重新评估。
+
+## D11 · 2026-11-22 · 拖动结束恢复失焦透明度、标题行让出双击
+
+- 决策：`src/main/windows.ts` 新增 `settleWidgetIdleOpacity()`，在窗口 moved/resized 的 300ms 落盘回调与 `endCapsuleDrag()` 里调用：若透明度设置 <100% 且窗口仍聚焦，则 `blur()` 让设定值立即生效；同时移除 Widget 渲染层重复的 inline opacity（此前与主进程会双重叠加）。
+- 决策：`.widget .w-title-row` 设 `-webkit-app-region: no-drag`。原因：app-region: drag 区域内的 DOM 鼠标事件不会送达渲染层，`onDoubleClick` 无法触发，「双击标题展开完整窗口」失效；拖动仍可用顶部六点拖拽条与头部其余空白。
+- 证据：打包版 CDP 双击 `.w-title` → 出现 `?view=manager`；设置 opacity=0.8 后 beginDrag/dragMove/endDrag → `document.hasFocus()=false`（立即恢复 80%）。
