@@ -522,6 +522,8 @@ function addFromComposer(scope){
   });
   R.draft[scope] = {text:'', due:null, projectIds:[], tagIds:[], priority:null, links:[]};
   R.ctx.animateId = t.id;
+  /* 临时调整 C：挂件提交后收起为小按钮 */
+  if(scope==='widget') R.ctx.widgetComposerOpen = false;
   R.renderAll();
   toast('已添加：' + t.title);
   focusSoon(document.getElementById(scope==='main' ? 'mainCInput' : 'widgetCInput'));
@@ -648,8 +650,11 @@ function refreshComposer(scope){
 
 /* ---------------- 模式 ---------------- */
 function setMode(mode){
+  lastModeSwitchAt = Date.now();
   DT.state.ui.mode = mode;
   DT.save();
+  /* 临时调整 C：离开桌面形态时收起挂件输入区，回到桌面时回到默认小按钮 */
+  R.ctx.widgetComposerOpen = false;
   closePops();
   R.renderAll();
   if(mode==='manager' && R.ctx.searchOpen){
@@ -692,6 +697,69 @@ function copyText(text){
   } else fallback();
 }
 
+/* ---------------- 临时调整 B / C：桌面三形态互切 + 挂件输入展开 ---------------- */
+var capClickTimer = null, capLastClick = 0, lastModeSwitchAt = 0;
+/* 当前桌面形态（完整窗口打开时以 ui.lastShape 为最近形态） */
+function currentShape(){
+  return R.ctx.widgetCollapsed ? 'capsule' : 'widget';
+}
+/* 打开完整窗口：先记下当前形态的最近角，关闭后回到同一基准角 */
+function openWindow(){
+  if(DT.state.ui.mode==='manager') return;
+  var shape = currentShape();
+  R.captureAnchor(shape);
+  DT.state.ui.lastShape = shape;
+  setMode('manager');
+}
+/* 挂件 ↔ 胶囊：先记录上一形态的最近角，再按同一基准角切换到目标形态 */
+function switchDesktopShape(shape){
+  if(DT.state.ui.mode!=='desktop') return;
+  R.captureAnchor(currentShape());
+  R.ctx.widgetComposerOpen = false;
+  R.ctx.widgetCollapsed = shape==='capsule';
+  DT.state.ui.widgetCollapsed = shape==='capsule';
+  DT.state.ui.lastShape = shape;
+  DT.save();
+  R.renderWidgetLayer();
+}
+function expandWidgetFromCapsule(){
+  switchDesktopShape('widget');
+}
+function collapseTo(shape){
+  if(DT.state.ui.mode==='manager'){
+    /* 窗口 → 桌面形态：按窗口打开前记录的基准角回到目标形态 */
+    R.captureAnchor(DT.state.ui.lastShape || 'widget');
+    R.ctx.widgetComposerOpen = false;
+    R.ctx.widgetCollapsed = shape==='capsule';
+    DT.state.ui.widgetCollapsed = shape==='capsule';
+    DT.state.ui.lastShape = shape;
+    setMode('desktop');
+    return;
+  }
+  switchDesktopShape(shape);
+}
+function openWidgetComposer(){
+  if(R.ctx.widgetCollapsed) return;
+  R.ctx.widgetComposerOpen = true;
+  R.renderWidgetLayer();
+  focusSoon(document.getElementById('widgetCInput'));
+}
+function closeWidgetComposer(){
+  if(!R.ctx.widgetComposerOpen) return;
+  R.ctx.widgetComposerOpen = false;
+  R.renderWidgetLayer();
+}
+/* 点击输入区之外（挂件/桌面任意位置）收起展开的 composer */
+function maybeCollapseWidgetComposer(target){
+  if(!R.ctx.widgetComposerOpen) return;
+  if(DT.state.ui.mode!=='desktop') return;
+  if(!document.getElementById('overlay').hidden) return;
+  if(target.closest('.w-add')) return;
+  if(target.closest('#popLayer') || target.closest('#dpPop')) return;
+  if(target.closest('#widgetLayer .cap-wrap')) return;
+  closeWidgetComposer();
+}
+
 /* ---------------- 全局事件 ---------------- */
 function shufflePriorities(arr, v){
   var i = arr.indexOf(v);
@@ -700,6 +768,8 @@ function shufflePriorities(arr, v){
 }
 function handleClick(e){
   if(capIgnoreClick && Date.now() < capIgnoreClick && e.target.closest('#widgetLayer .cap-wrap')) return;
+  /* 临时调整 C：点击挂件输入区之外收起展开的 composer */
+  maybeCollapseWidgetComposer(e.target);
   var t = e.target.closest('[data-act]');
   if(!t){
     /* 点击选择器内部的非按钮区域（如时间输入框）不应关闭选择器 */
@@ -727,7 +797,6 @@ function handleClick(e){
     case 'dp-clear': dpCommit(true); break;
     case 'dp-cancel': dpClose(); break;
     case 'dp-ok': dpCommit(false); break;
-    case 'mode': setMode(t.getAttribute('data-mode')); break;
     case 'new-task': openEditor(null); break;
     case 'edit-task': openEditor(t.getAttribute('data-id')); break;
     case 'open-link': {
@@ -826,14 +895,37 @@ function handleClick(e){
       toast(s.alwaysOnTop ? '已置顶' : '已取消置顶');
       break;
     }
-    case 'collapse-widget': R.ctx.widgetCollapsed = true; DT.state.ui.widgetCollapsed = true; DT.save(); R.renderWidgetLayer(); break;
-    case 'expand-widget': R.ctx.widgetCollapsed = false; DT.state.ui.widgetCollapsed = false; DT.save(); R.renderWidgetLayer(); break;
+    case 'collapse-widget': switchDesktopShape('capsule'); break;
+    case 'expand-widget': switchDesktopShape('widget'); break;
+    /* 临时调整 B：完整窗口 → 桌面挂件 / 桌面胶囊 */
+    case 'to-widget': collapseTo('widget'); break;
+    case 'to-capsule': collapseTo('capsule'); break;
+    /* 临时调整 B：关闭完整窗口（标题行 X / Esc） */
+    case 'close-window': setMode('desktop'); break;
+    /* 临时调整 B：胶囊单击展开挂件，250ms 内第二次点击打开完整窗口 */
+    case 'cap-click': {
+      var capNow = Date.now();
+      if(capClickTimer && capNow - capLastClick < 260){
+        clearTimeout(capClickTimer); capClickTimer = null;
+        openWindow();
+      } else {
+        capLastClick = capNow;
+        capClickTimer = setTimeout(function(){
+          capClickTimer = null;
+          expandWidgetFromCapsule();
+        }, 250);
+      }
+      break;
+    }
+    /* 临时调整 C：点击小按钮展开挂件输入区 */
+    case 'widget-composer-open': openWidgetComposer(); break;
     case 'settings': closePops(); R.overlayOpen(R.settingsModal()); break;
     case 'help': closePops(); R.overlayOpen(R.helpModal()); break;
     case 'reset': closePops(); openResetConfirm(); break;
     case 'reset-confirm': {
       DT.reset();
       R.ctx.searchOpen = false; R.ctx.doneOpen = false; R.ctx.widgetDoneOpen = false; R.ctx.widgetCollapsed = false;
+      R.ctx.widgetComposerOpen = false;
       closeOverlay(); setMode('desktop'); R.renderAll(); toast('演示数据已重置');
       break;
     }
@@ -1006,6 +1098,8 @@ function handleKeydown(e){
     if(DP){ dpClose(); return; }
     if(POP){ closePops(); return; }
     if(DEL){ cancelDeleteConfirm(); return; }
+    /* 临时调整 C：Esc 收起挂件展开的输入区 */
+    if(R.ctx.widgetComposerOpen && document.getElementById('overlay').hidden){ closeWidgetComposer(); return; }
     if(!document.getElementById('overlay').hidden){
       if(MG && (MG.adding || MG.rename)){ MG.adding = null; MG.rename = null; rerenderManage(); return; }
       if(MG && MG.fromSettings){
@@ -1015,6 +1109,14 @@ function handleKeydown(e){
       }
       closeOverlay(); return;
     }
+    /* 临时调整 B：Esc 关闭完整窗口，回到桌面形态 */
+    if(DT.state.ui.mode==='manager'){ setMode('desktop'); return; }
+    return;
+  }
+  /* 临时调整 B：胶囊聚焦时 Enter / Space 展开为挂件 */
+  if((e.key==='Enter' || e.key===' ' || e.key==='Spacebar') && e.target && e.target.closest && e.target.closest('#widgetLayer .capsule')){
+    e.preventDefault();
+    expandWidgetFromCapsule();
     return;
   }
   if(e.key==='Enter'){
@@ -1043,7 +1145,7 @@ function handleKeydown(e){
   }
   if(key==='/' || ((e.ctrlKey||e.metaKey) && (key==='f'||key==='F'))){
     e.preventDefault();
-    if(DT.state.ui.mode!=='manager') setMode('manager');
+    if(DT.state.ui.mode!=='manager') openWindow();
     R.ctx.searchOpen = true;
     R.renderAll();
     focusSoon(document.getElementById('mainSearchInput'));
@@ -1093,9 +1195,8 @@ function onCapsuleDragMove(e){
   capDrag.moved = true;
   capDrag.wrap.classList.add('dragging');
   document.body.style.userSelect = 'none';
-  var c = DT.state.ui.capsule;
-  var p = R.capsulePos(e.clientX-capDrag.dx, e.clientY-capDrag.dy);
-  c.x = p.x; c.y = p.y;
+  /* 临时调整 A（v1.1）：拖动时写回最近角基准锚点（拖动过程不落盘，松手时统一 save） */
+  var p = R.moveTo('capsule', e.clientX-capDrag.dx, e.clientY-capDrag.dy);
   capDrag.wrap.style.left = p.x + 'px';
   capDrag.wrap.style.top = p.y + 'px';
 }
@@ -1121,13 +1222,11 @@ function startWidgetDrag(e){
 }
 function onDragMove(e){
   if(!drag) return;
-  var w = drag.wrap, W = 352;
-  var x = DT.clamp(e.clientX-drag.dx, 16, Math.max(16, window.innerWidth-W-16));
-  var y = DT.clamp(e.clientY-drag.dy, 56, Math.max(56, window.innerHeight-46-140));
-  w.style.left = x+'px';
-  w.style.top = y+'px';
-  DT.state.ui.widget.x = x;
-  DT.state.ui.widget.y = y;
+  var w = drag.wrap;
+  /* 临时调整 A（v1.1）：挂件拖动写回最近角基准锚点；按真实高度 clamp，保证不出视口 */
+  var p = R.moveTo('widget', e.clientX-drag.dx, e.clientY-drag.dy);
+  w.style.left = p.x+'px';
+  w.style.top = p.y+'px';
 }
 function endWidgetDrag(){
   if(drag){ DT.save(); }
@@ -1212,12 +1311,13 @@ function bind(){
   });
   window.addEventListener('resize', function(){
     R.ensureWidgetPos();
-    R.ensureCapsulePos();
     positionDp();
   });
   document.addEventListener('dblclick', function(e){
+    /* 形态切换后的第二次点击不再触发"双击"语义，避免胶囊双击误开新建编辑框 */
+    if(Date.now() - lastModeSwitchAt < 400) return;
     if(e.target.closest('[data-drag="widget"]') && !e.target.closest('button')){
-      setMode('manager');
+      openWindow();
       return;
     }
     if(DT.state.ui.mode==='manager'){
@@ -1239,6 +1339,10 @@ function bind(){
 function init(){
   DT.load();
   R.ctx.widgetCollapsed = !!DT.state.ui.widgetCollapsed;
+  /* 临时调整 A（v1.1）：刷新后按上次形态的最近角还原基准角 */
+  if(DT.state.ui.anchor && DT.state.ui.anchor.x!=null){
+    R.captureAnchor(DT.state.ui.lastShape || 'widget');
+  }
   R.renderAll();
   tickClock();
   setInterval(tickClock, 20000);
@@ -1246,6 +1350,8 @@ function init(){
   window.DTApp = {
     DT:DT, R:R,
     setMode:setMode,
+    openWindow:openWindow,
+    switchDesktopShape:switchDesktopShape,
     openEditor:openEditor,
     openResetConfirm:openResetConfirm,
     addFromComposer:addFromComposer,

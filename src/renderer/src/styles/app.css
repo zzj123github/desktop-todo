@@ -910,3 +910,58 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
   font-weight: var(--fw-400);
   letter-spacing: 0;
 }
+
+/* ==========================================================================
+   m03793 确认项：挂件输入区折叠为常驻按钮 / 完整窗口标题行的形态切换按钮
+   ========================================================================== */
+
+/* C. 挂件底部默认只显示紧凑「+ 添加任务」按钮，点击展开输入 */
+.w-add .w-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--field-bg);
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--dur-feedback) var(--ease-standard),
+    border-color var(--dur-feedback) var(--ease-standard),
+    background var(--dur-feedback) var(--ease-standard);
+}
+.w-add .w-add-btn .ic {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+.w-add .w-add-btn:hover {
+  color: var(--ink-2);
+  border-color: var(--border-hover);
+  background: var(--card);
+}
+.w-add .w-add-btn:focus-visible {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--focus-halo);
+}
+
+/* B. 完整窗口标题行右侧的形态切换按钮组（收起到挂件 / 收起到胶囊） */
+.mhead-shapes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 2px;
+  padding-left: 6px;
+  border-left: 1px solid var(--hairline-soft);
+}
+.mhead-shapes .icon-btn {
+  width: 30px;
+  height: 30px;
+}

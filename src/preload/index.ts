@@ -100,6 +100,8 @@ const api: DesktopTodoApi = {
   },
   app: {
     showManager: () => ipcRenderer.invoke('app:showManager'),
+    showWidget: (input?: { collapsed?: boolean }) =>
+      ipcRenderer.invoke('app:showWidget', input ?? {}),
     toggleWidget: () => ipcRenderer.invoke('app:toggleWidget'),
     quit: () => ipcRenderer.invoke('app:quit'),
     getInfo: (): Promise<AppInfo> => ipcRenderer.invoke('app:getInfo'),
@@ -108,8 +110,7 @@ const api: DesktopTodoApi = {
     importData: () => ipcRenderer.invoke('app:importData')
   },
   widget: {
-    setHeight: (input: { height: number; anchor?: 'top' | 'bottom' }) =>
-      ipcRenderer.invoke('widget:setHeight', input),
+    setHeight: (input: { height: number }) => ipcRenderer.invoke('widget:setHeight', input),
     setCollapsed: (input: { collapsed: boolean }) => ipcRenderer.invoke('widget:setCollapsed', input),
     saveCapsulePosition: (input: { x: number; y: number }) =>
       ipcRenderer.invoke('widget:saveCapsulePosition', input),

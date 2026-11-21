@@ -271,3 +271,44 @@
   - setup 106,241,253 B / SHA-256 `2b771c3d4d4122a55c594064976a73a3a7331448e1dd0cea58925d7c972e7068`
   - 已覆盖 `release/` 与桌面交付目录 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，`使用说明.txt` 同步更新。
 - 证据截图（`docs/acceptance/screens/`）：`m6-fix-widget-corners-os.png`（真机 OS 截图，四角透明）、`m6-fix-capsule-corners-os.png`、`m6-fix-widget-datepop.png`（320×241 浮层无裁切）、`m6-fix-widget-calendar.png`（日历完整位于 520 高窗口内）、`m6-fix-widget-calendar-os.png`（真机 OS 截图）。
+
+### 4) 2026-11-22 02:2x 交互确认项（m03793）实施与验收
+
+用户确认四项：单桌面原型、位置基准自适应（就近角、默认右上）、三态互斥、挂件折叠输入。原型先在临时目录实现并经确认后同步回 `design/app/`，再实施到正式应用。
+
+**A. 位置基准自适应（挂件 ↔ 胶囊 ↔ 完整窗口）**
+
+- 实现：桌面形态共用 `settings.widgetBounds`；主进程保存「基准角 + 角屏幕坐标」（`WidgetAnchorPoint`），切换形态/内容高度变化时保持该角不动并换算目标尺寸（`anchorForBounds` / `boundsForShape`，默认右上）。程序化 `setBounds` 后 500ms 内抑制 `moved` 事件回写，避免高 DPI 像素对齐误差反复累积（`suppressBoundsPersistUntil`）。
+- 验证（`.agents/tmp/verify-shapes.mjs`，真实鼠标拖动 + `settings.widgetBounds` 数学比对）：
+  - top-left：Δ0 / Δ0；top-right：Δ0 / Δ0；bottom-left：Δ0 / Δ0；bottom-right：Δ0 / Δ0（修复前 bottom-right 回切 Δ3）。
+  - 拖动挂件到四角 → 切胶囊 → 切回挂件 → 打开/关闭完整窗口，基准角坐标保持（≤1 DIP，175% DPI 物理取整）。
+  - 证据：`.agents/tmp/verify-shapes.log`。
+
+**B. 三态互斥（挂件 / 胶囊 / 完整窗口）**
+
+- 任一时刻只有一个桌面形态可见：打开完整窗口自动隐藏挂件；关闭（X / Esc / 渲染层 `window.close()`）或收起到挂件/胶囊后回到桌面形态；挂件与完整窗口不会同时显示。
+- 验证：`verify-shapes.mjs` 6 项互斥检查全部 PASS（启动单窗口、showManager 后仅 manager、收起到胶囊 284×54、胶囊单击展开 352、收起到挂件、关闭完整窗口回桌面形态）。
+- 入口：完整窗口标题行新增「收起到挂件」「收起到胶囊」两个 30×30 IconButton；挂件双击标题打开完整窗口；胶囊单击 250ms 后展开为挂件、双击打开完整窗口。
+
+**C. 挂件折叠输入**
+
+- 默认显示 28 高「+ 添加任务」按钮（整行宽、圆角 12、`--field-bg` + 1px `--hairline`）；点击展开 composer 并自动聚焦；Enter 保存、Shift+Enter 换行、Esc / 点击外部 / 提交后收起并回到按钮。
+- 验证：默认折叠按钮可见、点击后 textarea 聚焦、Esc 收起、提交后收起且任务落库（4 项 PASS）。
+
+**D. 原型同步**
+
+- `design/prototype-adjust/` 的 v1.1（单桌面单标签、就近角基准、三态互斥、折叠输入；77 项无头 Edge 断言 PASS）已同步回 `design/app/`：新增 `css/adjust.css`，更新 `js/{core,render,interactions}.js` 与 `index.html`，`design/prototype-adjust/` 已删除，原始原型文件保留且行为更新为确认版。
+- 规范同步：`docs/08-UI-ENGINEERING-SPEC.md` §2.1/§2.2/§2.3/§2.4 + 新增 §2.8；`docs/01-PRD.md` FR-1.3/1.7/1.9/2.3/2.7/2.8/5.5；`docs/02-DESIGN-SPEC.md` 桌面阴影与折叠输入说明。
+
+**E. 自动化回归**
+
+- `npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` **13 文件 / 171 用例全部通过**（新增 `src/main/windows.test.ts` 6 例：四角基准与 clamp）。
+- 证据截图（`docs/acceptance/screens/`）：`m6-widget-folded.png`（折叠按钮）、`m6-widget-composer.png`（展开输入）、`m6-widget-datepicker.png`（挂件内日历完整）、`m6-manager-shapes.png`（标题行两个收起按钮）、`m6-capsule-final.png`。
+
+**F. 交付物（2026-11-22 02:32 重打包）**
+
+- 打包命令（工作区外输出规避 VS Code 文件锁）：`ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ pnpm exec electron-builder --win -c.directories.output=C:/Users/lazasons/AppData/Local/desktop-todo-dev/release-build`
+- 产物并已复制到 `release/` 与桌面交付目录 `C:\Users\lazasons\Desktop\桌面待办-交付物\`：
+  - `DesktopTodo-1.0.0-portable.exe` 97,692,520 B / SHA-256 `f771ca46de0c4c351773760034f02f37a6bb8780ca32c3e80a19bb44f9ec8644`
+  - `DesktopTodo-1.0.0-setup.exe` 106,242,726 B / SHA-256 `8052112795253791822318043737c2e162b0d0bc85dbd6ab496c7a88fa6ed57d`
+- `使用说明.txt` 与 README 校验表、修复清单已同步更新。

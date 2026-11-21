@@ -53,6 +53,9 @@ export function Widget(): ReactElement {
   const [activeViewId, setActiveViewId] = useState<string | null>(null)
   const [editor, setEditor] = useState<TaskDTO | null>(null)
   const [doneOpen, setDoneOpen] = useState(false)
+  /** 挂件输入区：常驻紧凑按钮，点击后展开 Composer（m03793 确认） */
+  const [composerOpen, setComposerOpen] = useState(false)
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const lastHeight = useRef(0)
 
@@ -67,17 +70,14 @@ export function Widget(): ReactElement {
   )
   const pin = settings.alwaysOnTop !== false
 
-  // 高度上报：窗口高度跟随内容（主进程夹在 96..520）
+  // 高度上报：窗口高度跟随内容（主进程夹在 96..520，并保持位置基准角）
   // 浮层（日期/标签/优先级/链接 Popover、日期选择器）portal 到 body，
-  // 在小窗口里会被裁切；打开期间把窗口临时加高到 520 并保持底边不动（anchor=bottom），
-  // 关闭后再以 bottom 收回到内容高度，视觉上输入区不移动。
+  // 在小窗口里会被裁切；打开期间把窗口临时加高到 520，关闭后再收回到内容高度。
   useEffect(() => {
     const element = rootRef.current
     if (!element) return
     let frame = 0
-    let lastAnchor: 'top' | 'bottom' = 'top'
     const overlayOpen = { current: false }
-    const overlayWasOpen = { current: false }
     const naturalRef = { current: 0 }
     // 窗口高度会反过来限制 .widget 自身（height:100%），所以按各区块自然高度求和：
     // 拖拽区 + 头部固定高度 + 列表子项自然高度之和 + 输入区 + footer。
@@ -110,13 +110,11 @@ export function Widget(): ReactElement {
       if (!expanded && natural > 0) naturalRef.current = natural
       const base = naturalRef.current || natural
       const height = expanded ? Math.max(base, WIDGET_MAX_HEIGHT) : base
-      const anchor: 'top' | 'bottom' = expanded || overlayWasOpen.current ? 'bottom' : 'top'
-      overlayWasOpen.current = expanded
       if (height <= 0) return
-      if (height === lastHeight.current && anchor === lastAnchor) return
+      if (height === lastHeight.current) return
       lastHeight.current = height
-      lastAnchor = anchor
-      void window.api.widget.setHeight({ height, anchor })
+      // 位置基准角由主进程按窗口所在象限决定（docs/08 §2.4）
+      void window.api.widget.setHeight({ height })
     }
     const schedule = (): void => {
       if (frame) return
@@ -148,18 +146,40 @@ export function Widget(): ReactElement {
     void window.api.widget.setCollapsed({ collapsed: true })
   }, [])
 
-  // Esc 收起为胶囊（docs/01 FR-1.9）
+  // 输入区展开后聚焦；点击输入区外部或 Esc 收起（m03793 确认）
+  useEffect(() => {
+    if (!composerOpen) return
+    composerInputRef.current?.focus()
+    const onPointerDown = (event: MouseEvent): void => {
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('.w-add')) return
+      if (target.closest('.pop, .dp-pop, .overlay')) return
+      setComposerOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown, true)
+    return () => document.removeEventListener('mousedown', onPointerDown, true)
+  }, [composerOpen])
+
+  // Esc：先收起输入区，再收起为胶囊（docs/01 FR-1.9）
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape' || editor) return
-      const target = event.target as HTMLElement | null
-      if (target?.closest('.overlay')) return
+      if (event.key !== 'Escape') return
+      const target = event.target as Element | Document | null
+      // 合成事件（测试/自动化）的 target 可能是 document，closest 不存在
+      if (target instanceof Element && target.closest('.overlay')) return
+      if (composerOpen) {
+        event.preventDefault()
+        setComposerOpen(false)
+        return
+      }
+      if (editor) return
       event.preventDefault()
       collapse()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [collapse, editor])
+  }, [collapse, composerOpen, editor])
 
   const toggleTask = useCallback(
     async (task: TaskDTO) => {
@@ -402,16 +422,33 @@ export function Widget(): ReactElement {
         ) : null}
       </div>
 
-      <div className="w-add">
-        <Composer
-          mode="widget"
-          projects={projects}
-          tags={tags}
-          timeUsage={timeUsage.usage}
-          onPickTime={(value) => timeUsage.note(value)}
-          onSubmit={submitComposer}
-          onTagsChanged={refreshTags}
-        />
+      <div className={`w-add${composerOpen ? ' open' : ' folded'}`}>
+        {composerOpen ? (
+          <Composer
+            mode="widget"
+            projects={projects}
+            tags={tags}
+            timeUsage={timeUsage.usage}
+            onPickTime={(value) => timeUsage.note(value)}
+            inputRef={composerInputRef}
+            onSubmit={async (draft) => {
+              await submitComposer(draft)
+              setComposerOpen(false)
+            }}
+            onTagsChanged={refreshTags}
+          />
+        ) : (
+          <button
+            type="button"
+            className="w-add-btn"
+            onClick={() => setComposerOpen(true)}
+            aria-label={zh.widget.addTask}
+            title={zh.widget.addTask}
+          >
+            <Icon name="plus" size={13} className="ic" />
+            {zh.widget.addTask}
+          </button>
+        )}
       </div>
 
       <div className="w-foot">

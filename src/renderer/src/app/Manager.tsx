@@ -14,6 +14,7 @@ import {
 } from 'react'
 import type { AppInfo, FilterDTO, LinkDTO, SavedViewDTO, SettingsKey, TaskDTO } from '../../../shared/types'
 import { Icon } from '../components/Icons'
+import { IconButton } from '../components/IconButton'
 import { ProgressRing } from '../components/ProgressRing'
 import { TaskRow } from '../components/TaskRow'
 import { Composer, type ComposerSubmit } from '../components/Composer'
@@ -602,6 +603,18 @@ export function Manager(): ReactElement {
             </div>
             <div className="mhead-r">
               <ProgressRing percent={progress.percent} size="md" />
+              <span className="mhead-shapes">
+                <IconButton
+                  icon="grid"
+                  label={zh.manager.collapseToWidget}
+                  onClick={() => void window.api.app.showWidget({ collapsed: false })}
+                />
+                <IconButton
+                  icon="minus"
+                  label={zh.manager.collapseToCapsule}
+                  onClick={() => void window.api.app.showWidget({ collapsed: true })}
+                />
+              </span>
               <button type="button" className="btn-pri" onClick={openNew}>
                 <Icon name="plus" size={14} />
                 {zh.manager.newTask}

@@ -1,13 +1,20 @@
 /**
  * windows · widget / capsule / manager 窗口
- * Contract: docs/04-TECH-PLAN.md §窗口 · docs/08-UI-ENGINEERING-SPEC.md §2 · Lead m00124/m00232
+ * Contract: docs/04-TECH-PLAN.md §窗口 · docs/08-UI-ENGINEERING-SPEC.md §2 · Lead m00124/m00232/m03793
  *
  * 挂件与胶囊是同一个 BrowserWindow 的两个形态（只 setBounds，不重建窗口）：
  * - 挂件：352 宽，高度由 renderer 上报（widget:setHeight，夹 96..min(520, workArea.height)）；
  * - 胶囊：284×54，位置由 renderer 拖动后上报（widget:saveCapsulePosition）。
  * 透明窗口（CSS 画圆角/阴影），完整窗口保持不透明。
- * bounds 持久化到 settings 的 widgetBounds / capsuleBounds / managerBounds，
- * 结构 { x, y, width, height, displayId }，防抖 300ms。
+ *
+ * 位置基准（m03793）：挂件与胶囊共用同一位置；切换形态或高度变化时，按窗口当前
+ * 所在的屏幕象限固定基准角（左上/右上/左下/右下，默认右上），该角坐标不变并夹进工作区。
+ * 三态互斥（m03793）：挂件 / 胶囊 / 完整窗口同一时刻只显示一种；完整窗口关闭或销毁后
+ * 回到之前的桌面形态。
+ *
+ * bounds 持久化到 settings 的 widgetBounds（桌面形态共用）/ managerBounds，
+ * 结构 { x, y, width, height, displayId }，防抖 300ms。capsuleBounds 作为旧字段保留兼容，
+ * 不再单独读写。
  */
 import { BrowserWindow, screen, type Rectangle } from 'electron'
 import { join } from 'node:path'
@@ -18,7 +25,6 @@ import {
   readBounds,
   writeBounds,
   writeSetting,
-  type WindowBoundsKey,
   type WindowBoundsRecord
 } from './settings'
 
@@ -35,17 +41,42 @@ export const MANAGER_MIN_HEIGHT = 600
 const WIDGET_DEFAULT_MARGIN_RIGHT = 56
 const WIDGET_DEFAULT_MARGIN_TOP = 88
 const CAPSULE_DEFAULT_MARGIN_RIGHT = 56
-const CAPSULE_DEFAULT_MARGIN_BOTTOM = 70
 
 /** bounds 写库防抖（docs/04 §窗口：move/resize 300ms 防抖） */
 const BOUNDS_SAVE_DEBOUNCE_MS = 300
 
 export type WidgetMode = 'widget' | 'capsule'
 
+/** 桌面形态的基准角：切换形态/改变高度时保持该角在屏幕上的坐标不变 */
+export type ShapeAnchor = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
 let widgetWindow: BrowserWindow | null = null
 let managerWindow: BrowserWindow | null = null
 let widgetMode: WidgetMode = 'widget'
 let quitting = false
+/** 最近一次挂件形态的内容高度：胶囊展开时按它恢复（renderer 随后会再上报一次） */
+let widgetHeight = 0
+
+/**
+ * 桌面形态共用的基准角锚点。
+ * 只保存「角 + 该角的屏幕坐标」，切换形态/改高度时直接由锚点换算目标矩形，
+ * 不再从 getBounds() 反复取整重算，避免多次切换后基准角累积漂移（m03793 验证）。
+ */
+interface WidgetAnchorPoint {
+  corner: ShapeAnchor
+  x: number
+  y: number
+}
+let widgetAnchor: WidgetAnchorPoint | null = null
+/**
+ * 程序化 setBounds 后的短时抑制窗口：'moved' 事件可能回读被物理像素对齐后的坐标，
+ * 若此时落盘并重捕获锚点，会在 175% DPI 下引入 ±1~2 DIP 漂移（四角切换验收发现）。
+ */
+let suppressBoundsPersistUntil = 0
+
+function markProgrammaticBoundsChange(): void {
+  suppressBoundsPersistUntil = Date.now() + 500
+}
 const boundsTimers = new Map<'widget' | 'capsule' | 'manager', NodeJS.Timeout>()
 let displayListenersBound = false
 
@@ -122,21 +153,106 @@ export function defaultWidgetBounds(): Rectangle {
   }
 }
 
+/** 胶囊默认位置同样在右上（m03793：默认基准角为右上） */
 export function defaultCapsuleBounds(): Rectangle {
   const wa = screen.getPrimaryDisplay().workArea
   return {
     x: wa.x + wa.width - CAPSULE_WIDTH - CAPSULE_DEFAULT_MARGIN_RIGHT,
-    y: wa.y + wa.height - CAPSULE_HEIGHT - CAPSULE_DEFAULT_MARGIN_BOTTOM,
+    y: wa.y + WIDGET_DEFAULT_MARGIN_TOP,
     width: CAPSULE_WIDTH,
     height: CAPSULE_HEIGHT
   }
 }
 
-function widgetBoundsForMode(mode: WidgetMode): Rectangle {
-  if (mode === 'capsule') {
-    return resolveSavedBounds(readBounds('capsuleBounds'), defaultCapsuleBounds())
+/** 按窗口中心相对屏幕工作区中心的位置，判定它贴着哪个角（默认右上） */
+export function anchorForBounds(bounds: Rectangle, workArea: Rectangle): ShapeAnchor {
+  const centerX = bounds.x + bounds.width / 2
+  const centerY = bounds.y + bounds.height / 2
+  const workCenterX = workArea.x + workArea.width / 2
+  const workCenterY = workArea.y + workArea.height / 2
+  const right = centerX >= workCenterX
+  const bottom = centerY >= workCenterY
+  if (bottom) return right ? 'bottom-right' : 'bottom-left'
+  return right ? 'top-right' : 'top-left'
+}
+
+/**
+ * 以当前窗口的基准角为锚点，计算目标尺寸下的新矩形。
+ * 例：窗口在右上角时保持右上角坐标不变，把宽高换成目标尺寸，再夹进工作区。
+ */
+export function boundsForShape(
+  current: Rectangle,
+  width: number,
+  height: number,
+  workArea: Rectangle
+): Rectangle {
+  const anchor = anchorForBounds(current, workArea)
+  const anchorX = anchor.endsWith('right') ? current.x + current.width : current.x
+  const anchorY = anchor.startsWith('bottom') ? current.y + current.height : current.y
+  const x = anchor.endsWith('right') ? anchorX - width : anchorX
+  const y = anchor.startsWith('bottom') ? anchorY - height : anchorY
+  return clampBoundsToWorkArea({ x, y, width, height }, workArea)
+}
+
+/** 记录位置对应的基准角与角坐标（窗口拖动结束/位置恢复时调用） */
+function captureWidgetAnchor(bounds: Rectangle, workArea: Rectangle): WidgetAnchorPoint {
+  const corner = anchorForBounds(bounds, workArea)
+  return {
+    corner,
+    x: corner.endsWith('right') ? bounds.x + bounds.width : bounds.x,
+    y: corner.startsWith('bottom') ? bounds.y + bounds.height : bounds.y
   }
-  return resolveSavedBounds(readBounds('widgetBounds'), defaultWidgetBounds())
+}
+
+/** 由基准角锚点 + 目标尺寸换算矩形（角坐标保持不动） */
+function boundsFromWidgetAnchor(
+  anchor: WidgetAnchorPoint,
+  width: number,
+  height: number,
+  workArea: Rectangle
+): Rectangle {
+  const x = anchor.corner.endsWith('right') ? anchor.x - width : anchor.x
+  const y = anchor.corner.startsWith('bottom') ? anchor.y - height : anchor.y
+  return clampBoundsToWorkArea({ x, y, width, height }, workArea)
+}
+
+function shapeSize(mode: WidgetMode): { width: number; height: number } {  if (mode === 'capsule') return { width: CAPSULE_WIDTH, height: CAPSULE_HEIGHT }
+  const saved = readBounds('widgetBounds')
+  const fallbackHeight = Math.min(widgetHeight || saved?.height || 420, WIDGET_MAX_HEIGHT)
+  return {
+    width: WIDGET_WIDTH,
+    height: Math.max(WIDGET_MIN_HEIGHT, Math.min(fallbackHeight, WIDGET_MAX_HEIGHT))
+  }
+}
+
+/**
+ * 桌面形态的启动/恢复位置：优先用共用的 widgetBounds；旧数据里只有 capsuleBounds 时也能迁移。
+ * 按保存位置所在象限固定基准角，再换成当前形态的尺寸。
+ */
+function resolveShapeBounds(mode: WidgetMode): Rectangle {
+  const saved = readBounds('widgetBounds') ?? readBounds('capsuleBounds')
+  const base = saved
+    ? resolveSavedBounds(saved, defaultWidgetBounds())
+    : defaultWidgetBounds()
+  const workArea = screen.getDisplayMatching(base).workArea
+  const size = shapeSize(mode)
+  widgetAnchor = captureWidgetAnchor(base, workArea)
+  return boundsFromWidgetAnchor(widgetAnchor, size.width, size.height, workArea)
+}
+
+/** 桌面形态的位置统一持久化到 widgetBounds（挂件/胶囊共用同一位置） */
+function saveShapeBounds(bounds: Rectangle, capture = true): void {
+  const wa = screen.getDisplayMatching(bounds).workArea
+  const normalized = clampBoundsToWorkArea(bounds, wa)
+  // 由锚点换算出的程序化矩形不再反向捕获锚点，避免 DPI 取整误差累积
+  if (capture) widgetAnchor = captureWidgetAnchor(normalized, wa)
+  writeBounds('widgetBounds', {
+    x: normalized.x,
+    y: normalized.y,
+    width: normalized.width,
+    height: normalized.height,
+    displayId: displayIdFor(normalized)
+  })
 }
 
 function displayIdFor(bounds: Rectangle): number {
@@ -147,31 +263,39 @@ function displayIdFor(bounds: Rectangle): number {
 // bounds 持久化（防抖）
 // ---------------------------------------------------------------------------
 
-function boundsKeyFor(kind: 'widget' | 'capsule' | 'manager'): WindowBoundsKey {
-  if (kind === 'manager') return 'managerBounds'
-  return kind === 'capsule' ? 'capsuleBounds' : 'widgetBounds'
-}
-
 function persistBounds(kind: 'widget' | 'capsule' | 'manager'): void {
   const win = kind === 'manager' ? managerWindow : widgetWindow
   if (!win || win.isDestroyed()) return
   const bounds = win.getBounds()
-  // 形态尺寸是固定契约（08 §2.1：挂件宽 352、胶囊 284×54）。高 DPI 下 Windows
-  // 会把 setBounds 的 DIP 尺寸四舍五入到物理像素，getBounds 可能回读 ±1px 甚至
-  // 中间态尺寸；这里只持久化位置 + 规范化后的尺寸，避免下次启动把窗口撑大。
-  const width = kind === 'capsule' ? CAPSULE_WIDTH : kind === 'widget' ? WIDGET_WIDTH : bounds.width
-  const height =
-    kind === 'capsule'
-      ? CAPSULE_HEIGHT
-      : kind === 'widget'
-        ? Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(bounds.height, WIDGET_MAX_HEIGHT)))
-        : bounds.height
-  writeBounds(boundsKeyFor(kind), {
-    x: bounds.x,
-    y: bounds.y,
+  if (kind === 'manager') {
+    writeBounds('managerBounds', {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      displayId: displayIdFor(bounds)
+    })
+    return
+  }
+  // 程序化切换形态/高度后的 moved 事件不落盘（位置已由 setBounds 主动写入）
+  if (Date.now() < suppressBoundsPersistUntil) return
+  // 桌面形态（挂件/胶囊）共用同一位置：高 DPI 下 getBounds 可能回读 ±1px 或中间态，
+  // 按当前形态规范化尺寸后再落盘，避免下次启动把窗口撑大。
+  const isCapsule = widgetMode === 'capsule'
+  const width = isCapsule ? CAPSULE_WIDTH : WIDGET_WIDTH
+  const height = isCapsule
+    ? CAPSULE_HEIGHT
+    : Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(bounds.height, WIDGET_MAX_HEIGHT)))
+  const wa = screen.getDisplayMatching(bounds).workArea
+  const next = clampBoundsToWorkArea({ x: bounds.x, y: bounds.y, width, height }, wa)
+  // 真实拖动结束后以实际位置重捕获基准角（此后切换形态保持该角）
+  widgetAnchor = captureWidgetAnchor(next, wa)
+  writeBounds('widgetBounds', {
+    x: next.x,
+    y: next.y,
     width,
     height,
-    displayId: displayIdFor(bounds)
+    displayId: displayIdFor(next)
   })
 }
 
@@ -208,7 +332,7 @@ function bindBoundsPersistence(win: BrowserWindow, kind: 'manager'): void
 function bindBoundsPersistence(win: BrowserWindow, kind: 'widget'): void
 function bindBoundsPersistence(win: BrowserWindow, kind: 'manager' | 'widget'): void {
   const handler = (): void => {
-    scheduleBoundsSave(kind === 'widget' && widgetMode === 'capsule' ? 'capsule' : kind)
+    scheduleBoundsSave(kind)
   }
   win.on('moved', handler)
   win.on('resized', handler)
@@ -283,26 +407,30 @@ export function isWidgetCollapsed(): boolean {
 /**
  * renderer 上报内容高度：夹 96..min(520, workArea.height)，不超出工作区。
  *
- * anchor='bottom'：保持窗口底边不动、向上生长（用于挂件内打开浮层/日期选择时
- * 临时加高窗口，让浮层有空间显示；浮层关闭后同样以 bottom 收起，回到原位）。
+ * 高度变化保持当前基准角（m03793）：窗口在右上角时顶边不动、向下生长；
+ * 在右下角时底边不动、向上生长。浮层展开后同样按这个规则加高。
  */
-export function setWidgetContentHeight(height: number, anchor: 'top' | 'bottom' = 'top'): void {
+export function setWidgetContentHeight(height: number): void {
   if (!widgetWindow || widgetWindow.isDestroyed()) return
   if (widgetMode === 'capsule') return
   const bounds = widgetWindow.getBounds()
   const wa = screen.getDisplayMatching(bounds).workArea
   const maxHeight = Math.min(WIDGET_MAX_HEIGHT, wa.height)
   const nextHeight = Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(height, maxHeight)))
-  const maxY = Math.max(wa.y, wa.y + wa.height - nextHeight)
-  const desiredY = anchor === 'bottom' ? bounds.y + bounds.height - nextHeight : bounds.y
-  const y = Math.min(Math.max(desiredY, wa.y), maxY)
-  if (bounds.height === nextHeight && bounds.y === y && bounds.width === WIDGET_WIDTH) return
-  widgetWindow.setBounds({
-    x: Math.min(Math.max(bounds.x, wa.x), wa.x + wa.width - WIDGET_WIDTH),
-    y,
-    width: WIDGET_WIDTH,
-    height: nextHeight
-  })
+  widgetHeight = nextHeight
+  const anchor = widgetAnchor ?? captureWidgetAnchor(bounds, wa)
+  const next = boundsFromWidgetAnchor(anchor, WIDGET_WIDTH, nextHeight, wa)
+  if (
+    bounds.height === next.height &&
+    bounds.y === next.y &&
+    bounds.x === next.x &&
+    bounds.width === next.width
+  ) {
+    return
+  }
+  markProgrammaticBoundsChange()
+  widgetWindow.setBounds(next)
+  saveShapeBounds(next, false)
 }
 
 // ---------------------------------------------------------------------------
@@ -344,52 +472,62 @@ export function resizeWidgetHeight(height: number): void {
   setWidgetContentHeight(height)
 }
 
-/** 切换挂件/胶囊形态：同一窗口 setBounds，不重建窗口 */
+/**
+ * 切换挂件/胶囊形态：同一窗口 setBounds，不重建窗口。
+ * 位置基准自适应：按当前窗口所在象限固定基准角（默认右上），该角坐标不变。
+ */
 export function setWidgetCollapsed(collapsed: boolean): void {
   const nextMode: WidgetMode = collapsed ? 'capsule' : 'widget'
   if (widgetMode === nextMode && widgetWindow && !widgetWindow.isDestroyed()) {
     writeSetting('capsule', collapsed)
     return
   }
-  // 先落盘旧形态位置，再切换
-  if (widgetWindow && !widgetWindow.isDestroyed()) {
-    persistBounds(widgetMode === 'capsule' ? 'capsule' : 'widget')
+  const win = widgetWindow
+  const previousMode = widgetMode
+  const current = win && !win.isDestroyed() ? win.getBounds() : null
+  if (win && !win.isDestroyed() && previousMode === 'widget') {
+    widgetHeight = Math.max(
+      WIDGET_MIN_HEIGHT,
+      Math.min(current?.height ?? widgetHeight, WIDGET_MAX_HEIGHT)
+    )
   }
   widgetMode = nextMode
   // 形态切换时丢弃未完成的拖动起点，避免下一次拖动按旧坐标计算
   capsuleDragOrigin = null
   capsuleDragLast = null
   writeSetting('capsule', collapsed)
-  if (widgetWindow && !widgetWindow.isDestroyed()) {
-    const bounds = widgetBoundsForMode(nextMode)
-    widgetWindow.setBounds(bounds)
+  if (win && !win.isDestroyed() && current) {
+    const wa = screen.getDisplayMatching(current).workArea
+    const size = shapeSize(nextMode)
+    // 以当前形态的基准角为锚点换算目标形态，角坐标保持不变
+    const anchor = widgetAnchor ?? captureWidgetAnchor(current, wa)
+    widgetAnchor = anchor
+    const next = boundsFromWidgetAnchor(anchor, size.width, size.height, wa)
+    markProgrammaticBoundsChange()
+    win.setBounds(next)
+    saveShapeBounds(next, false)
     if (nextMode === 'widget') applyWidgetOpacity()
   }
   broadcast('widget:collapsed', { collapsed })
 }
 
-/** 胶囊拖动结束后上报位置：clamp 写入 capsuleBounds，胶囊形态下立即 setBounds */
+/**
+ * 桌面形态拖动结束后上报位置（IPC 名沿用 widget:saveCapsulePosition）：
+ * 挂件/胶囊共用同一位置，统一写入 widgetBounds。
+ */
 export function saveCapsulePosition(x: number, y: number): void {
+  if (!widgetWindow || widgetWindow.isDestroyed()) return
+  const size = shapeSize(widgetMode)
   const wa = screen.getDisplayMatching({
     x: Math.round(x),
     y: Math.round(y),
-    width: CAPSULE_WIDTH,
-    height: CAPSULE_HEIGHT
+    width: size.width,
+    height: size.height
   }).workArea
-  const bounds = clampBoundsToWorkArea(
-    { x, y, width: CAPSULE_WIDTH, height: CAPSULE_HEIGHT },
-    wa
-  )
-  writeBounds('capsuleBounds', {
-    x: bounds.x,
-    y: bounds.y,
-    width: CAPSULE_WIDTH,
-    height: CAPSULE_HEIGHT,
-    displayId: displayIdFor(bounds)
-  })
-  if (widgetWindow && !widgetWindow.isDestroyed() && widgetMode === 'capsule') {
-    widgetWindow.setBounds(bounds)
-  }
+  const bounds = clampBoundsToWorkArea({ x, y, width: size.width, height: size.height }, wa)
+  saveShapeBounds(bounds)
+  markProgrammaticBoundsChange()
+  widgetWindow.setBounds(bounds)
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +535,8 @@ export function saveCapsulePosition(x: number, y: number): void {
 // ---------------------------------------------------------------------------
 
 function createWidgetWindow(initialMode: WidgetMode): BrowserWindow {
-  const bounds = widgetBoundsForMode(initialMode)
+  const bounds = resolveShapeBounds(initialMode)
+  widgetHeight = Math.min(bounds.height, WIDGET_MAX_HEIGHT)
   const win = new BrowserWindow({
     ...bounds,
     title: '桌面待办',
@@ -472,24 +611,27 @@ function createManagerWindow(): BrowserWindow {
     if (quitting) return
     event.preventDefault()
     win.hide()
+    // 三态互斥：完整窗口关闭后回到之前的桌面形态（m03793）
+    showWidget()
   })
   win.on('closed', () => {
     managerWindow = null
+    // 渲染层 window.close() 会直接销毁窗口，绕过上面 close 事件的拦截
+    if (!quitting) showWidget()
   })
   bindBoundsPersistence(win, 'manager')
   return win
 }
 
-/** 显示器增删/分辨率变化后把已存在窗口重新夹进可见工作区 */
+/** 显示器增删/分辨率变化后把已存在窗口重新夹进可见工作区（桌面形态保持基准角） */
 function reclampWindows(): void {
   if (widgetWindow && !widgetWindow.isDestroyed()) {
     const bounds = widgetWindow.getBounds()
-    const target =
-      widgetMode === 'capsule'
-        ? clampBoundsToWorkArea(bounds, screen.getDisplayMatching(bounds).workArea)
-        : clampBoundsToWorkArea(bounds, screen.getDisplayMatching(bounds).workArea)
+    const wa = screen.getDisplayMatching(bounds).workArea
+    const size = shapeSize(widgetMode)
+    const target = boundsForShape(bounds, size.width, size.height, wa)
     widgetWindow.setBounds(target)
-    scheduleBoundsSave(widgetMode === 'capsule' ? 'capsule' : 'widget')
+    saveShapeBounds(target)
   }
   if (managerWindow && !managerWindow.isDestroyed()) {
     const bounds = managerWindow.getBounds()
@@ -533,13 +675,26 @@ export function getManagerWindow(): BrowserWindow | null {
   return managerWindow
 }
 
+/** 显示桌面形态（挂件/胶囊）；三态互斥：显示时隐藏完整窗口 */
 export function showWidget(): void {
   if (!widgetWindow || widgetWindow.isDestroyed()) return
+  if (managerWindow && !managerWindow.isDestroyed() && managerWindow.isVisible()) {
+    managerWindow.hide()
+  }
   // 显示前确保 bounds 与当前形态一致（例如上次退出时位置数据已更新）
-  widgetWindow.setBounds(widgetBoundsForMode(widgetMode))
+  widgetWindow.setBounds(resolveShapeBounds(widgetMode))
   applyWidgetOpacity()
   widgetWindow.show()
   widgetWindow.focus()
+}
+
+/**
+ * 完整窗口的「收起到挂件 / 收起到胶囊」入口（m03793）：
+ * 先切换到目标桌面形态，再隐藏完整窗口并显示桌面形态（三态互斥）。
+ */
+export function showWidgetMode(collapsed: boolean): void {
+  setWidgetCollapsed(collapsed)
+  showWidget()
 }
 
 export function hideWidget(): void {
@@ -552,13 +707,20 @@ export function isWidgetVisible(): boolean {
 }
 
 export function toggleWidget(): void {
-  if (isWidgetVisible()) hideWidget()
+  const managerVisible = Boolean(
+    managerWindow && !managerWindow.isDestroyed() && managerWindow.isVisible()
+  )
+  if (isWidgetVisible() && !managerVisible) hideWidget()
   else showWidget()
 }
 
 function revealManager(): void {
   const win = managerWindow
   if (!win || win.isDestroyed()) return
+  // 三态互斥：打开完整窗口时隐藏桌面形态
+  if (widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible()) {
+    widgetWindow.hide()
+  }
   if (win.isMinimized()) win.restore()
   win.show()
   win.focus()

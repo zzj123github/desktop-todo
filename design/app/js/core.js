@@ -210,8 +210,13 @@ DT.seed = function(){
     nav:{type:'today', id:null},
     tab:'all',
     filters:{keyword:'', projectIds:[], tagIds:[], date:null, priorities:[]},
-    widget:{x:null,y:null},
-    capsule:{x:null,y:null},
+    /* 临时调整 A（v1.1）：挂件 / 胶囊共用的「基准角」锚点。
+       corner 是离屏幕最近的角（默认右上 tr），x/y 是该角在屏幕上的绝对坐标；
+       切换形态时保持这个角不动，形态尺寸变化只向另一个方向伸缩。 */
+    anchor:{corner:'tr', x:null, y:null},
+    /* 最近显示的桌面形态与挂件高度：完整窗口打开时用它还原同一基准角 */
+    lastShape:'widget',
+    lastWidgetH:0,
     widgetCollapsed:false,
     timeUsage:{},
     tipDismissed:false,
@@ -259,8 +264,18 @@ DT.normalize = function(st){
   st.ui.filters = st.ui.filters||{};
   var f = st.ui.filters;
   f.keyword = f.keyword||''; f.projectIds = f.projectIds||[]; f.tagIds = f.tagIds||[]; f.priorities = f.priorities||[]; f.date = f.date||null;
-  st.ui.widget = st.ui.widget||{x:null,y:null};
-  st.ui.capsule = st.ui.capsule||{x:null,y:null};
+  /* 临时调整 A（v1.1）：旧版 shapePos 不再迁移，位置回到默认右上角基准；任务数据不受影响 */
+  var a = (st.ui.anchor && typeof st.ui.anchor==='object') ? st.ui.anchor : {};
+  st.ui.anchor = {
+    corner: ['tl','tr','bl','br'].indexOf(a.corner)>=0 ? a.corner : 'tr',
+    x: (typeof a.x==='number' && !isNaN(a.x)) ? a.x : null,
+    y: (typeof a.y==='number' && !isNaN(a.y)) ? a.y : null
+  };
+  st.ui.lastShape = st.ui.lastShape==='capsule' ? 'capsule' : 'widget';
+  st.ui.lastWidgetH = (typeof st.ui.lastWidgetH==='number' && st.ui.lastWidgetH>0) ? st.ui.lastWidgetH : 0;
+  delete st.ui.shapePos;
+  delete st.ui.widget;
+  delete st.ui.capsule;
   st.ui.timeUsage = (st.ui.timeUsage && typeof st.ui.timeUsage==='object') ? st.ui.timeUsage : {};
   st.ui.widgetCollapsed = !!st.ui.widgetCollapsed;
   st.ui.tipDismissed = !!st.ui.tipDismissed;

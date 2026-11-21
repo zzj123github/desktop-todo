@@ -3,10 +3,30 @@
    ---------------------------------------------------------
    只补充 A/B/C 三项调整需要的类，不改动 app.css；
    颜色 / 圆角 / 动效一律引用 design/ui/tokens.css 的变量。
-   A. 挂件 ↔ 胶囊共用位置：纯 JS 逻辑（core/render/interactions），无新增样式
-   B. 主界面标题行右侧：收起到挂件 / 收起到胶囊 两个图标按钮
+   A. 挂件 ↔ 胶囊「就近角基准」：纯 JS 逻辑（core/render/interactions）
+   B. 单桌面体验：完整窗口以遮罩 + 窗口卡覆盖在桌面上；标题行右侧形态按钮
    C. 挂件输入区默认收起的「添加任务」小按钮
    ========================================================= */
+
+/* ---------- B：单桌面体验条 + 完整窗口覆盖层 ---------- */
+:root{
+  /* 覆盖层需高于桌面任务栏(30) / 挂件(20)，低于体验条(90)、浮层(120+) */
+  --z-window:60;
+}
+/* 完整窗口：半透明遮罩 + 居中窗口卡；点击遮罩不关闭，避免误丢编辑内容 */
+.manager-scene{
+  z-index:var(--z-window);
+  background:var(--overlay);
+  -webkit-backdrop-filter:blur(3px);
+  backdrop-filter:blur(3px);
+}
+/* 桌面体验条去掉模式切换后：品牌与操作分居两端 */
+.demo-bar .db-brand{
+  margin-right:auto;
+}
+.demo-bar .db-actions{
+  margin-left:auto;
+}
 
 /* ---------- B：主标题行右侧的形态切换按钮组 ---------- */
 .mhead-shapes{
@@ -20,6 +40,14 @@
 .mhead-shapes .icon-btn{
   width:30px;
   height:30px;
+}
+/* 关闭完整窗口：与「新建」相邻的次级图标按钮，hover 用危险色提示"回到桌面" */
+.mhead-close{
+  margin-left:2px;
+}
+.mhead-close:hover{
+  background:var(--danger-hover);
+  color:var(--on-accent);
 }
 
 /* ---------- C：挂件底部默认只显示紧凑按钮 ---------- */

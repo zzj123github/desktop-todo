@@ -40,3 +40,7 @@
 2026-11-22 | update | .agents/tmp/verify-opacity.mjs + win-state.ps1 + drag-real.ps1 | 新增透明度端到端验证脚本（CDP 编排 + GetLayeredWindowAttributes + 真实鼠标拖动） | 说明见验收记录
 2026-11-22 | update | src/main/{windows,ipc}.ts, src/preload/index.ts, src/shared/types.ts, src/renderer/src/app/Widget.tsx, src/renderer/src/components/Popover.tsx, src/renderer/src/styles/app.css, docs/acceptance/M6-ACCEPTANCE.md, .agents/memory/decisions.md(D12), gotchas.md | 修复挂件/胶囊四角灰底（inset 描边替代外投影）与挂件内日期面板被裁（浮层打开临时加高 520 + anchor bottom + scrollHeight 定位） | 用户 m03408 反馈
 2026-11-22 | update | release/, C:\\Users\\lazasons\\Desktop\\桌面待办-交付物\\ | 重打包 portable+setup（输出目录改到工作区外规避 VS Code 文件锁），新哈希 e2997a3f…/2b771c3d…；README/验收记录/使用说明同步 | 四角透明与日期面板修复交付
+2026-11-22 02:20 | update | src/main/windows.ts | 位置基准锚点化（WidgetAnchorPoint / captureWidgetAnchor / boundsFromWidgetAnchor），抑制程序化 setBounds 后的 moved 落盘与二次捕获，修复高 DPI 切换漂移 | 用户 m03793 位置基准要求；四角互切 Δ0
+2026-11-22 02:10 | update | src/renderer/src/app/{Widget,Manager,Capsule}.tsx, src/renderer/src/styles/app.css, src/renderer/src/i18n/zh.ts, src/shared/types.ts, src/preload/index.ts, src/main/ipc.ts | 三态互斥入口（app:showWidget）、挂件折叠输入、胶囊单击/双击判定、完整窗口标题行两个收起按钮 | 用户 m03793 四项确认
+2026-11-22 02:12 | update | design/app/{index.html,css/adjust.css,js/*.js} | 临时原型 v1.1 同步回正式原型；删除 design/prototype-adjust；docs/08 §2.8、docs/01、docs/02 同步确认后的交互规范 | 用户确认原型实施
+2026-11-22 02:25 | verify | .agents/tmp/verify-shapes.mjs | 三态互斥 6 项 + 折叠输入 4 项 + 四角 8 项全部 PASS（修复漂移后 Δ0）；13 文件 171 用例通过 | m03793 验收

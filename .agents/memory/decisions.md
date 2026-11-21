@@ -85,3 +85,12 @@
 - 决策：挂件浮层（`.pop` / `.dp-pop`）打开期间窗口临时加高到 520、`anchor:'bottom'` 保持底边不动；关闭后按内容自然高度以同样锚点收回。原因：挂件窗口按内容高度（约 243px）时，320×241 的浮层与 288×351 的日历无法容纳，会被窗口裁切。
 - 决策：`Popover.computePosition` 用 `scrollHeight` 计算内容自然高度（含翻转判断），否则被上一次 maxHeight 压住后窗口变高也不再长高。内容高度上报加 1px 余量，避免小数取整导致 1px 溢出滚动条。
 - 证据：真机 OS 截图四角像素与背景一致（挂件 `(247,249,255)`、胶囊 `(251,252,255)`，仅 1px 描边）；CDP 窗口高度 243→520→243，`.pop` 320×241 无内滚，`.dp-pop` 288×351 完整可见；`node scripts/run-tests.cjs` 165 用例通过。
+
+## D13 · 2026-11-22 · 位置基准改为就近角锚点、三态互斥、挂件折叠输入
+
+- 决策：挂件与胶囊共用 `settings.widgetBounds`，主进程保存「基准角 + 角屏幕坐标」（`WidgetAnchorPoint`，`anchorForBounds` 按矩形中心象限判定、默认右上），切换形态或内容高度变化时角坐标不动并换算目标尺寸（`boundsFromWidgetAnchor`）。旧 `capsuleBounds` 仅作迁移回落，不再单独写。
+- 决策：程序化 `setBounds` 后 500ms 内抑制 `moved` 事件的 bounds 落盘（`suppressBoundsPersistUntil`）；由锚点换算出的矩形不再反向捕获锚点（`saveShapeBounds(bounds, capture=false)`）。原因：175% DPI 下 Electron 物理像素对齐 + `getBounds` 取整会让「读取→重捕获→写回」循环累积 ±1~2 DIP，四角验收出现 bottom-right Δ3；抑制后四角互切全部 Δ0。
+- 决策：三态互斥由主进程保证——打开完整窗口先隐藏挂件；完整窗口 close/closed（渲染层 `window.close()` 会销毁窗口）后恢复桌面形态；完整窗口标题行新增「收起到挂件/收起到胶囊」（`app:showWidget({collapsed})`）。
+- 决策：挂件底部默认折叠按钮（`.w-add-btn`，高 28），点击展开 Composer 并聚焦；Esc/点外部/提交后收起。胶囊单击改为 250ms 延迟展开以区分双击打开完整窗口（`scheduleExpand` + `onDoubleClick`）。
+- 决策：临时原型 v1.1 经用户确认后同步回 `design/app/`（新增 `css/adjust.css`，覆盖 `js/{core,render,interactions}.js` 与 `index.html`），删除 `design/prototype-adjust/`；规范同步到 docs/08 §2.8、docs/01 FR-2.7/2.8 等。
+- 证据：`.agents/tmp/verify-shapes.mjs` 全部 PASS（三态互斥 6 项、折叠输入 4 项、四角各 Δ0）；`node scripts/run-tests.cjs` 13 文件 171 用例通过；`npx tsc --noEmit` 0 错误。

@@ -2,11 +2,12 @@
  * Capsule · 桌面胶囊（284×54，圆角 999）
  * Contract: docs/08-UI-ENGINEERING-SPEC.md §2.4 · docs/01-PRD.md FR-1.7 · design/app-capsule.png
  *
- * 交互（与原型一致）：
- * - 单击任意位置 → 展开为挂件；
+ * 交互（与原型一致，m03793 确认）：
+ * - 单击任意位置 → 展开为挂件（250ms 内再次单击视为双击，改为打开完整窗口）；
+ * - 双击 → 打开完整窗口（三态互斥，主进程会隐藏胶囊）；
  * - 按住拖动 ≥4px → 移动胶囊位置（renderer pointer + main setBounds，不用
  *   -webkit-app-region，否则拖动区会吞掉单击事件）；
- * - 拖动结束后位置写回 settings.capsuleBounds。
+ * - 位置与挂件共用同一个锚点（主进程按象限保持基准角）。
  */
 import {
   useCallback,
@@ -46,6 +47,7 @@ export function Capsule(): ReactElement {
   const now = useNow()
   const { tasks } = useTasks(ALL_FILTER)
   const dragRef = useRef<DragState | null>(null)
+  const expandTimerRef = useRef<number | null>(null)
   const [dragging, setDragging] = useState(false)
 
   const scope = useMemo(() => scopeTasks(tasks, { type: 'today' }, now), [tasks, now])
@@ -70,11 +72,32 @@ export function Capsule(): ReactElement {
     void window.api.widget.setCollapsed({ collapsed: false })
   }, [])
 
+  /** 单击展开延迟 250ms，给双击留出判定窗口（m03793 原型 B） */
+  const scheduleExpand = useCallback(() => {
+    if (expandTimerRef.current !== null) window.clearTimeout(expandTimerRef.current)
+    expandTimerRef.current = window.setTimeout(() => {
+      expandTimerRef.current = null
+      expand()
+    }, 250)
+  }, [expand])
+
+  const openManager = useCallback(() => {
+    if (expandTimerRef.current !== null) {
+      window.clearTimeout(expandTimerRef.current)
+      expandTimerRef.current = null
+    }
+    void window.api.app.showManager()
+  }, [])
+
   // 卸载（切换形态）时若仍在拖动，结束拖动并落盘，避免位置丢失
   useEffect(() => {
     return () => {
       if (dragRef.current?.started) void window.api.widget.endDrag()
       dragRef.current = null
+      if (expandTimerRef.current !== null) {
+        window.clearTimeout(expandTimerRef.current)
+        expandTimerRef.current = null
+      }
     }
   }, [])
 
@@ -110,9 +133,9 @@ export function Capsule(): ReactElement {
       void window.api.widget.endDrag()
       return
     }
-    // 位移小于阈值 → 单击：展开挂件
-    expand()
-  }, [expand])
+    // 位移小于阈值 → 单击：延迟展开挂件（双击则打开完整窗口）
+    scheduleExpand()
+  }, [scheduleExpand])
 
   const onPointerCancel = useCallback(() => {
     const drag = dragRef.current
@@ -145,6 +168,7 @@ export function Capsule(): ReactElement {
         onPointerMove={onPointerMove}
         onPointerUp={finishDrag}
         onPointerCancel={onPointerCancel}
+        onDoubleClick={openManager}
         onKeyDown={onKeyDown}
       >
         <span className="cap-check" aria-hidden="true">

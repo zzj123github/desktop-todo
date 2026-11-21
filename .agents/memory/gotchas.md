@@ -81,3 +81,15 @@
 - 现象：`pnpm dist:win` 反复报 `EBUSY/EPERM ... default_app.asar` 或 `app.asar`，重试与杀进程无效，`release/win-unpacked*` 也删不掉。
 - 原因：本机 VS Code 以该项目为工作区，其进程（Restart Manager 查询显示 `pid=... name=Visual Studio Code`）会短暂持有刚解包的 asar；杀毒软件也可能参与。可用 `.agents/tmp/who-locks.ps1 -Path <file>`（Restart Manager API）定位占用进程。
 - 规避：把 electron-builder 输出目录放到工作区外再打包：`pnpm exec electron-builder --win -c.directories.output=C:/Users/lazasons/AppData/Local/desktop-todo-dev/release-build`；产物再从外部目录复制回 `release/` 和桌面交付目录。不要为此杀 VS Code（可能有未保存文件）。
+
+## 真实鼠标拖动的注入限制（m03793 验收）
+
+- `mouse_event` 注入的**单次大位移拖拽**（如 +400px）常不生效，增量拖动（每步 -100px 左右）可稳定移动窗口。四角/位置验收脚本据此改为分步 moveTo（每步 ≤90px、最多 24 轮），且需从 `.w-drag` 拖动区中心起拖（窗口中心是内容区，不会移动窗口）。
+
+## 175% DPI 位置取整与锚点漂移（m03793 验收）
+
+- Electron `setBounds` 会按物理像素对齐，`getBounds` 回读为整数 DIP；反复「读取→重捕获→写回」在 175% DPI 下会累积 ±1~2 DIP（四角切换验收出现 bottom-right Δ3）。规避：程序化 setBounds 后 500ms 内跳过 moved 落盘、锚点只在真实拖动/恢复位置时重捕获。修复后四角互切 Δ0；仍保留文档容差「≤1 DIP 物理取整」。
+
+## 打包时 VS Code 占用工作区构建文件
+
+- `electron-builder` 清理 `release/win-unpacked` 时可能被 VS Code 短暂锁定（Restart Manager 查出 pid 为 VS Code），报 `EBUSY ... app.asar / default_app.asar`。规避：输出到工作区外 `-c.directories.output=C:/Users/lazasons/AppData/Local/desktop-todo-dev/release-build`，再复制产物回 `release/` 与桌面交付目录。

@@ -61,6 +61,7 @@ import {
   setWidgetCollapsed,
   setWidgetContentHeight,
   showManager,
+  showWidgetMode,
   toggleWidget
 } from './windows'
 import { applyLaunchAtLogin } from './login'
@@ -87,6 +88,7 @@ export const IPC_CHANNELS = [
   'settings:get',
   'settings:set',
   'app:showManager',
+  'app:showWidget',
   'app:toggleWidget',
   'app:quit',
   'app:getInfo',
@@ -423,6 +425,15 @@ export function registerIpcHandlers(): void {
     showManager()
   })
 
+  handle('app:showWidget', (input) => {
+    const payload = input === undefined ? {} : asRecord(input)
+    const collapsed = payload.collapsed
+    if (collapsed !== undefined && typeof collapsed !== 'boolean') {
+      throw new Error('参数格式不正确：collapsed')
+    }
+    showWidgetMode(collapsed === true)
+  })
+
   handle('app:toggleWidget', () => {
     toggleWidget()
   })
@@ -474,11 +485,7 @@ export function registerIpcHandlers(): void {
     if (typeof height !== 'number' || !Number.isFinite(height)) {
       throw new Error('缺少参数：height')
     }
-    const anchor = payload.anchor
-    if (anchor !== undefined && anchor !== 'top' && anchor !== 'bottom') {
-      throw new Error('参数格式不正确：anchor')
-    }
-    setWidgetContentHeight(height, anchor === 'bottom' ? 'bottom' : 'top')
+    setWidgetContentHeight(height)
     return { ok: true as const }
   })
 

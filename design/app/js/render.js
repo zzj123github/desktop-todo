@@ -12,6 +12,8 @@ R.ctx = {
   doneOpen:false,
   widgetDoneOpen:false,
   widgetCollapsed:false,
+  /* 临时调整 C：挂件输入区是否展开为完整 composer（默认收起为小按钮） */
+  widgetComposerOpen:false,
   animateId:null
 };
 
@@ -145,7 +147,12 @@ R.main = function(){
     + (overdue ? '<span class="sep">·</span><span class="over">'+overdue+' 项逾期</span>' : '')
     + '</div></div>'
     + '<div class="mhead-r">' + R.ring(prog.pct)
+    + '<div class="mhead-shapes">'
+    + '<button type="button" class="icon-btn" data-act="to-widget" title="收起到挂件" aria-label="收起到挂件">'+R.icon('grid')+'</button>'
+    + '<button type="button" class="icon-btn" data-act="to-capsule" title="收起到胶囊" aria-label="收起到胶囊">'+R.icon('minus')+'</button>'
+    + '</div>'
     + '<button type="button" class="btn-pri" data-act="new-task">'+R.icon('plus')+'新建</button>'
+    + '<button type="button" class="icon-btn mhead-close" data-act="close-window" title="关闭完整窗口，回到桌面" aria-label="关闭完整窗口">'+R.icon('x')+'</button>'
     + '</div></div>';
   html += '<div class="tabs" role="tablist">'
     + R.tabBtn('all','全部',tabs.all)
@@ -253,43 +260,112 @@ R.composerHtml = function(scope){
     + '</div></div>';
 };
 
-/* ---------- 桌面挂件 ---------- */
-R.ensureWidgetPos = function(){
-  var w = DT.state.ui.widget;
-  var vw = window.innerWidth, vh = window.innerHeight, W = 352;
-  if(w.x==null || isNaN(w.x)){
-    w.x = Math.max(20, vw - W - 56);
-    w.y = 88;
-    DT.save();
-  }
-  w.x = DT.clamp(w.x, 16, Math.max(16, vw - W - 16));
-  w.y = DT.clamp(w.y, 56, Math.max(56, vh - 46 - 140));
-};
-/* 收起胶囊：独立位置记忆（ui.capsule），默认停在右下角，和挂件互不影响 */
+/* ---------- 桌面挂件 / 胶囊：就近角基准（临时调整 A v1.1） ---------- */
+R.WIDGET_W = 352;
 R.capsuleSize = {w:284, h:54};
-R.capsulePos = function(x, y){
-  var W = R.capsuleSize.w, H = R.capsuleSize.h;
+R.DEFAULT_WIDGET_H = 400;
+/* 两种形态共用安全区：水平 16、顶部让开 demo-bar、底部让开任务栏。
+   共用同一安全区，保证切换形态时基准角坐标在四角都严格不变。 */
+R.SAFE = {x:16, top:56, bottom:54};
+R.widgetHeight = function(){
+  var el = document.querySelector('#widgetLayer .widget');
+  return el ? el.offsetHeight : 0;
+};
+R.shapeSize = function(shape){
+  if(shape==='capsule') return {w:R.capsuleSize.w, h:R.capsuleSize.h};
+  return {w:R.WIDGET_W, h:R.widgetHeight() || DT.state.ui.lastWidgetH || R.DEFAULT_WIDGET_H};
+};
+R.cornerLeft = function(corner){ return corner==='tl'||corner==='bl'; };
+R.cornerTop = function(corner){ return corner==='tl'||corner==='tr'; };
+/* 当前形态的矩形离屏幕哪个角最近（用中心所在象限判断；无位置时默认右上） */
+R.detectCorner = function(rect){
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var left = rect.left + rect.w/2 < vw/2;
+  var top = rect.top + rect.h/2 < vh/2;
+  return (top?'t':'b') + (left?'l':'r');
+};
+R.cornerCoords = function(rect, corner){
   return {
-    x: DT.clamp(x, 12, Math.max(12, window.innerWidth - W - 12)),
-    y: DT.clamp(y, 12, Math.max(12, window.innerHeight - H - 12))
+    x: R.cornerLeft(corner) ? rect.left : rect.left + rect.w,
+    y: R.cornerTop(corner) ? rect.top : rect.top + rect.h
   };
 };
-R.ensureCapsulePos = function(){
-  var wrap = document.querySelector('#widgetLayer .cap-wrap');
-  if(!wrap) return;
+/* 由基准角 + 形态尺寸还原左上角 */
+R.rectFromAnchor = function(shape, corner, ax, ay){
+  var s = R.shapeSize(shape);
+  return {
+    left: R.cornerLeft(corner) ? ax : ax - s.w,
+    top: R.cornerTop(corner) ? ay : ay - s.h,
+    w: s.w, h: s.h
+  };
+};
+R.clampRect = function(shape, rect){
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var s = R.shapeSize(shape);
+  var minX = R.SAFE.x, maxX = Math.max(minX, vw - s.w - R.SAFE.x);
+  var minY = R.SAFE.top, maxY = Math.max(minY, vh - s.h - R.SAFE.bottom);
+  return {left:DT.clamp(rect.left, minX, maxX), top:DT.clamp(rect.top, minY, maxY), w:s.w, h:s.h};
+};
+/* 读取/初始化基准角锚点，返回目标形态左上角；同时把锚点收紧到可视区（不落盘） */
+R.applyAnchor = function(shape){
   var ui = DT.state.ui;
-  var c = ui.capsule || (ui.capsule = {x:null,y:null});
-  var W = R.capsuleSize.w, H = R.capsuleSize.h;
-  if(c.x==null || c.y==null || isNaN(c.x) || isNaN(c.y)){
-    c.x = window.innerWidth - W - 56;
-    c.y = window.innerHeight - H - 70;
-    DT.save();
+  if(!ui.anchor || typeof ui.anchor!=='object') ui.anchor = {corner:'tr', x:null, y:null};
+  var a = ui.anchor;
+  if(a.x==null || a.y==null || isNaN(a.x) || isNaN(a.y)){
+    /* 默认右上角：与原型挂件默认位置一致 */
+    a.corner = 'tr';
+    a.x = window.innerWidth - 56;
+    a.y = 88;
   }
-  var p = R.capsulePos(c.x, c.y);
-  c.x = p.x; c.y = p.y;
-  wrap.style.left = c.x + 'px';
-  wrap.style.top = c.y + 'px';
-  wrap.style.opacity = (DT.settings().opacity || 100) / 100;
+  var rect = R.clampRect(shape, R.rectFromAnchor(shape, a.corner, a.x, a.y));
+  var c = R.cornerCoords(rect, a.corner);
+  a.x = c.x; a.y = c.y;
+  return {x:rect.left, y:rect.top};
+};
+/* 记录当前形态的最近角：优先量 DOM，完整窗口打开时用锚点 + 上次尺寸还原 */
+R.captureAnchor = function(shape){
+  var ui = DT.state.ui;
+  var wrap = document.querySelector('#widgetLayer .w-wrap, #widgetLayer .cap-wrap');
+  var layer = document.getElementById('widgetLayer');
+  var rect = null;
+  if(wrap && layer && !layer.hidden){
+    /* 用 offset* 而非 getBoundingClientRect：胶囊 hover 有 translateY(-2px) 动效，
+       量 DOM 矩形会把悬停偏移带进锚点。 */
+    rect = {left:wrap.offsetLeft, top:wrap.offsetTop, w:wrap.offsetWidth, h:wrap.offsetHeight};
+  } else if(ui.anchor && ui.anchor.x!=null){
+    rect = R.rectFromAnchor(shape, ui.anchor.corner, ui.anchor.x, ui.anchor.y);
+  }
+  if(!rect) return;
+  var corner = R.detectCorner(rect);
+  var c = R.cornerCoords(rect, corner);
+  ui.anchor = {corner:corner, x:c.x, y:c.y};
+};
+/* 拖动时写位置：clamp 后按新矩形重新判断最近角 */
+R.moveTo = function(shape, x, y){
+  var rect = R.clampRect(shape, {left:x, top:y, w:0, h:0});
+  var corner = R.detectCorner(rect);
+  var c = R.cornerCoords(rect, corner);
+  DT.state.ui.anchor = {corner:corner, x:c.x, y:c.y};
+  return {x:rect.left, y:rect.top};
+};
+/* 渲染后用真实高度再对齐一次：只沿基准角相反方向伸缩，不动基准角 */
+R.syncShape = function(shape){
+  var wrap = document.querySelector('#widgetLayer .w-wrap, #widgetLayer .cap-wrap');
+  if(!wrap) return;
+  var p = R.applyAnchor(shape);
+  wrap.style.left = p.x + 'px';
+  wrap.style.top = p.y + 'px';
+  wrap.style.opacity = (DT.settings().opacity || 100)/100;
+  DT.state.ui.lastShape = shape;
+  if(shape!=='capsule') DT.state.ui.lastWidgetH = wrap.offsetHeight;
+};
+/* 保留原型 API：窗口 resize 时按基准角重新收紧 */
+R.ensureWidgetPos = function(){ if(DT.state.ui.mode==='desktop') R.renderWidgetLayer(); };
+R.ensureCapsulePos = function(){ if(DT.state.ui.mode==='desktop') R.renderWidgetLayer(); };
+/* 临时调整 C：挂件输入区默认只显示一个紧凑按钮 */
+R.widgetComposerBtnHtml = function(){
+  return '<button type="button" class="w-add-btn" data-act="widget-composer-open" title="展开输入框（Enter 保存）" aria-label="添加任务">'
+    + R.icon('plus') + '<span>添加任务</span></button>';
 };
 R.widgetHtml = function(){
   var scope = DT.scope({type:'today'});
@@ -322,14 +398,15 @@ R.widgetHtml = function(){
     html += done.length ? done.map(function(t){return R.taskRow(t,{widget:true});}).join('') : '<div class="w-empty">暂无</div>';
   }
   html += '</div>';
-  html += '<div class="w-add">' + R.composerHtml('widget') + '</div>';
+  html += '<div class="w-add">' + (R.ctx.widgetComposerOpen ? R.composerHtml('widget') : R.widgetComposerBtnHtml()) + '</div>';
   html += '<div class="w-foot"><span>'+prog.done+'/'+prog.total+' 已完成</span><span class="hint">双击标题展开完整窗口</span></div>';
   html += '</div>';
   return html;
 };
 R.capsuleHtml = function(){
   var cap = DT.capsuleInfo();
-  return '<div class="capsule" data-act="expand-widget" title="展开桌面挂件" role="button" tabindex="0">'
+  var label = '今天 '+cap.count+' 项'+(cap.overdue?'，'+cap.overdue+' 项逾期':'');
+  return '<div class="capsule" data-act="cap-click" title="单击展开挂件，双击打开完整窗口" aria-label="'+esc(label)+'，单击展开挂件，双击打开完整窗口" role="button" tabindex="0">'
     + '<div class="cap-check">'+R.icon('check')+'</div>'
     + '<div class="cap-main"><div class="cap-title">今天 '+cap.count+' 项'
     + (cap.overdue?' · <span class="over">'+cap.overdue+' 项逾期</span>':'')+'</div>'
@@ -339,31 +416,31 @@ R.capsuleHtml = function(){
 R.renderWidgetLayer = function(){
   var layer = document.getElementById('widgetLayer');
   if(!layer) return;
-  if(R.ctx.widgetCollapsed){
-    layer.innerHTML = '<div class="cap-wrap">' + R.capsuleHtml() + '</div>';
-    R.ensureCapsulePos();
+  var ui = DT.state.ui;
+  if(ui.mode!=='desktop'){
+    /* 完整窗口打开时桌面形态整体隐藏：三形态互斥 */
+    layer.innerHTML = '';
+    layer.hidden = true;
     return;
   }
-  R.ensureWidgetPos();
-  var w = DT.state.ui.widget;
-  var tip = '';
-  if(!DT.state.ui.tipDismissed){
-    tip = '<div class="desk-tip">'+R.icon('help')+'<div>这是桌面挂件：拖我换位置，双击标题展开完整窗口；任务能直接勾选、点链接打开。</div>'
-      + '<button type="button" data-act="dismiss-tip" aria-label="关闭提示">'+R.icon('x')+'</button></div>';
-  }
+  layer.hidden = false;
   var op = (DT.settings().opacity||100)/100;
-  layer.innerHTML = '<div class="w-wrap" style="left:'+w.x+'px;top:'+w.y+'px;opacity:'+op+'">'+tip+R.widgetHtml()+'</div>';
+  var shape = R.ctx.widgetCollapsed ? 'capsule' : 'widget';
+  var p = R.applyAnchor(shape);
+  if(shape==='capsule'){
+    layer.innerHTML = '<div class="cap-wrap" style="left:'+p.x+'px;top:'+p.y+'px;opacity:'+op+'">' + R.capsuleHtml() + '</div>';
+  } else {
+    var tip = '';
+    if(!ui.tipDismissed){
+      tip = '<div class="desk-tip">'+R.icon('help')+'<div>这是桌面挂件：拖我换位置，双击标题打开完整窗口；任务能直接勾选、点链接打开。</div>'
+        + '<button type="button" data-act="dismiss-tip" aria-label="关闭提示">'+R.icon('x')+'</button></div>';
+    }
+    layer.innerHTML = '<div class="w-wrap" style="left:'+p.x+'px;top:'+p.y+'px;opacity:'+op+'">'+tip+R.widgetHtml()+'</div>';
+  }
+  R.syncShape(shape);
 };
 
 /* ---------- 整体渲染 ---------- */
-R.updateToolbar = function(){
-  var mode = DT.state.ui.mode;
-  document.querySelectorAll('.db-seg-btn').forEach(function(b){
-    var on = b.getAttribute('data-mode')===mode;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-selected', on?'true':'false');
-  });
-};
 /* 输入框自动换行：一行起步，随内容增高，超过上限后内部滚动 */
 R.composerMaxH = 110;
 R.autosizeComposer = function(el){
@@ -379,14 +456,14 @@ R.autosizeComposers = function(){
 };
 R.renderAll = function(){
   var ui = DT.state.ui;
-  R.updateToolbar();
   var root = document.getElementById('root');
-  root.className = 'root ' + (ui.mode==='desktop' ? 'is-desktop' : 'is-manager');
-  document.getElementById('desktopScene').hidden = ui.mode!=='desktop';
+  /* 单桌面场景：完整窗口是覆盖在桌面上的窗口，不再切换场景 */
+  root.className = 'root is-desktop';
+  document.getElementById('desktopScene').hidden = false;
   document.getElementById('managerScene').hidden = ui.mode!=='manager';
-  if(ui.mode==='desktop'){
-    R.renderWidgetLayer();
-  } else {
+  /* 桌面形态层始终渲染；窗口打开时由 renderWidgetLayer 清空并隐藏，保证三形态互斥 */
+  R.renderWidgetLayer();
+  if(ui.mode==='manager'){
     document.getElementById('sidebar').innerHTML = R.sidebar();
     document.getElementById('main').innerHTML = R.main();
   }
@@ -432,20 +509,20 @@ R.helpModal = function(){
   return '<div class="modal wide" role="dialog" aria-modal="true" aria-label="使用说明">'
     + '<div class="modal-head"><div class="modal-title">怎么玩这个原型</div><button type="button" class="modal-x" data-act="close-modal" aria-label="关闭">'+R.icon('x')+'</button></div>'
     + '<div class="modal-body help-block">'
-    + '<h4>两个入口，同一份数据</h4>'
-    + '<p>默认是「桌面」模式：右边那个就是桌面挂件。顶部中间可以切到「完整窗口」做管理；两边的勾选、新增、编辑都是同步的。</p>'
+    + '<h4>一个桌面，三种形态</h4>'
+    + '<p>默认是桌面挂件。挂件、胶囊、完整窗口同一时刻只出现一个：窗口标题行的按钮可以把窗口收成挂件或胶囊，双击挂件标题打开窗口；窗口右上角 X 或 <kbd>Esc</kbd> 回到桌面。</p>'
     + '<h4>值得试的几件事</h4>'
     + '<ul>'
     + '<li>勾选一条任务，看进度环和「已完成」如何更新；再点「已完成」展开、取消勾选。</li>'
     + '<li>点任务里的蓝色链接：会弹出「打开链接」说明（网页 → 默认浏览器；文件夹 → 资源管理器）。</li>'
     + '<li>点一条任务打开编辑面板，改日期/优先级/标签，或者点「删除」再撤销。</li>'
-    + '<li>底部输入框里直接打：<kbd>明天 10:00 高 整理采购清单</kbd>，回车，看它自动识别日期和优先级。</li>'
-    + '<li>把文件或文件夹拖进编辑面板的虚线区，会给任务挂链接（原型里用示例路径演示）。</li>'
-    + '<li>挂件右上角：图钉 = 置顶开关；减号 = 收起成桌面右下角的小胶囊，点胶囊再展开。</li>'
+    + '<li>点挂件底部「+ 添加任务」展开输入框：回车保存、Shift+回车换行、Esc 或点别处收起。</li>'
+    + '<li>挂件顶部减号 = 收成胶囊；双击标题 = 打开完整窗口。胶囊单击展开挂件，双击打开完整窗口。</li>'
+    + '<li>把挂件或胶囊拖到屏幕四角：切换形态时，离得最近的那个角会保持不动，高度变化也向另一侧伸缩。</li>'
     + '<li>完整窗口里试筛选：标签 / 日期 / 优先级 组合，再点搜索；顶部「待办 / 已完成 / 全部」也能切。</li>'
     + '</ul>'
     + '<h4>快捷键</h4>'
-    + '<ul><li><kbd>N</kbd> 或 <kbd>Ctrl</kbd>+<kbd>N</kbd> 新建任务</li><li><kbd>/</kbd> 或 <kbd>Ctrl</kbd>+<kbd>F</kbd> 搜索</li><li><kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>5</kbd> 切左栏视图</li><li><kbd>Esc</kbd> 关闭浮层 / 编辑面板</li></ul>'
+    + '<ul><li><kbd>N</kbd> 或 <kbd>Ctrl</kbd>+<kbd>N</kbd> 新建任务</li><li><kbd>/</kbd> 或 <kbd>Ctrl</kbd>+<kbd>F</kbd> 搜索</li><li><kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>5</kbd> 切左栏视图</li><li><kbd>Esc</kbd> 收起输入 / 关闭浮层 / 关闭完整窗口</li></ul>'
     + '</div>'
     + '<div class="modal-foot"><span class="spacer"></span><button type="button" class="btn-pri" data-act="close-modal">开始体验</button></div></div>';
 };

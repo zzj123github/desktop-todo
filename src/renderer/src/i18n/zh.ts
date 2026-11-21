@@ -127,7 +127,8 @@ export const zh = {
     capsuleNoTask: '今天还没有安排',
     capsuleDone: '今天的任务已完成',
     capsuleOverdue: (count: number) => `${count} 项逾期`,
-    capsuleSub: (title: string, time: string) => `${title} · ${time}`
+    capsuleSub: (title: string, time: string) => `${title} · ${time}`,
+    addTask: '添加任务'
   },
 
   manager: {
@@ -141,6 +142,8 @@ export const zh = {
     emptyDoneBody: '勾掉一条任务，它会出现在这里。',
     doubleClickTip: '双击空白处快速新增',
     overflowTip: '更多…',
+    collapseToWidget: '收起到挂件',
+    collapseToCapsule: '收起到胶囊',
     noViews: '还没有保存的桌面视图',
     viewNamePlaceholder: '视图名称'
   },
