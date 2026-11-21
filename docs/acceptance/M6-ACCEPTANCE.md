@@ -160,3 +160,8 @@
 4. 重新打包产物：portable 97,690,655 B / SHA-256 `e8e1d3c85bf3b51b256532a1e3cce4a2caba6cd510c496ca2570053d42326ba2`；setup 106,239,961 B / SHA-256 `9b230b05eb6e2d6a2046c50a2c04dbb3d99cf4b56ec4484829da33ffacd6c8f7`。桌面交付目录内文件与本记录一致。
 
 **干净首启复核（打包版，从桌面目录运行）**：`view-widget`、353×231、标题「今天」、空态文案、任务数 0、`settings.capsule=false`、窗口在桌面右侧可见；CDP 截图与 OS 截图各一份。
+
+**重打包后的启动/安装复验（2026-11-21 23:45）**：
+- `explorer.exe` 模拟双击新 portable（桌面交付目录）→ 5 进程、可见窗口 `桌面待办` @ 1055,88、352×230 ✓。
+- 新 portable 第二实例（`--silent`）→ 解压后退出，进程数回到 5，单实例生效 ✓。
+- 新 setup.exe 静默安装 → 安装目录与 `resources\tray.ico` 就位；启动安装版 → 可见窗口 352×230 ✓；静默卸载 → 安装目录删除、`%APPDATA%\DesktopTodo` 数据保留 ✓（卸载完成是异步的，需等待约 10s）。
