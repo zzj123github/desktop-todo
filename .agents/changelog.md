@@ -36,3 +36,5 @@
 2026-11-22 01:03 | update | release/*.exe, C:\\Users\\lazasons\\Desktop\\桌面待办-交付物\\* | 重打包（portable 97,666,895B / setup 106,240,887B），覆盖交付目录与 使用说明.txt（软件合成内存优化 + 两条交互修复）
 2026-11-22 01:06 | verify | 打包版（桌面交付目录，CDP 9227） | 仅挂件 private 149.3MB；挂件+完整窗口+设置 198.8MB；双击标题→manager；opacity 0.8 拖动后失焦恢复
 2026-11-22 01:08 | update | README.md, docs/acceptance/M6-ACCEPTANCE.md, .agents/memory/decisions.md (D10/D11), gotchas.md | 内存优化与两条交互修复的文档、验收证据与决策记录
+2026-11-22 | update | docs/acceptance/M6-ACCEPTANCE.md | 透明度拖动修复补真机证据（真实鼠标拖动挂件/胶囊后窗口 alpha 255→204），B4 状态改 ✓ | 用户 m03355 反馈复核
+2026-11-22 | update | .agents/tmp/verify-opacity.mjs + win-state.ps1 + drag-real.ps1 | 新增透明度端到端验证脚本（CDP 编排 + GetLayeredWindowAttributes + 真实鼠标拖动） | 说明见验收记录

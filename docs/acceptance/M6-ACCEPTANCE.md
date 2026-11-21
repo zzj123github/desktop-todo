@@ -22,7 +22,7 @@
 | B1 | 默认「今天」、宽 352、位于屏幕右侧 | ✅ | 启动窗口 352×512，x=1055（右侧 56 边距）；截图 `docs/acceptance/screens/m6-widget.png` |
 | B2 | 显示今天条数 / 逾期条数 / 进度环 / 日期 | ✅ | 「待办 6」「11月21日 周六 · 6 项逾期」、环 0%（当天 0 完成数时 0%）；截图同上 |
 | B3 | 拖动改位置，重启恢复；换显示器后仍在可见区域 | ⚠ | 窗口 `moved` → 300ms 防抖 → `persistBounds` 规范化写 settings 的代码路径已审查；`setBounds` 恢复路径已验（重启后 bounds 与 settings 一致）。本机合成鼠标事件无法拖动真实窗口（见已知限制） |
-| B4 | 置顶开关生效；非焦点透明度设置生效 | △ | `settings.alwaysOnTop` / `opacity` 写入并回读通过（置顶 true→false→true、透明度 1→0.9→1）；`blur/focus` 时 `setOpacity` 代码审查；透明度视觉需人工确认 |
+| B4 | 置顶开关生效；非焦点透明度设置生效 | ✓ | `settings.alwaysOnTop` / `opacity` 写入并回读通过（置顶 true→false→true、透明度 1→0.9→1）；打包版读窗口 alpha：聚焦 255、失焦 204（0.8），拖动挂件/胶囊结束后 1.2s 内恢复 204（真实鼠标验证，见文末「补充验收」3） |
 | B5 | 勾选任务动画、折叠进「已完成」、可取消完成 | ✅ | CDP 勾选 → status=1、toast「已完成「盘点模具库位」」带撤销；撤销回到 0；`sortDone` + 已完成分组折叠 |
 | B6 | 输入框回车新增；「明天 10:00 / 高」解析 | ✅ | 输入「写周报 #验收 https://example.com/r1 明天 10:00 高」→ 落库 title=写周报、priority=3、due=本地明天 10:00、标签「验收」自动创建 |
 | B7 | 双击空白新增；Esc 收起为胶囊；胶囊显示今天条数与最近任务 | ✅ | 双击 `.w-body` blank → 完整窗口打开；Esc → `view-capsule` 284×54；胶囊「今天 6 项 · 6 项逾期」「盘点模具库位 · 10:00」截图 `m6-capsule.png` |
@@ -222,6 +222,11 @@
 - 根因：拖动会使窗口获得焦点，主进程按「非焦点才应用设定透明度」的规则把窗口设为 100%，必须再点别处才失焦恢复。
 - 修复：`src/main/windows.ts` 新增 `settleWidgetIdleOpacity()`；`bindBoundsPersistence` 的 300ms 保存防抖回调与 `endCapsuleDrag()` 结束时调用：若设置了 <100% 透明度且窗口仍聚焦，则 `blur()` 让设定值立即生效。同时移除 Widget 渲染层重复的 inline opacity（此前与主进程双重叠加）。
 - 验证（打包版 CDP）：设置 opacity=0.8 → 点击挂件聚焦（`document.hasFocus()=true`）→ `beginDrag/dragMove/endDrag` 后 `document.hasFocus()=false`（立即恢复 80%）✓。
+- 复核（2026-11-22 01:15，真实系统鼠标 + 读窗口 alpha）：从桌面交付目录启动打包版（`--remote-debugging-port=9229`），`GetLayeredWindowAttributes` 读窗口 alpha：
+  - 设置 opacity=0.8、窗口聚焦时 alpha=255（符合「聚焦满不透明」）；
+  - **真实鼠标拖动挂件顶部拖拽条**（`SetCursorPos` + `mouse_event` 按下/移动 12 步/抬起）→ 1.2s 后 alpha=**204**（0.8×255，修复前为 255）✓；
+  - 切胶囊后**真实鼠标拖动胶囊本体**（位移 +40,+30）→ 1.2s 后 alpha=**204** ✓。
+  - 脚本：`.agents/tmp/verify-opacity.mjs`（CDP 编排）、`.agents/tmp/win-state.ps1`（客户端原点 + layered alpha）、`.agents/tmp/drag-real.ps1`（真实鼠标拖动）。
 
 ### 4) 自动化回归与产物
 
