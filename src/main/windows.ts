@@ -284,6 +284,39 @@ export function setWidgetContentHeight(height: number): void {
   })
 }
 
+// ---------------------------------------------------------------------------
+// 胶囊自绘拖动（renderer pointer 事件 → IPC，见 Capsule.tsx）
+// 胶囊不能用 -webkit-app-region:drag（拖动区会吞掉点击，无法区分单击展开与拖动），
+// 改为 renderer 记录 pointer 位移，主进程按起点偏移 setBounds。
+// ---------------------------------------------------------------------------
+
+let capsuleDragOrigin: { x: number; y: number } | null = null
+let capsuleDragLast: { x: number; y: number } | null = null
+
+export function beginCapsuleDrag(): void {
+  if (!widgetWindow || widgetWindow.isDestroyed() || widgetMode !== 'capsule') return
+  const bounds = widgetWindow.getBounds()
+  capsuleDragOrigin = { x: bounds.x, y: bounds.y }
+  capsuleDragLast = { ...capsuleDragOrigin }
+}
+
+export function moveCapsuleDrag(dx: number, dy: number): void {
+  if (!capsuleDragOrigin || !widgetWindow || widgetWindow.isDestroyed()) return
+  if (widgetMode !== 'capsule') return
+  const x = Math.round(capsuleDragOrigin.x + dx)
+  const y = Math.round(capsuleDragOrigin.y + dy)
+  const wa = screen.getDisplayMatching({ x, y, width: CAPSULE_WIDTH, height: CAPSULE_HEIGHT }).workArea
+  const bounds = clampBoundsToWorkArea({ x, y, width: CAPSULE_WIDTH, height: CAPSULE_HEIGHT }, wa)
+  capsuleDragLast = { x: bounds.x, y: bounds.y }
+  widgetWindow.setBounds(bounds)
+}
+
+export function endCapsuleDrag(): void {
+  if (capsuleDragLast) saveCapsulePosition(capsuleDragLast.x, capsuleDragLast.y)
+  capsuleDragOrigin = null
+  capsuleDragLast = null
+}
+
 /** 兼容旧调用：等同 setWidgetContentHeight */
 export function resizeWidgetHeight(height: number): void {
   setWidgetContentHeight(height)
@@ -301,6 +334,9 @@ export function setWidgetCollapsed(collapsed: boolean): void {
     persistBounds(widgetMode === 'capsule' ? 'capsule' : 'widget')
   }
   widgetMode = nextMode
+  // 形态切换时丢弃未完成的拖动起点，避免下一次拖动按旧坐标计算
+  capsuleDragOrigin = null
+  capsuleDragLast = null
   writeSetting('capsule', collapsed)
   if (widgetWindow && !widgetWindow.isDestroyed()) {
     const bounds = widgetBoundsForMode(nextMode)

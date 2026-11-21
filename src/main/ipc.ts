@@ -51,9 +51,12 @@ import {
 } from './settings'
 import {
   applySettingsChange,
+  beginCapsuleDrag,
   broadcast,
+  endCapsuleDrag,
   getManagerWindow,
   getWidgetWindow,
+  moveCapsuleDrag,
   saveCapsulePosition,
   setWidgetCollapsed,
   setWidgetContentHeight,
@@ -92,7 +95,10 @@ export const IPC_CHANNELS = [
   'app:importData',
   'widget:setHeight',
   'widget:setCollapsed',
-  'widget:saveCapsulePosition'
+  'widget:saveCapsulePosition',
+  'widget:beginDrag',
+  'widget:dragMove',
+  'widget:endDrag'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -488,6 +494,28 @@ export function registerIpcHandlers(): void {
       throw new Error('缺少参数：x/y')
     }
     saveCapsulePosition(x, y)
+    return { ok: true as const }
+  })
+
+  // 胶囊自绘拖动（renderer pointer 事件驱动；见 src/renderer/src/app/Capsule.tsx）
+  handle('widget:beginDrag', () => {
+    beginCapsuleDrag()
+    return { ok: true as const }
+  })
+
+  handle('widget:dragMove', (input) => {
+    const payload = asRecord(input)
+    const dx = payload.dx
+    const dy = payload.dy
+    if (typeof dx !== 'number' || typeof dy !== 'number' || !Number.isFinite(dx) || !Number.isFinite(dy)) {
+      throw new Error('缺少参数：dx/dy')
+    }
+    moveCapsuleDrag(dx, dy)
+    return { ok: true as const }
+  })
+
+  handle('widget:endDrag', () => {
+    endCapsuleDrag()
     return { ok: true as const }
   })
 }

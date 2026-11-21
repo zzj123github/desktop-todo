@@ -196,6 +196,12 @@ export interface DesktopTodoApi {
     setCollapsed(input: { collapsed: boolean }): Promise<{ ok: true }>
     /** 胶囊独立位置拖拽结束写回 */
     saveCapsulePosition(input: { x: number; y: number }): Promise<{ ok: true }>
+    /** 胶囊拖动开始：主进程记录起始窗口位置（renderer 自绘拖动，见 Capsule.tsx） */
+    beginDrag(): Promise<{ ok: true }>
+    /** 胶囊拖动中：相对起点的位移（CSS px） */
+    dragMove(input: { dx: number; dy: number }): Promise<{ ok: true }>
+    /** 胶囊拖动结束：落盘位置 */
+    endDrag(): Promise<{ ok: true }>
   }
   drop: {
     getPathForFile(file: File): string

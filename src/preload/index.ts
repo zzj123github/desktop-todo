@@ -111,7 +111,10 @@ const api: DesktopTodoApi = {
     setHeight: (input: { height: number }) => ipcRenderer.invoke('widget:setHeight', input),
     setCollapsed: (input: { collapsed: boolean }) => ipcRenderer.invoke('widget:setCollapsed', input),
     saveCapsulePosition: (input: { x: number; y: number }) =>
-      ipcRenderer.invoke('widget:saveCapsulePosition', input)
+      ipcRenderer.invoke('widget:saveCapsulePosition', input),
+    beginDrag: () => ipcRenderer.invoke('widget:beginDrag'),
+    dragMove: (input: { dx: number; dy: number }) => ipcRenderer.invoke('widget:dragMove', input),
+    endDrag: () => ipcRenderer.invoke('widget:endDrag')
   },
   drop: {
     getPathForFile: (file) => webUtils.getPathForFile(file)

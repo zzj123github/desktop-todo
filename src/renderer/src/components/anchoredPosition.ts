@@ -20,6 +20,21 @@ export interface PopoverPosition {
 export const POPOVER_GAP = 6
 export const VIEWPORT_MARGIN = 12
 
+/**
+ * 浮层判定：所有浮层都 portal 到 body，彼此在 DOM 上不是父子关系。
+ * Popover 的「点击外部关闭」必须把内部嵌套打开的另一层浮层（如日期选择器 .dp-pop）
+ * 视为内部，否则点日期面板的瞬间父浮层先被卸载，日期选择无法完成。
+ * 与 docs/08 §3.7/§3.9 的层叠顺序一致（pop 131 / datepicker 190 / overlay 120）。
+ */
+export const FLOATING_LAYER_SELECTOR = '.pop, .dp-pop, .overlay'
+
+/** target 是否落在任意浮层内（含嵌套浮层） */
+export function isInsideFloatingLayer(target: EventTarget | null): boolean {
+  const el = target as Element | null
+  if (!el || typeof el.closest !== 'function') return false
+  return el.closest(FLOATING_LAYER_SELECTOR) !== null
+}
+
 export function rectOf(el: HTMLElement): AnchorRect {
   const rect = el.getBoundingClientRect()
   return {

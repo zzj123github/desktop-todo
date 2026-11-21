@@ -5,6 +5,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { isInsideFloatingLayer } from './anchoredPosition'
 
 const GAP = 6
 const MARGIN = 12
@@ -62,6 +63,9 @@ export function Popover({ anchor, onClose, children, className, width }: Popover
       const target = event.target as Node
       if (ref.current?.contains(target)) return
       if (anchor?.contains(target)) return
+      // 浮层内再打开的子浮层（如日期选择器 .dp-pop，portal 到 body）视为内部点击，
+      // 否则父浮层会在按下瞬间关闭，导致日期选择不可用（用户反馈 #7）。
+      if (isInsideFloatingLayer(target)) return
       onCloseRef.current()
     }
     const onKeyDown = (event: KeyboardEvent): void => {
