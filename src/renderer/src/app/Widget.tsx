@@ -71,15 +71,26 @@ export function Widget(): ReactElement {
     if (!element) return
     let frame = 0
     // 窗口高度会反过来限制 .widget 自身（height:100%），所以按各区块自然高度求和：
-    // 拖拽区 + 头部固定高度 + 列表内容自然高度（scrollHeight） + 输入区 + footer。
+    // 拖拽区 + 头部固定高度 + 列表子项自然高度之和 + 输入区 + footer。
+    // 注意不能用 .w-body.scrollHeight：它在 flex 拉伸后等于视口高度，会和窗口高度互相锁死。
     const report = (): void => {
       const part = (selector: string): number => {
         const node = element.querySelector<HTMLElement>(selector)
         if (!node) return 0
-        return node === null ? 0 : node.getBoundingClientRect().height
+        return node.getBoundingClientRect().height
       }
       const body = element.querySelector<HTMLElement>('.w-body')
-      const bodyHeight = body ? body.scrollHeight : 0
+      let bodyHeight = 0
+      if (body) {
+        const style = window.getComputedStyle(body)
+        const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+        const gap = parseFloat(style.rowGap) || 0
+        const children = Array.from(body.children) as HTMLElement[]
+        bodyHeight =
+          children.reduce((sum, node) => sum + node.getBoundingClientRect().height, 0) +
+          gap * Math.max(0, children.length - 1) +
+          padding
+      }
       const height = Math.ceil(
         part('.w-drag') + part('.w-head') + bodyHeight + part('.w-add') + part('.w-foot')
       )

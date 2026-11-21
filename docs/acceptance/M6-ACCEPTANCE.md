@@ -143,3 +143,20 @@
 4. **DPI 档位**：本机仅 175% 缩放，100%/125%/150% 截图需在实际缩放下复核。
 5. **断电模拟**：未做真实断电测试，WAL/checkpoint 由数据库单测覆盖。
 6. **UNC 成功打开**：环境无可达 SMB 共享，仅验证识别 + 超时失效路径。
+
+## 补充验收（2026-11-21 23:40，用户反馈「portable 双击无反应」后）
+
+**现象**：用户双击 `C:\Users\lazasons\Workspace\desktop-todo\release\DesktopTodo-1.0.0-portable.exe`，SmartScreen 点「仍要运行」后无进程、无崩溃转储、无临时解压目录。
+
+**根因**：本机 DSH 会话对工作区路径下的 GUI 程序执行有沙箱限制。用 `explorer.exe "<exe>"` 模拟资源管理器双击对照：
+- 从 `C:\Users\lazasons\Workspace\desktop-todo\release\` 启动：10s 后应用进程 0；
+- 从 `C:\Users\lazasons\Desktop\桌面待办-交付物\` 启动：4 个进程正常、窗口可见。
+交付物本身无缺陷，问题只出在运行路径（与上节已知限制 3 同源）。
+
+**处理**：
+1. 交付物复制到桌面独立文件夹 `C:\Users\lazasons\Desktop\桌面待办-交付物\`（portable + setup + 使用说明.txt）；该路径双击可直接运行（已用 explorer 启动实测）。
+2. `%APPDATA%\DesktopTodo` 验收残留数据整体改名备份为 `%APPDATA%\DesktopTodo.m6-acceptance-<timestamp>`（非破坏），用户首次启动为干净空库、展开挂件。
+3. 修复空列表挂件高度：`src/renderer/src/app/Widget.tsx` 的高度上报不再用 `.w-body.scrollHeight`（它会与窗口高度互相锁死，停在 512px），改为累加列表子项自然高度，空态窗口缩到 353×231；重新打包并复核。
+4. 重新打包产物：portable 97,690,655 B / SHA-256 `e8e1d3c85bf3b51b256532a1e3cce4a2caba6cd510c496ca2570053d42326ba2`；setup 106,239,961 B / SHA-256 `9b230b05eb6e2d6a2046c50a2c04dbb3d99cf4b56ec4484829da33ffacd6c8f7`。桌面交付目录内文件与本记录一致。
+
+**干净首启复核（打包版，从桌面目录运行）**：`view-widget`、353×231、标题「今天」、空态文案、任务数 0、`settings.capsule=false`、窗口在桌面右侧可见；CDP 截图与 OS 截图各一份。

@@ -20,3 +20,9 @@
 - 壁纸/桌面环境差异：挂件 `transparent: true` 依赖系统合成，个别旧显卡驱动/远程桌面下可能出现黑边；已保留不透明 manager 窗口，必要时可把 widget 改回不透明并在 08 视觉条款下重新验收。
 - 未签名安装包：首启 SmartScreen 提示，README 已给出「更多信息 → 仍要运行」说明；如需消除需购买代码签名证书，本次不做。
 - `git` 提交仅本地仓库；未推送任何远端（用户未要求）。
+
+## 用户反馈：portable 双击无反应（2026-11-21，已定位并规避）
+- 根因：本机 DSH 会话禁止从项目 workspace 路径执行 GUI 程序（explorer 双击对照：workspace 0 进程 / 桌面交付目录 4 进程）。交付物本身正常。
+- 规避：交付物复制到 `C:\Users\lazasons\Desktop\桌面待办-交付物\`（portable + setup + 使用说明.txt），README 与验收记录已注明。
+- 残留数据：`%APPDATA%\DesktopTodo` 验收数据改名为 `%APPDATA%\DesktopTodo.m6-acceptance-20261121-233847`，首次启动干净空库。
+- 待用户确认：是否需要让项目内 `release/` 的副本也可双击（受本机环境限制，应用侧无法绕过；需要换非受限目录或调整环境策略）。

@@ -18,3 +18,9 @@
 2026-11-21 | update | src/renderer/src/app/Manager.tsx | 从设置进入的管理弹窗关闭后返回设置；Esc 关闭完整窗口（隐藏至托盘）
 2026-11-21 | update | README.md | 交付说明：安装/SmartScreen/数据目录与备份/快捷键/构建命令/目录结构/已知限制
 2026-11-21 | update | .agents/memory/project-overview.md, decisions.md, gotchas.md, open-items.md | M0–M6 完成状态、D6–D8 决策、沙箱与 PowerShell 坑、人工冒烟清单
+
+2026-11-21 23:40 | update | README.md / docs/acceptance/M6-ACCEPTANCE.md | 补充「本机 exe 必须从桌面交付文件夹运行（workspace 路径被沙箱禁止执行 GUI）」，追加用户反馈 portable 双击无反应的根因/处理/重打包校验记录
+2026-11-21 23:40 | fix | src/renderer/src/app/Widget.tsx | 挂件高度上报改为累加列表子项自然高度（不再用 .w-body.scrollHeight，避免与窗口高度互相锁死停在 512px）；空态 353×231
+2026-11-21 23:40 | create | C:\Users\lazasons\Desktop\桌面待办-交付物\使用说明.txt | 交付给用户的启动/路径/SmartScreen/数据备份/快捷键/卸载说明
+2026-11-21 23:40 | update | release/*.exe + 桌面交付目录 | 用包含挂件高度修正的代码重新打包（portable 97,690,655B / setup 106,239,961B），复制到桌面交付目录
+2026-11-21 23:40 | update | .agents/open-items.md | 记录 workspace GUI 限制为用户可见问题、已通过桌面交付目录规避
