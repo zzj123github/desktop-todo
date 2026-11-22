@@ -3,8 +3,10 @@
  * 只测纯计算函数：anchorForBounds / boundsForShape 不触碰 electron 屏幕 API，
  * 可在 Electron-as-node 下运行（见 scripts/run-tests.cjs）。
  */
-import { describe, expect, it } from 'vitest'
-import { anchorForBounds, boundsForShape } from './windows'
+import { EventEmitter } from 'node:events'
+import type { BrowserWindow } from 'electron'
+import { describe, expect, it, vi } from 'vitest'
+import { anchorForBounds, attachDevToolsShortcut, boundsForShape } from './windows'
 
 const WORK_AREA = { x: 0, y: 0, width: 1440, height: 900 }
 
@@ -62,3 +64,66 @@ describe('boundsForShape', () => {
     expect(next.y + next.height).toBeLessThanOrEqual(WORK_AREA.y + WORK_AREA.height)
   })
 })
+
+describe('attachDevToolsShortcut', () => {
+  it('F12 第一次打开分离式 DevTools，再按一次关闭', () => {
+    const { win, contents } = fakeWindow()
+    attachDevToolsShortcut(win, true)
+
+    const opened = pressKey(contents, 'F12')
+    expect(opened.preventDefault).toHaveBeenCalled()
+    expect(contents.openDevTools).toHaveBeenCalledWith({ mode: 'detach', activate: false })
+
+    contents.isDevToolsOpened.mockReturnValue(true)
+    pressKey(contents, 'F12')
+    expect(contents.closeDevTools).toHaveBeenCalledTimes(1)
+  })
+
+  it('忽略 keyUp 与非 F12 按键', () => {
+    const { win, contents } = fakeWindow()
+    attachDevToolsShortcut(win, true)
+
+    pressKey(contents, 'F12', 'keyUp')
+    pressKey(contents, 'F11')
+
+    expect(contents.openDevTools).not.toHaveBeenCalled()
+    expect(contents.closeDevTools).not.toHaveBeenCalled()
+  })
+
+  it('打包版（enabled=false）不注册监听，F12 无行为', () => {
+    const { win, contents } = fakeWindow()
+    attachDevToolsShortcut(win, false)
+
+    const event = pressKey(contents, 'F12')
+
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    expect(contents.openDevTools).not.toHaveBeenCalled()
+  })
+})
+
+/** 只用到 webContents 的 before-input-event 与 DevTools 开关接口 */
+function fakeWindow(): {
+  win: BrowserWindow
+  contents: EventEmitter & {
+    isDevToolsOpened: ReturnType<typeof vi.fn>
+    openDevTools: ReturnType<typeof vi.fn>
+    closeDevTools: ReturnType<typeof vi.fn>
+  }
+} {
+  const contents = Object.assign(new EventEmitter(), {
+    isDevToolsOpened: vi.fn(() => false),
+    openDevTools: vi.fn(),
+    closeDevTools: vi.fn()
+  })
+  return { win: { webContents: contents } as unknown as BrowserWindow, contents }
+}
+
+function pressKey(
+  contents: EventEmitter,
+  key: string,
+  type: 'keyDown' | 'keyUp' = 'keyDown'
+): { preventDefault: ReturnType<typeof vi.fn> } {
+  const event = { preventDefault: vi.fn() }
+  contents.emit('before-input-event', event, { type, key })
+  return event
+}

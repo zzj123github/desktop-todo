@@ -80,6 +80,8 @@ pnpm dist:nsis              # 只打安装包
 #    审计会临时创建「审计*」任务/项目/标签并在结束时清理，同时恢复被切换的设置。
 ```
 
+开发调试：`pnpm dev` 启动后，在任一应用窗口（挂件 / 胶囊 / 完整窗口 / 编辑弹窗）按 **F12** 打开或关闭分离式 DevTools（DevTools 打开时不抢焦点，再按 F12 即可关闭；若焦点已切到 DevTools 窗口，点回应用窗口再按 F12）。该快捷键仅开发模式注册，打包版按 F12 无行为。主进程日志直接输出在 `pnpm dev` 终端。
+
 技术栈：Electron 40 + React 18 + TypeScript + better-sqlite3 + electron-vite + electron-builder + Vitest。
 
 构建产物：

@@ -16,7 +16,7 @@
  * 结构 { x, y, width, height, displayId }，防抖 300ms。capsuleBounds 作为旧字段保留兼容，
  * 不再单独读写。
  */
-import { BrowserWindow, screen, type Rectangle } from 'electron'
+import { app, BrowserWindow, screen, type Rectangle } from 'electron'
 import { join } from 'node:path'
 import type { SettingsKey } from '../shared/types'
 import {
@@ -534,6 +534,25 @@ export function saveCapsulePosition(x: number, y: number): void {
 // 窗口创建
 // ---------------------------------------------------------------------------
 
+/**
+ * 开发模式：F12 开关当前窗口的 DevTools（分离窗口，不影响 352 宽的挂件）。
+ * 打包版不注册（enabled 默认取 !app.isPackaged），正式版没有该行为。
+ * activate: false 让 DevTools 不抢焦点，应用窗口保持聚焦时再按 F12 即可关闭。
+ */
+export function attachDevToolsShortcut(
+  win: BrowserWindow,
+  enabled: boolean = !app.isPackaged
+): void {
+  if (!enabled) return
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown' || input.key !== 'F12') return
+    event.preventDefault()
+    const contents = win.webContents
+    if (contents.isDevToolsOpened()) contents.closeDevTools()
+    else contents.openDevTools({ mode: 'detach', activate: false })
+  })
+}
+
 function createWidgetWindow(initialMode: WidgetMode): BrowserWindow {
   const bounds = resolveShapeBounds(initialMode)
   widgetHeight = Math.min(bounds.height, WIDGET_MAX_HEIGHT)
@@ -560,6 +579,7 @@ function createWidgetWindow(initialMode: WidgetMode): BrowserWindow {
       sandbox: true
     }
   })
+  attachDevToolsShortcut(win)
   applyAlwaysOnTop(getBooleanSetting('alwaysOnTop'))
   win.setVisibleOnAllWorkspaces(false)
   win.on('focus', () => applyWidgetOpacity())
@@ -639,6 +659,7 @@ export function openEditorWindow(taskId: string | null): void {
       sandbox: true
     }
   })
+  attachDevToolsShortcut(win)
   editorWindow = win
   win.on('closed', () => {
     if (editorWindow === win) editorWindow = null
@@ -701,6 +722,7 @@ function createManagerWindow(): BrowserWindow {
       sandbox: true
     }
   })
+  attachDevToolsShortcut(win)
   win.on('close', (event) => {
     if (quitting) return
     event.preventDefault()
