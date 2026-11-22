@@ -35,6 +35,49 @@ export function isInsideFloatingLayer(target: EventTarget | null): boolean {
   return el.closest(FLOATING_LAYER_SELECTOR) !== null
 }
 
+/* ---------------------------------------------------------------------------
+ * Popover 单开注册器
+ *
+ * 用户反馈 #1：视图菜单的「保存为桌面视图」表单与筛选浮层会同时存在、互相叠压，
+ * 看起来像布局错乱。真实鼠标点击时，前者通常被 outside-mousedown 关掉，但键盘
+ * （Tab + Enter）或程序化打开会绕过 mousedown，留下多个 .pop。
+ * 08 §3.7 的层叠规则是「同一时刻只显示一个浮层」，因此这里维护一个全局当前
+ * 浮层：新浮层挂载时先关闭上一个；嵌套子浮层（日期选择器 .dp-pop，不经过
+ * Popover）不受影响。
+ * ------------------------------------------------------------------------- */
+export type PopoverCloser = () => void
+
+let activePopover: { close: PopoverCloser } | null = null
+
+/**
+ * 激活一个 Popover：若已有其它浮层打开，先关闭它。
+ * 返回释放函数（只在仍是当前浮层时生效，避免旧浮层卸载时误清掉新浮层）。
+ */
+export function activatePopover(close: PopoverCloser): () => void {
+  if (activePopover && activePopover.close !== close) {
+    const previous = activePopover
+    activePopover = null
+    previous.close()
+  }
+  const token = { close }
+  activePopover = token
+  return () => {
+    if (activePopover === token) activePopover = null
+  }
+}
+
+/** 关闭当前打开的 Popover（供程序化切换/测试使用） */
+export function closeActivePopover(): void {
+  const current = activePopover
+  activePopover = null
+  current?.close()
+}
+
+/** 当前是否有打开的 Popover（测试/调试用） */
+export function hasActivePopover(): boolean {
+  return activePopover !== null
+}
+
 export function rectOf(el: HTMLElement): AnchorRect {
   const rect = el.getBoundingClientRect()
   return {

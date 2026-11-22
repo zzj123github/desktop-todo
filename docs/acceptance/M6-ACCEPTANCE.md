@@ -445,3 +445,26 @@
 - 打包版复验（2026-11-22 15:07）：从 `C:\Users\lazasons\Desktop\桌面待办-交付物\` 启动便携版（`--remote-debugging-port=9270`），在挂件内点击任务打开编辑窗口：`inner 551×781`、无 `.overlay`、`.modal` computed shadow = `rgba(40,30,15,0.18) 0px 5px 16px 0px, rgba(60,50,30,0.06) 0px 0px 0px 1px`（即 `--shadow-modal-window`），与 dev 一致 → 交付物已包含紧凑阴影修复。
 
 **截图**：`docs/acceptance/screens/editor-window-compact-shadow.png`。
+
+## 11) 2026-11-22 15:4x 交互细节四项修正与使用说明（用户 m05701）
+
+**用户反馈（原文要点）**：1) 管理视图点「保存为桌面视图」时，视图菜单的保存区样式布局混乱；2) 读文件时能给链接添加标题，但手动输入链接时无法填写标题、只显示原链接，需支持填写标题；3) 新建/编辑任务无内容时两处都提示「把文件或文件夹拖到这里」，原型设计应为「还没有链接」；4) 需要应用内操作说明页/弹窗，入口放设置之上或更合适布局。以上调整需同步原型文件、规范、静态图等资源。
+
+**根因与实现**：
+- 浮层叠压（问题 1）：每个 Popover 独立挂载、各自监听外部点击，筛选行的标签/日期/优先级浮层与视图菜单可同时打开（键盘或程序化打开不经过 outside-mousedown），保存表单与筛选浮层重叠。新增 Popover 全局单开注册器：`components/anchoredPosition.ts` 的 `activatePopover/closeActivePopover/hasActivePopover`；`Popover.tsx` 挂载时激活、卸载释放，新浮层打开自动关闭上一个（嵌套 `.dp-pop` 日期选择器不受影响）。`anchoredPosition.test.ts` 新增 3 用例。
+- 链接标题（问题 2）：新增 `lib/links.ts` 的 `autoLinkTitle(target)`（沿用 detectLink 自动名称：URL 去协议截断 44、路径取最后一段）；`EditorModal.tsx` 链接行标题展示态为按钮、编辑态为输入框，Enter/失焦保存、Esc 取消、空值回退自动标题，新添加链接自动进入标题编辑；`TaskRow.tsx`/`LinkRow.tsx` 的链接文案与 aria 同步回退规则；新增 `links.test.ts` 4 用例。
+- 空链接提示（问题 3）：`EditorModal.tsx` 空态改用 `zh.editor.emptyLinks`「还没有链接」；拖拽区主/副文案独立为「把文件 / 文件夹拖到这里，或粘贴路径」/「拖入后自动识别为文件、文件夹或网址」。
+- 使用说明（问题 4）：新增 `app/HelpModal.tsx`（Modal wide 只读，六节：三种形态 / 添加与编辑任务 / 链接 / 筛选与桌面视图 / 快捷键 / 数据与设置，footer 仅「知道了」）；完整窗口侧栏 footer 在「设置」上方新增「使用说明」入口；文案集中在 i18n `help` 分组。
+- 规范/文档：`docs/01-PRD.md` FR-2.9、FR-3.4、FR-3.9、FR-6.6；`docs/08-UI-ENGINEERING-SPEC.md` §2.3、§3.7、§3.8、§3.12；`docs/02-DESIGN-SPEC.md` §4.2；`docs/09-PROJECT-STRUCTURE.md` §6.1（登记 `lib/links.test.ts`、`app/HelpModal.tsx`、`links.ts autoLinkTitle`）。
+- 原型同步：侧栏使用说明入口 + HelpModal、链接标题行内编辑、空链接提示与 dropzone 副文案；`design/static-prototype.html` 新增第 06 节与截图；`design/README.md` 升 app v1.2 / static v2.3；顺带修复 `design/app/js/core.js` UNC 正则（4 个反斜杠 → 2 个，原 bug 使 `\\server\share` 识别失败；src 的 detectLink 本身正确）。
+- 截图：新导 `design/app-help.png`、`design/app-editor-link-title.png`；重导 11 张 2560×1392 截图与 `design/app-fullpage.webp`（2914×16350，WebP 单边 16383 限制、dsf 2→1.85 等比，README 已注明）。
+
+**验证**：
+- `npx tsc --noEmit` 通过；`node scripts/run-tests.cjs run` → **15 文件 / 185 用例通过**（基线 178，+7：Popover 注册器 3、autoLinkTitle 4）。
+- dev 全量审计：`CDP_PORT=9241 node scripts/audit-ui.mjs` → **ALL PASS（63 项）**；新增 4 条断言（单 Popover、链接标题编辑与清空回退、空链接文案与 dropzone 不重复、使用说明入口顺序与弹窗开关），截图 `03b-editor-link-title.png`、`12-manager-help.png`。
+- 打包版复验：2026-11-22 15:47 重打包后，从桌面交付目录启动便携版（`--remote-debugging-port=9280`）执行 `CDP_PORT=9280 node scripts/audit-ui.mjs` → **ALL PASS（63 项）**。
+
+**交付物（2026-11-22 15:47 重打包）**：
+- `DesktopTodo-1.0.0-portable.exe` 97,693,981 B / SHA-256 `9d2342317b86786e74d5484ab0f02bc09f7518ed99a3c01b6702cb474009c1ba`
+- `DesktopTodo-1.0.0-setup.exe` 106,247,407 B / SHA-256 `da8ffc3bd0d268447b8e0501fb6b1508a24548e54c3dc7986ee17f4aeaf1f5f1`
+- 已复制 `release/` 与桌面交付目录，并更新 `使用说明.txt` 与根 `README.md`。

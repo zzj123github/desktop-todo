@@ -130,6 +130,7 @@ R.sidebar = function(){
   html += '</div>';
   html += '</div>';
   html += '<div class="sb-foot">'
+    + '<button type="button" class="sb-settings" data-act="help">'+R.icon('help')+'使用说明</button>'
     + '<button type="button" class="sb-settings" data-act="settings">'+R.icon('settings')+'设置</button></div>';
   return html;
 };
@@ -506,25 +507,48 @@ R.settingsModal = function(){
   return html;
 };
 R.helpModal = function(){
+  var sections = [
+    {title:'三种形态', items:[
+      '挂件：桌面常驻的任务清单，默认显示今天；双击标题打开完整窗口。',
+      '胶囊：点挂件右上角「—」收起，单击展开、双击打开完整窗口。',
+      '完整窗口：标题行的「收起到挂件」「收起到胶囊」可切换形态；同一时刻只显示一种。',
+      '挂件与胶囊共用位置：切换或改变高度时，按最近的屏幕角（默认右上）保持位置。'
+    ]},
+    {title:'添加与编辑任务', items:[
+      '底部输入框输入标题，回车保存；Shift+回车换行。',
+      '输入里可以直接写「明天 10:00」「#标签」「高/中/低」，保存时自动识别。',
+      '点击任务行打开编辑窗口，可修改标题、备注、项目、标签、优先级、日期与链接。'
+    ]},
+    {title:'链接', items:[
+      '支持网页 / 文件夹 / UNC 共享路径 / 本地文件，粘贴或拖入即可添加。',
+      '链接标题默认自动生成，点击标题可修改；留空则恢复自动标题。',
+      '找不到位置时点「重新选择」定位，或删除该链接。'
+    ]},
+    {title:'筛选与桌面视图', items:[
+      '五个维度：标签、日期、优先级、状态、关键词，条件即时生效。',
+      '标题旁的箭头可把当前筛选保存为桌面视图，之后一键切换。'
+    ]},
+    {title:'快捷键', items:[
+      'Ctrl+Shift+Space：快速添加（需开启全局快捷键）。',
+      'Alt+H：显示 / 隐藏挂件；Alt+1…5：切换到收件箱 / 今天 / 已逾期 / 即将到期 / 已完成。',
+      'Ctrl+N：新建任务；Ctrl+F：搜索；Esc：关闭浮层或收起挂件。'
+    ]},
+    {title:'数据与设置', items:[
+      '设置里可调整置顶、失焦透明度、开机自启与全局快捷键。',
+      '可查看数据目录、导出备份，或用导入恢复。'
+    ]}
+  ];
+  var body = '<div class="help-body">';
+  sections.forEach(function(sec){
+    body += '<section class="help-section"><h3>'+sec.title+'</h3><ul>'
+      + sec.items.map(function(it){ return '<li>'+it+'</li>'; }).join('')
+      + '</ul></section>';
+  });
+  body += '</div>';
   return '<div class="modal wide" role="dialog" aria-modal="true" aria-label="使用说明">'
-    + '<div class="modal-head"><div class="modal-title">怎么玩这个原型</div><button type="button" class="modal-x" data-act="close-modal" aria-label="关闭">'+R.icon('x')+'</button></div>'
-    + '<div class="modal-body help-block">'
-    + '<h4>一个桌面，三种形态</h4>'
-    + '<p>默认是桌面挂件。挂件、胶囊、完整窗口同一时刻只出现一个：窗口标题行的按钮可以把窗口收成挂件或胶囊，双击挂件标题打开窗口；窗口右上角 X 或 <kbd>Esc</kbd> 回到桌面。</p>'
-    + '<h4>值得试的几件事</h4>'
-    + '<ul>'
-    + '<li>勾选一条任务，看进度环和「已完成」如何更新；再点「已完成」展开、取消勾选。</li>'
-    + '<li>点任务里的蓝色链接：会弹出「打开链接」说明（网页 → 默认浏览器；文件夹 → 资源管理器）。</li>'
-    + '<li>点一条任务打开编辑面板，改日期/优先级/标签，或者点「删除」再撤销。</li>'
-    + '<li>点挂件底部「+ 添加任务」展开输入框：回车保存、Shift+回车换行、Esc 或点别处收起。</li>'
-    + '<li>挂件顶部减号 = 收成胶囊；双击标题 = 打开完整窗口。胶囊单击展开挂件，双击打开完整窗口。</li>'
-    + '<li>把挂件或胶囊拖到屏幕四角：切换形态时，离得最近的那个角会保持不动，高度变化也向另一侧伸缩。</li>'
-    + '<li>完整窗口里试筛选：标签 / 日期 / 优先级 组合，再点搜索；顶部「待办 / 已完成 / 全部」也能切。</li>'
-    + '</ul>'
-    + '<h4>快捷键</h4>'
-    + '<ul><li><kbd>N</kbd> 或 <kbd>Ctrl</kbd>+<kbd>N</kbd> 新建任务</li><li><kbd>/</kbd> 或 <kbd>Ctrl</kbd>+<kbd>F</kbd> 搜索</li><li><kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>5</kbd> 切左栏视图</li><li><kbd>Esc</kbd> 收起输入 / 关闭浮层 / 关闭完整窗口</li></ul>'
-    + '</div>'
-    + '<div class="modal-foot"><span class="spacer"></span><button type="button" class="btn-pri" data-act="close-modal">开始体验</button></div></div>';
+    + '<div class="modal-head"><div class="modal-title">使用说明</div><button type="button" class="modal-x" data-act="close-modal" aria-label="关闭">'+R.icon('x')+'</button></div>'
+    + '<div class="modal-body">' + body + '</div>'
+    + '<div class="modal-foot"><span class="spacer"></span><button type="button" class="btn-pri" data-act="close-modal">知道了</button></div></div>';
 };
 R.openLinkModal = function(link, task){
   var icon = LINK_ICON[link.type]||'link';
@@ -696,16 +720,24 @@ R.editorModal = function(ed){
   html += '<div class="form-field"><div class="field-label">链接 <span class="opt">网页 / 文件夹 / UNC / 文件</span></div>';
   html += '<div class="link-list">';
   (d.links||[]).forEach(function(lk,i){
+    var name = lk.name || lk.path || '';
+    var editing = ed.linkTitle && ed.linkTitle.i===i;
     html += '<div class="link-row"><div class="lr-ic">'+R.icon(LINK_ICON[lk.type]||'link')+'</div>'
-      + '<div class="lr-main"><div class="lr-name">'+esc(lk.name||lk.path)+'</div><div class="lr-path">'+esc(lk.path)+'</div></div>'
+      + '<div class="lr-main">'
+      + (editing
+        ? '<input class="lr-title-input" id="edLinkTitle" data-i="'+i+'" type="text" maxlength="120" autocomplete="off"'
+          + ' value="'+esc(name)+'" placeholder="链接标题（留空自动生成）" aria-label="链接标题">'
+        : '<button type="button" class="lr-name lr-name-btn" data-act="ed-link-title" data-i="'+i+'"'
+          + ' title="点击编辑标题" aria-label="编辑链接标题「'+esc(name)+'」">'+esc(name)+'</button>')
+      + '<div class="lr-path">'+esc(lk.path)+'</div></div>'
       + '<button type="button" class="lr-btn" data-act="ed-preview-link" data-i="'+i+'" title="查看打开方式">'+R.icon('arrow-up')+'</button>'
       + '<button type="button" class="lr-btn danger" data-act="ed-remove-link" data-i="'+i+'" title="移除链接">'+R.icon('trash')+'</button></div>';
   });
-  if(!(d.links||[]).length) html += '<div class="m-empty" style="padding:12px 0 6px">还没有链接</div>';
+  if(!(d.links||[]).length) html += '<div class="m-empty">还没有链接</div>';
   html += '</div>';
   html += '<div class="add-link-row"><input class="text-input" id="edLinkInput" type="text" placeholder="粘贴网址 / 文件夹路径 / UNC 共享路径" autocomplete="off">'
     + '<button type="button" class="btn-sm" data-act="ed-add-link">添加</button></div>';
-  html += '<div class="dropzone" id="edDrop">'+R.icon('folder')+'<div>把文件 / 文件夹拖到这里，或粘贴路径</div><div style="font-size:10px;color:var(--faint)">拖入后自动识别为文件、文件夹或网址</div></div>';
+  html += '<div class="dropzone" id="edDrop">'+R.icon('folder')+'<div>把文件 / 文件夹拖到这里，或粘贴路径</div><div class="dz-sub">拖入后自动识别为文件、文件夹或网址</div></div>';
   html += '<div class="help-block"><p class="note">链接保存为绝对路径；网页用默认浏览器打开，文件夹用资源管理器打开；UNC 共享盘不可达时会提示。</p></div>';
   html += '</div></div>';
 

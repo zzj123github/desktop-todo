@@ -85,7 +85,7 @@ pnpm dist:win               # 打包 portable + NSIS 到 release/
 pnpm dist:portable          # 只打便携版
 pnpm dist:nsis              # 只打安装包
 
-# 真实 UI 交互审计（挂件/胶囊/完整窗口/弹层/键盘，50+ 项断言）：
+# 真实 UI 交互审计（挂件/胶囊/完整窗口/弹层/键盘，60+ 项断言）：
 # 1) 先带 CDP 端口启动：node scripts/dev-launch.cjs -- --remote-debugging-port=9241
 # 2) 另一个终端执行：pnpm audit（可用 CDP_PORT=9242 指定端口）
 #    审计会临时创建「审计*」任务/项目/标签并在结束时清理，同时恢复被切换的设置。
@@ -99,8 +99,8 @@ pnpm dist:nsis              # 只打安装包
 
 | 文件 | 说明 |
 | --- | --- |
-| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,698,316 B），双击运行 |
-| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,243,873 B） |
+| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,693,981 B），双击运行 |
+| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,247,407 B） |
 | `release/win-unpacked/` | 解包目录（调试用） |
 
 本机无 MSVC 环境时，better-sqlite3 使用与 Electron ABI 匹配的预编译产物：`python scripts/fetch-native-assets.py`（脚本从 npmmirror 镜像取 Electron 与预编译 `.node`）。打包配置已设 `npmRebuild: false`，直接用预编译产物。
@@ -150,15 +150,19 @@ design/        UI 契约（tokens.css）与交互原型
 - 胶囊单击需 250ms 判定窗口（用于区分双击打开完整窗口），属交互设计而非延迟缺陷。
 - 默认使用软件合成（见「性能与内存」）：若显式设置 `DESKTOP_TODO_GPU=1`，内存会回升到表中原有水平。
 
-## 交付物校验（2026-11-22 15:07 重新打包）
+## 交付物校验（2026-11-22 15:47 重新打包）
 
 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- |
-| `DesktopTodo-1.0.0-portable.exe` | 97,702,960 B（93.2 MiB） | `2ce8aef5f7d1ec52fbeda825d362fec952afb8c8596c48ccf99a130ae5c99be0` |
-| `DesktopTodo-1.0.0-setup.exe` | 106,245,569 B（101.3 MiB） | `18d333108e6096ecd33ecfd8519baa7976e18e3abbc5d87ca3973041c942de79` |
+| `DesktopTodo-1.0.0-portable.exe` | 97,693,981 B（93.2 MiB） | `9d2342317b86786e74d5484ab0f02bc09f7518ed99a3c01b6702cb474009c1ba` |
+| `DesktopTodo-1.0.0-setup.exe` | 106,247,407 B（101.3 MiB） | `da8ffc3bd0d268447b8e0501fb6b1508a24548e54c3dc7986ee17f4aeaf1f5f1` |
 
 本次重打包包含以下缺陷修复：
 
+- 视图菜单保存区不再与筛选浮层叠压：同一时刻只保留一个浮层，新浮层打开会自动关闭上一个（嵌套的日期选择器除外），键盘或程序化打开也遵守。
+- 链接标题支持手动填写：编辑窗口内点击链接标题即可改名，Enter/失焦保存、Esc 取消、清空回退自动生成标题；新添加的链接会自动进入标题编辑；完整窗口任务行与挂件链接文案同步使用回退后的标题。
+- 编辑弹窗空链接提示更清晰：无链接时显示「还没有链接」；拖拽区独立为「把文件 / 文件夹拖到这里，或粘贴路径」+「拖入后自动识别为文件、文件夹或网址」，不再出现两处重复提示。
+- 完整窗口侧栏 footer 在「设置」之上新增「使用说明」，打开只读使用说明弹窗（三种形态 / 添加与编辑任务 / 链接 / 筛选与桌面视图 / 快捷键 / 数据与设置）；原型、静态原型与截图同步更新到 app v1.2 / static v2.3。
 - 独立透明窗口（挂件/胶囊/编辑/提示）内的 modal / pop / toast 改用紧凑阴影 token（`--shadow-modal-window` / `--shadow-pop-window` / `--shadow-toast-window`，按渲染场景区分），不再出现被窗口边界裁切的断边灰晕；完整窗口保留大阴影。
 - 原生 dialog 全部替换为应用内提示弹窗：新增通用提示体系与可复用 `NoticeModal`（独立 472 宽提示窗口、警示块 + 快捷键清单 + 右对齐「知道了」，仅窗口加载失败 2.5s 回退原生）。
 - 挂件 / 胶囊四个角恢复透明：去掉被窗口边界裁切的外投影，改为 1px 内描边，四角不再出现灰黑色底板。
@@ -174,7 +178,7 @@ design/        UI 契约（tokens.css）与交互原型
 - 挂件与胶囊共用同一位置：切换形态/高度变化时按就近角保持基准角不动（默认右上，高 DPI 下 ≤1 DIP 物理取整误差）。
 - 挂件底部默认显示「+ 添加任务」折叠按钮，点击才展开输入框。
 - 挂件标题旁「桌面视图」下拉现在可正常打开（修复打开即被窗口 resize 关闭的问题）。
-- 新增交付前全量交互审计 `pnpm audit`（50+ 项真实 UI 断言），详见 `docs/acceptance/M6-ACCEPTANCE.md` §8。
+- 新增交付前全量交互审计 `pnpm audit`（60+ 项真实 UI 断言），详见 `docs/acceptance/M6-ACCEPTANCE.md` §8。
 - 原生 dialog 全部改为应用内提示弹窗：快捷键注册失败/数据库异常用自建 `NoticeModal`（独立 472 宽窗口、警示块 + 快捷键清单 + 右对齐「知道了」），系统风格统一。
 - 设置失焦透明度（90%/80%）后拖动挂件或胶囊，释放后立即恢复设定透明度（不再需要点一下别处）。
 

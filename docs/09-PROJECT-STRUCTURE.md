@@ -214,7 +214,9 @@ desktop-todo/
 - `src/renderer/src/app/`（M2/M3 登记）：页面与页面级组合，M0 只有 `main.tsx`，现按视图拆为 `App.tsx`（按 `?view=` 路由 + ToastProvider + 挂件/胶囊形态切换）、`Widget.tsx`、`Manager.tsx`、`Capsule.tsx`、`QuickAdd.tsx`、`FilterBar.tsx`（筛选行与四个浮层）、`SettingsModal.tsx`、`ViewMenu.tsx`（桌面视图下拉）。页面层只做组合与数据接线，不复制组件样式。
 - `src/renderer/src/components/`（M2 登记）：`Icons.tsx`、`anchoredPosition.ts`、`Button.tsx`、`IconButton.tsx`、`Checkbox.tsx`、`Chip.tsx`、`ProgressRing.tsx`、`EmptyState.tsx`、`Modal.tsx`、`Popover.tsx`、`Toast.tsx`、`LinkRow.tsx`、`TaskRow.tsx`、`DateTimePicker.tsx`、`Composer.tsx`、`EditorModal.tsx`、`ManageModal.tsx`、`DeleteConfirm.tsx`、`NoticeModal.tsx`（M6 后追加：应用内提示弹窗，复用 Modal embedded），与 docs/08 §6 落点一致。
 - `src/main/notices.ts`、`src/main/notices.test.ts`、`src/renderer/src/app/NoticeWindowHost.tsx`（2026-11-22 登记）：应用内提示体系——主进程提示队列（注入 presenter，独立 472 宽透明提示窗口，加载失败 2.5s 回退原生 dialog）+ 渲染层宿主（订阅 `on.notice`、测量高度上报、确认回执）。
-- `src/renderer/src/lib/links.ts`（M4 登记）：`isLinkUnavailable(result)` 统一「找不到该位置」判定（missing + 网络位置 unreachable，docs/03 第 127 行）。
+- `src/renderer/src/lib/links.ts`（M4 登记）：`isLinkUnavailable(result)` 统一「找不到该位置」判定（missing + 网络位置 unreachable，docs/03 第 127 行）；`autoLinkTitle(target)` 生成/回退链接自动标题（编辑弹窗内联标题留空时使用，规则同原型：URL 去协议截断 44 字、本地路径取最后一段）。
+- `src/renderer/src/lib/links.test.ts`（2026-11-22 登记）：链接自动标题与识别规则的单元测试（URL/www/UNC/盘符/危险协议/空白）。
+- `src/renderer/src/app/HelpModal.tsx`（2026-11-22 登记）：应用内「使用说明」弹窗，复用 `Modal` wide，只读渲染 `i18n/zh.ts` 的 `help.sections`；入口在完整窗口侧栏 footer「设置」之上。
 - `src/renderer/src/lib/scope.ts`（M2 登记）：九视图作用域、五维筛选、Tab、排序、分组、计数、进度环、胶囊摘要等纯函数；渲染层一次性拉全量任务后本地计算（IPC `FilterDTO` 无法表达收件箱/即将到期/保存视图的作用域语义）。
 - `src/renderer/src/hooks/useFilter.ts`、`useTimeUsage.ts`（M2 登记）：筛选状态与快捷时间使用统计（读 settings `timeUsage`，写入用 `settings.set`）。
 - `src/renderer/quickadd.html`（M5 登记）：快速添加独立窗口入口，与 `index.html` 共用同一 renderer bundle（`main.tsx?view=quickadd`）。

@@ -20,6 +20,7 @@ export const zh = {
     projects: '项目',
     tags: '标签',
     settings: '设置',
+    help: '使用说明',
     manageProjects: '管理项目',
     manageTags: '管理标签',
     manageAll: '管理项目与标签',
@@ -167,7 +168,12 @@ export const zh = {
     linksLabel: '链接',
     linkPlaceholder: '粘贴链接、文件夹路径或拖入文件',
     addLink: '添加',
-    dropHint: '把文件或文件夹拖到这里',
+    emptyLinks: '还没有链接',
+    linkTitleLabel: '链接标题',
+    linkTitleEdit: '点击编辑标题',
+    linkTitlePlaceholder: '链接标题（留空自动生成）',
+    dropHint: '把文件 / 文件夹拖到这里，或粘贴路径',
+    dropHintSub: '拖入后自动识别为文件、文件夹或网址',
     remove: '删除',
     moveUp: '上移',
     moveDown: '下移',
@@ -212,6 +218,60 @@ export const zh = {
     aboutVersion: (v: string) => `桌面待办 ${v}`,
     aboutBody: '本地任务管理 · Electron + SQLite',
     done: '完成'
+  },
+
+  help: {
+    title: '使用说明',
+    close: '知道了',
+    sections: [
+      {
+        title: '三种形态',
+        items: [
+          '挂件：桌面常驻的任务清单，默认显示今天；双击标题打开完整窗口。',
+          '胶囊：点挂件右上角「—」收起，单击展开、双击打开完整窗口。',
+          '完整窗口：标题行的「收起到挂件」「收起到胶囊」可切换形态；同一时刻只显示一种。',
+          '挂件与胶囊共用位置：切换或改变高度时，按最近的屏幕角（默认右上）保持位置。'
+        ]
+      },
+      {
+        title: '添加与编辑任务',
+        items: [
+          '底部输入框输入标题，回车保存；Shift+回车换行。',
+          '输入里可以直接写「明天 10:00」「#标签」「高/中/低」，保存时自动识别。',
+          '点击任务行打开编辑窗口，可修改标题、备注、项目、标签、优先级、日期与链接。'
+        ]
+      },
+      {
+        title: '链接',
+        items: [
+          '支持网页 / 文件夹 / UNC 共享路径 / 本地文件，粘贴或拖入即可添加。',
+          '链接标题默认自动生成，点击标题可修改；留空则恢复自动标题。',
+          '找不到位置时点「重新选择」定位，或删除该链接。'
+        ]
+      },
+      {
+        title: '筛选与桌面视图',
+        items: [
+          '五个维度：标签、日期、优先级、状态、关键词，条件即时生效。',
+          '标题旁的箭头可把当前筛选保存为桌面视图，之后一键切换。'
+        ]
+      },
+      {
+        title: '快捷键',
+        items: [
+          'Ctrl+Shift+Space：快速添加（需开启全局快捷键）。',
+          'Alt+H：显示 / 隐藏挂件；Alt+1…5：切换到收件箱 / 今天 / 已逾期 / 即将到期 / 已完成。',
+          'Ctrl+N：新建任务；Ctrl+F：搜索；Esc：关闭浮层或收起挂件。'
+        ]
+      },
+      {
+        title: '数据与设置',
+        items: [
+          '设置里可调整置顶、失焦透明度、开机自启与全局快捷键。',
+          '可查看数据目录、导出备份，或用导入恢复。'
+        ]
+      }
+    ]
   },
 
   manage: {
@@ -342,6 +402,7 @@ export const zh = {
   aria: {
     taskCheckbox: (title: string, done: boolean) => (done ? `取消完成「${title}」` : `完成「${title}」`),
     openLink: (name: string) => `打开链接「${name}」`,
+    editLinkTitle: (name: string) => `编辑链接标题「${name}」`,
     removeLink: (name: string) => `删除链接「${name}」`,
     expandGroup: (name: string) => `展开${name}`,
     collapseGroup: (name: string) => `收起${name}`,

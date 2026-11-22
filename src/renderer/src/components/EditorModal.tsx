@@ -3,11 +3,11 @@
  * Contract: docs/08-UI-ENGINEERING-SPEC.md §3.8 · design/app-editor.png / app-dp-editor.png
  * 字段：标题/备注/项目/标签（可内联新建）/优先级/日期时间（自绘）/多链接（拖拽或粘贴）/删除二次确认。
  */
-import { useMemo, useState, type DragEvent, type ReactElement } from 'react'
+import { useMemo, useRef, useState, type DragEvent, type ReactElement } from 'react'
 import type { LinkKind, TagDTO, TaskDTO, TaskPriority } from '../../../shared/types'
 import { addDays, atFuture, dayStart, sameDay, type TimeUsageMap } from '../lib/date'
 import { detectLink } from '../lib/parseQuick'
-import { isLinkUnavailable } from '../lib/links'
+import { autoLinkTitle, isLinkUnavailable } from '../lib/links'
 import { Modal } from './Modal'
 import { DateTimePicker } from './DateTimePicker'
 import { Icon, type IconName } from './Icons'
@@ -83,6 +83,9 @@ export function EditorModal({
     }))
   )
   const [linkInput, setLinkInput] = useState('')
+  /** 正在行内编辑标题的链接（key 与链接行 DOM key 一致） */
+  const [editingLink, setEditingLink] = useState<{ key: string; value: string } | null>(null)
+  const editingLinkRef = useRef(false)
   const [adding, setAdding] = useState<'project' | 'tag' | null>(null)
   const [newName, setNewName] = useState('')
   const [deleteStep, setDeleteStep] = useState(false)
@@ -103,11 +106,40 @@ export function EditorModal({
     setLinks((prev) => [...prev, recognized])
   }
 
+  /** 新链接创建后直接进入标题编辑（用户反馈 #2：手动添加的链接也应能填标题） */
+  const beginLinkTitleEdit = (key: string, link: DraftLink): void => {
+    editingLinkRef.current = true
+    setEditingLink({ key, value: link.display || autoLinkTitle(link.target) })
+  }
+
+  const cancelLinkTitleEdit = (): void => {
+    editingLinkRef.current = false
+    setEditingLink(null)
+  }
+
+  /** 失焦/Enter 保存；空标题回退自动标题（URL 去协议截 44 / 路径取最后一段） */
+  const commitLinkTitle = (index: number): void => {
+    if (!editingLinkRef.current || !editingLink) return
+    const value = editingLink.value.trim()
+    editingLinkRef.current = false
+    setLinks((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, display: value || autoLinkTitle(item.target) } : item))
+    )
+    setEditingLink(null)
+  }
+
   const addLinkFromInput = (): void => {
     const raw = linkInput.trim()
     if (!raw) return
-    addLinkByTarget(raw)
+    const recognized = detectLink(raw)
+    if (!recognized) {
+      showToast(zh.toast.openFailed)
+      return
+    }
+    const index = links.length
+    setLinks((prev) => [...prev, recognized])
     setLinkInput('')
+    beginLinkTitleEdit(`${recognized.target}-${index}`, recognized)
   }
 
   const onDrop = (event: DragEvent<HTMLDivElement>): void => {
@@ -457,16 +489,53 @@ export function EditorModal({
           {zh.editor.linksLabel} <span className="opt">{'网页 / 文件夹 / UNC / 文件'}</span>
         </div>
         <div className="link-list">
-          {links.length === 0 ? <div className="m-empty">{zh.editor.dropHint}</div> : null}
+          {links.length === 0 ? <div className="m-empty">{zh.editor.emptyLinks}</div> : null}
           {links.map((link, index) => {
-            const name = link.display || link.target
+            const name = link.display || autoLinkTitle(link.target)
+            const rowKey = `${link.target}-${index}`
+            const editing = editingLink?.key === rowKey
             return (
-              <div key={`${link.target}-${index}`} className="link-row">
+              <div key={rowKey} className="link-row">
                 <span className="lr-ic" aria-hidden="true">
                   <Icon name={LINK_ICON[link.kind]} size={12} />
                 </span>
                 <div className="lr-main">
-                  <div className="lr-name">{name}</div>
+                  {editing ? (
+                    <input
+                      className="lr-title-input"
+                      value={editingLink?.value ?? ''}
+                      aria-label={zh.editor.linkTitleLabel}
+                      placeholder={zh.editor.linkTitlePlaceholder}
+                      autoFocus
+                      maxLength={120}
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) =>
+                        setEditingLink({ key: rowKey, value: event.target.value })
+                      }
+                      onBlur={() => commitLinkTitle(index)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          commitLinkTitle(index)
+                        }
+                        if (event.key === 'Escape') {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          cancelLinkTitleEdit()
+                        }
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="lr-name lr-name-btn"
+                      title={zh.editor.linkTitleEdit}
+                      aria-label={zh.aria.editLinkTitle(name)}
+                      onClick={() => beginLinkTitleEdit(rowKey, link)}
+                    >
+                      {name}
+                    </button>
+                  )}
                   <div className="lr-path">{link.target}</div>
                 </div>
                 {invalidId && (invalidId === link.id || invalidId === link.target) && link.id ? (
@@ -527,9 +596,7 @@ export function EditorModal({
         >
           <Icon name="folder" size={15} />
           <div>{zh.editor.dropHint}</div>
-          <div style={{ fontSize: '10px', color: 'var(--faint)' }}>
-            {'拖入后自动识别为文件、文件夹或网址'}
-          </div>
+          <div style={{ fontSize: '10px', color: 'var(--faint)' }}>{zh.editor.dropHintSub}</div>
         </div>
       </div>
     </Modal>

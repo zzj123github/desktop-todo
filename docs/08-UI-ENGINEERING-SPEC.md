@@ -206,7 +206,7 @@
   - 品牌：27×27 陶土方图标 + 桌面待办 15/600 + v1.0 9.5；padding 2 8 12。
   - 导航项：高 30，padding 0 8，radius 7，字号 12.5，gap 8，图标 15；选中 --selected + 550；计数 10.5 tabular。
   - 分区标题：10px，--faint，padding 13 8 3；最右侧 pencil 20×20，可 Tab/Enter。
-  - footer：padding 10 8 2；设置行 10.5；固定可见。
+  - footer：padding 10 8 2；两行固定可见——上「使用说明」、下「设置」，行 10.5（图标 15，与导航项同一视觉语言）。
 - 主区：padding 20 24 0；flex column；background --paper。
   - 头部：标题 29/1.15；副行 11，逾期 --accent-deep；右侧进度环 40 + 收起到挂件 / 收起到胶囊两个 IconButton（30×30，图标 15，与「新建」之间以 1px --hairline-soft 分隔）+ 新建按钮 31。
   - tabs：高 28，padding 2，radius 9，背景 --tab-bg；选中 tab 背景 --card，阴影轻。
@@ -320,6 +320,7 @@
 - 列表 max-height 220，滚动条用 9px 标准。
 - footer 顶部 1px --hairline-soft；重置幽灵按钮 + 完成/应用主按钮。
 - 日期浮层内的“指定”使用 §3.9 的 dp-field，不允许原生 input。
+- 同一时刻只显示一个 Popover：新浮层打开时自动关闭上一个（同一组件内的日期选择器等嵌套浮层不触发该规则）；键盘/程序化打开也必须遵守，避免两个浮层叠压。
 
 ### 3.8 Modal
 
@@ -331,6 +332,7 @@
 - 所有表单字段有 label；错误用 --accent-deep 文字，不只用颜色。
 - 挂件内点击任务时，编辑面板放在独立透明窗口（embedded 模式：不画遮罩、不锁背景滚动、原地渲染），窗口宽 550 = 502 + 24×2，高度由渲染层测量后上报主进程并居中到挂件所在显示器；浮层（日期选择器）在窗口内放不下时翻到字段上方（§3.9）。
 - `NoticeModal`（应用内提示，可复用基础组件）：复用 Modal（size confirm / role alertdialog / embedded），标题 + 警示块（`.cf-warn`：警示图标 + 正文）+ 可选条目列表（`.notice-kbd` 快捷键 chip + `.notice-detail` 说明）+ 可选 hint；footer 仅「知道了」主按钮且右对齐；X 与 Esc 等价确认。宿主 `NoticeWindowHost` 订阅 `on.notice`、测量高度后调 `notice.ready({height})`、确认时 `notice.acknowledge()`；不得用原生 dialog（仅窗口加载失败兜底）。
+- 「使用说明」弹窗：wide 502，只读；正文按节渲染——三种形态 / 添加与编辑任务 / 链接 / 筛选与桌面视图 / 快捷键 / 数据与设置，节标题 13.5 衬线 600，正文 12/1.6 --muted，列表行距 1.7；footer 仅右对齐「知道了」主按钮；X / Esc / 「知道了」关闭，点遮罩不关闭；内容来自 `i18n/zh.ts` 的 `help.sections`，不在组件内写文案。
 
 ### 3.9 DateTimePicker（自绘，禁止原生控件）
 
@@ -368,6 +370,7 @@
 
 - 行：padding 7 9，1px --hairline-soft，radius 8，背景 --field-bg；图标底 22×22 radius 6 --sidebar。
 - 名称 12 --ink-2；路径 10 --faint，单行省略；打开按钮 24×24；删除 24×24，hover 危险色。
+- 编辑态标题（仅编辑弹窗内）：点击名称进入行内输入（预填当前标题，maxlength 120），Enter/失焦保存、Esc 取消；空值回退自动名称（URL 去协议截断 44 字、本地路径取最后一段）；展示态名称为按钮，tooltip「点击编辑标题」；TaskRow 中的链接展示保持只读。
 - 网页用 globe，文件夹用 folder，文件用 file；图标 12。
 - 点击打开：网页默认浏览器，本地路径资源管理器；打开失败 toast“找不到该位置”，不崩溃。
 - 编辑面板支持多链接、拖拽、粘贴；链接顺序可上移/下移（拖拽面板内）；链接保存为绝对路径。

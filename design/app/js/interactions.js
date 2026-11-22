@@ -268,6 +268,46 @@ function rerenderEditor(){
   if(!ov || ov.hidden) return;
   R.overlayUpdate(R.editorModal(ED));
 }
+/* ---------------- 链接标题行内编辑 ---------------- */
+/* 自动标题规则与 src/renderer/src/lib/links.ts autoLinkTitle 一致：
+   URL 去协议截 44 字（DT.detectLink），路径取最后一段；识别失败退回原始文本。 */
+function autoLinkTitle(lk){
+  if(!lk) return '';
+  var d = DT.detectLink(lk.path);
+  return (d && d.name) || lk.path || '';
+}
+function startLinkTitleEdit(i){
+  if(!ED) return;
+  var lk = ED.draft.links[i];
+  if(!lk) return;
+  if(ED.linkTitle && ED.linkTitle.i!==i) commitLinkTitle();
+  if(ED.linkTitle && ED.linkTitle.i===i) return;
+  ED.linkTitle = {i:i};
+  rerenderEditor();
+  focusSoon($('#edLinkTitle'), true);
+}
+/* 失焦 / Enter 保存：trim 后为空回退自动标题。
+   故意不在 commit 内立即重绘：失焦由点击触发时，同步重绘会让 mousedown 后的 click 落空
+   （保存 / 取消被吞），改为下一轮事件循环里补一次重绘，等点击动作先执行。 */
+function commitLinkTitle(){
+  if(!ED || !ED.linkTitle) return;
+  var i = ED.linkTitle.i;
+  var lk = ED.draft.links[i];
+  var inp = document.getElementById('edLinkTitle');
+  if(inp && lk){
+    var v = inp.value.trim();
+    lk.name = v || autoLinkTitle(lk);
+  }
+  ED.linkTitle = null;
+  setTimeout(function(){
+    if(ED && !ED.linkTitle && document.getElementById('edLinkTitle')) rerenderEditor();
+  }, 0);
+}
+function cancelLinkTitle(){
+  if(!ED || !ED.linkTitle) return;
+  ED.linkTitle = null;
+  rerenderEditor();
+}
 function closeOverlay(){
   R.overlayClose();
   ED = null;
@@ -418,9 +458,12 @@ function editorAddLink(raw){
   var lk = DT.detectLink(raw);
   if(!lk){ toast('没识别出链接，试试 https://… 或 \\\\服务器\\共享 或 C:\\文件夹'); return; }
   ED.draft.links.push({id:DT.uid('lk'), type:lk.type, name:lk.name, path:lk.path});
+  /* 新链接直接进入标题编辑（与 src EditorModal.beginLinkTitleEdit 一致） */
+  ED.linkTitle = {i:ED.draft.links.length-1};
   rerenderEditor();
   var inp = $('#edLinkInput');
-  if(inp){ inp.value = ''; inp.focus(); }
+  if(inp){ inp.value = ''; }
+  focusSoon($('#edLinkTitle'), true);
   toast('已添加链接');
 }
 function editorCreateProject(){
@@ -1039,6 +1082,7 @@ function handleClick(e){
     case 'ed-add-tag': if(ED){ ED.addingTag = true; rerenderEditor(); focusSoon($('#edNewTag')); } break;
     case 'ed-save-project': editorCreateProject(); break;
     case 'ed-save-tag': editorCreateTag(); break;
+    case 'ed-link-title': startLinkTitleEdit(parseInt(t.getAttribute('data-i'),10)); break;
     case 'ed-add-link': {
       var el = $('#edLinkInput');
       editorAddLink(el ? el.value : '');
@@ -1098,6 +1142,7 @@ function handleKeydown(e){
     if(DP){ dpClose(); return; }
     if(POP){ closePops(); return; }
     if(DEL){ cancelDeleteConfirm(); return; }
+    if(ED && ED.linkTitle){ cancelLinkTitle(); return; }
     /* 临时调整 C：Esc 收起挂件展开的输入区 */
     if(R.ctx.widgetComposerOpen && document.getElementById('overlay').hidden){ closeWidgetComposer(); return; }
     if(!document.getElementById('overlay').hidden){
@@ -1126,6 +1171,7 @@ function handleKeydown(e){
       e.preventDefault(); addFromComposer(id==='mainCInput' ? 'main' : 'widget'); return;
     }
     if(id==='edLinkInput'){ e.preventDefault(); editorAddLink(e.target.value); return; }
+    if(id==='edLinkTitle'){ e.preventDefault(); commitLinkTitle(); return; }
     if(id==='edNewProject'){ e.preventDefault(); editorCreateProject(); return; }
     if(id==='edNewTag'){ e.preventDefault(); editorCreateTag(); return; }
     if(id==='popLinkInput'){ e.preventDefault();
@@ -1304,6 +1350,16 @@ function bind(){
   document.addEventListener('keydown', handleKeydown);
   document.addEventListener('input', handleInput);
   document.addEventListener('change', handleChange);
+  /* 链接标题行内编辑：pointerdown 早于 blur，先保存再让点击动作（保存/取消/删除）正常执行；
+     纯失焦（Tab 等）也保存；点击输入框自身不处理。 */
+  document.addEventListener('pointerdown', function(e){
+    if(!ED || !ED.linkTitle) return;
+    if(e.target && e.target.id==='edLinkTitle') return;
+    commitLinkTitle();
+  }, true);
+  document.addEventListener('focusout', function(e){
+    if(e.target && e.target.id==='edLinkTitle' && ED && ED.linkTitle) commitLinkTitle();
+  });
   document.addEventListener('pointerdown', function(e){
     if(e.target.closest('#widgetLayer .cap-wrap')){ startCapsuleDrag(e); return; }
     var handle = e.target.closest('[data-drag="widget"]');

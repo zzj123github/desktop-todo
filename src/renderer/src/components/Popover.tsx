@@ -2,10 +2,11 @@
  * Popover · 锚定浮层（筛选 / 标签 / 日期等处使用）
  * Contract: docs/08-UI-ENGINEERING-SPEC.md §3.7 · design/app-*.png（app-filter）
  * 320 宽、z131；点击外部与 Esc 关闭；不锁背景滚动；下方空间不足时翻到上方。
+ * 同一时刻只允许一个 Popover 挂载（见 anchoredPosition.activatePopover）。
  */
 import { useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { isInsideFloatingLayer } from './anchoredPosition'
+import { isInsideFloatingLayer, activatePopover } from './anchoredPosition'
 
 const GAP = 6
 const MARGIN = 12
@@ -60,6 +61,12 @@ export function Popover({ anchor, onClose, children, className, width }: Popover
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [anchor, width])
+
+  // 同一时刻只保留一个 Popover：新挂载的浮层会先关闭上一个（键盘/程序化打开
+  // 不会触发 outside-mousedown，否则两个 .pop 会叠在一起——用户反馈 #1）。
+  useEffect(() => {
+    return activatePopover(() => onCloseRef.current())
+  }, [])
 
   useEffect(() => {
     const onPointer = (event: MouseEvent): void => {

@@ -201,6 +201,9 @@ async function main() {
     ids.push(t)
   }
   await api(`window.api.tasks.toggle({id:${JSON.stringify(ids[3])},done:true})`)
+  await api(
+    `window.api.links.add({taskId:${JSON.stringify(ids[0])},target:'https://example.com/docs/very/long/path/to/mold-review-notes-2026',display:'example.com/docs/very/long/path/to/mold-revi'})`
+  )
   await sleep(600)
   check('测试数据创建', ids.length === 4, `tasks=${ids.length}`)
 
@@ -273,6 +276,19 @@ async function main() {
       `JSON.stringify({inner:innerWidth+'x'+innerHeight,wide:Boolean(document.querySelector('.modal.wide')),overlay:Boolean(document.querySelector('.overlay')),title:document.querySelector('.modal-title')?.textContent})`
     )
     check('编辑窗口为 wide 嵌入模态、无遮罩', info.includes('"wide":true') && info.includes('"overlay":false'), info)
+    // 链接标题：点击名称进入内联编辑，Enter 保存；清空后回退自动名称
+    const autoTitle = await editor.evaluate(`document.querySelector('.link-row .lr-name')?.textContent?.trim()`)
+    await editor.clickAt('.link-row .lr-name-btn')
+    await sleep(200)
+    await editor.typeInto('.link-row .lr-title-input', '模具复核说明', 'Enter')
+    const editedTitle = await editor.evaluate(`document.querySelector('.link-row .lr-name')?.textContent?.trim()`)
+    check('链接标题可内联编辑并保存', editedTitle === '模具复核说明', `${autoTitle} -> ${editedTitle}`)
+    await editor.clickAt('.link-row .lr-name-btn')
+    await sleep(150)
+    await editor.typeInto('.link-row .lr-title-input', '', 'Enter')
+    const fallbackTitle = await editor.evaluate(`document.querySelector('.link-row .lr-name')?.textContent?.trim()`)
+    check('清空链接标题回退自动名称', Boolean(autoTitle) && fallbackTitle === autoTitle, `${editedTitle} -> ${fallbackTitle}`)
+    await editor.screenshot('03b-editor-link-title.png', 550, 781)
     await editor.evaluate('window.close()')
     check('编辑窗口可关闭', await waitNoTarget('view=editor'))
     editor.close()
@@ -374,6 +390,36 @@ async function main() {
   await mev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))`)
   await sleep(250)
 
+  // 浮层互斥：用程序化点击（不触发 outside mousedown）打开第二个浮层，
+  // 第一个必须由全局注册器关闭，否则「保存为桌面视图」表单会与筛选浮层叠压。
+  await mev(`[...document.querySelectorAll('.filterbar .fbtn')].find(e=>e.textContent.includes('优先级')).click()`)
+  await sleep(300)
+  const popBefore = await mev(`document.querySelectorAll('.pop').length`)
+  check('优先级筛选浮层打开', popBefore === 1, `pop=${popBefore}`)
+  await mev(`[...document.querySelectorAll('.pop .pop-row')].find(e=>e.textContent.includes('高'))?.click()`)
+  await sleep(300)
+  await mev(`document.querySelector('.mtitle-btn').click()`)
+  await sleep(350)
+  const popAfter = await mev(`document.querySelectorAll('.pop').length`)
+  check('同一时刻只有一个 Popover（视图菜单顶替筛选浮层）', popAfter === 1, `before=${popBefore} after=${popAfter}`)
+  await mev(`[...document.querySelectorAll('.pop .pop-foot button')].find(e=>e.textContent.includes('保存为桌面视图')).click()`)
+  await sleep(350)
+  const saveForm = await mev(`(()=>{
+    const pops=document.querySelectorAll('.pop');
+    const p=pops[0];
+    const f=document.querySelector('.view-form input');
+    const bar=document.querySelector('.filterbar');
+    if(!p||!f||!bar) return 'missing';
+    const r=p.getBoundingClientRect(), q=f.getBoundingClientRect(), b=bar.getBoundingClientRect();
+    const inside = q.top>=r.top-1 && q.bottom<=r.bottom+1;
+    return JSON.stringify({pops:pops.length,inside});
+  })()`)
+  check('保存视图表单完整且只剩一个 Popover', saveForm.includes('"pops":1') && saveForm.includes('"inside":true'), saveForm)
+  await mev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))`)
+  await sleep(250)
+  await mev(`document.querySelector('.fclear')?.click()`)
+  await sleep(300)
+
   // 搜索
   await mev(`document.querySelector('.fright .icon-btn')?.click()`)
   await sleep(300)
@@ -405,7 +451,7 @@ async function main() {
   check('Esc 只关模态不关窗口', await mev(`Boolean(document.querySelector('.mgr')) && !document.querySelector('.overlay')`))
 
   // 设置
-  await mev(`document.querySelector('.sb-settings').click()`)
+  await mev(`[...document.querySelectorAll('.sb-foot .sb-settings')].find(b=>b.textContent.includes('设置')).click()`)
   await sleep(500)
   const setRows = await mev(`document.querySelectorAll('.set-row').length`)
   check('设置弹窗行数', setRows === 8, `rows=${setRows}`)
@@ -474,10 +520,58 @@ async function main() {
   await mev(`document.querySelector('.modal-x').click()`)
   await sleep(400)
 
+  // 使用说明：侧栏 footer 入口在设置之上，打开 wide 只读弹窗，知道了关闭
+  const footOrder = await mev(
+    `JSON.stringify([...document.querySelectorAll('.sb-foot .sb-settings')].map(e=>e.textContent.trim()))`
+  )
+  const footList = JSON.parse(footOrder)
+  check(
+    '侧栏 footer 使用说明在设置之上',
+    footList.length === 2 && footList[0].includes('使用说明') && footList[1].includes('设置'),
+    footOrder
+  )
+  await mev(`[...document.querySelectorAll('.sb-foot .sb-settings')].find(b=>b.textContent.includes('使用说明')).click()`)
+  await sleep(500)
+  const helpInfo = await mev(`(()=>{
+    const m=document.querySelector('.overlay .modal.wide');
+    if(!m) return 'missing';
+    return JSON.stringify({
+      title:m.querySelector('.modal-title')?.textContent,
+      sections:m.querySelectorAll('.help-section').length,
+      foot:[...m.querySelectorAll('.modal-foot button')].map(b=>b.textContent.trim())
+    });
+  })()`)
+  check(
+    '使用说明弹窗分节完整且 footer 仅知道了',
+    helpInfo.includes('"title":"使用说明"') &&
+      helpInfo.includes('"sections":6') &&
+      helpInfo.includes('知道了'),
+    helpInfo
+  )
+  await manager.screenshot('12-manager-help.png', 1100, 720)
+  await mev(`[...document.querySelectorAll('.modal-foot button')].find(b=>b.textContent.includes('知道了')).click()`)
+  await sleep(400)
+  check('使用说明知道了关闭', !(await mev(`Boolean(document.querySelector('.overlay'))`)))
+
   // 新建任务（编辑器）
   await mev(`[...document.querySelectorAll('.mhead-r button')].find(b=>b.textContent.includes('新建')).click()`)
   await sleep(500)
   check('新建打开编辑器', await mev(`Boolean(document.querySelector('.overlay .modal.wide'))`))
+  // 空链接：空态与拖拽区文案必须区分，不得出现两处相同提示
+  const emptyLinkCopy = await mev(`(()=>{
+    const m=document.querySelector('.overlay .modal');
+    if(!m) return 'missing';
+    const empty=m.querySelector('.m-empty')?.textContent?.trim()||'';
+    const dz=m.querySelector('.dropzone')?.textContent?.trim()||'';
+    return JSON.stringify({empty,dz,dup:empty===dz});
+  })()`)
+  check(
+    '空链接提示为「还没有链接」且拖拽区文案独立',
+    emptyLinkCopy.includes('还没有链接') &&
+      emptyLinkCopy.includes('把文件 / 文件夹拖到这里') &&
+      emptyLinkCopy.includes('"dup":false'),
+    emptyLinkCopy
+  )
   await manager.typeInto('.modal .text-input', '审计新建任务')
   await manager.clickAt('.modal .btn-pri')
   await sleep(700)

@@ -711,7 +711,7 @@ DT.detectLink = function(raw){
   if(!s) return null;
   if(/^https?:\/\//i.test(s)) return {type:'url', path:s, name:s.replace(/^https?:\/\//i,'').slice(0,44)};
   if(/^www\./i.test(s)) return {type:'url', path:'https://'+s, name:s.slice(0,44)};
-  if(/^(\\\\\\\\|\/\/)/.test(s)){
+  if(/^(\\\\|\/\/)/.test(s)){
     var isFile = /\.[A-Za-z0-9]{1,5}$/.test(s);
     return {type:isFile?'file':'folder', path:s, name:s.split(/[\\\/]/).filter(Boolean).pop()||s};
   }

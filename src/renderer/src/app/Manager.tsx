@@ -22,6 +22,7 @@ import { EditorModal } from '../components/EditorModal'
 import { EmptyState } from '../components/EmptyState'
 import { ManageModal, type ManageScope } from '../components/ManageModal'
 import { SettingsModal } from './SettingsModal'
+import { HelpModal } from './HelpModal'
 import { FilterBar } from './FilterBar'
 import { ViewMenu } from '../components/ViewMenu'
 import { useToast } from '../components/Toast'
@@ -88,6 +89,7 @@ export function Manager(): ReactElement {
   const [manageScope, setManageScope] = useState<ManageScope | null>(null)
   const [manageFromSettings, setManageFromSettings] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null)
   const restoredView = useRef(false)
 
@@ -567,6 +569,10 @@ export function Manager(): ReactElement {
             </div>
           </div>
           <div className="sb-foot">
+            <button type="button" className="sb-settings" onClick={() => setHelpOpen(true)}>
+              <Icon name="help" size={14} className="ic" />
+              {zh.nav.help}
+            </button>
             <button type="button" className="sb-settings" onClick={() => setSettingsOpen(true)}>
               <Icon name="settings" size={14} className="ic" />
               {zh.nav.settings}
@@ -726,6 +732,8 @@ export function Manager(): ReactElement {
           onDataChanged={refreshAll}
         />
       ) : null}
+
+      {helpOpen ? <HelpModal onClose={() => setHelpOpen(false)} /> : null}
     </div>
   )
 }

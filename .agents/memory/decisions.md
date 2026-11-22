@@ -129,3 +129,10 @@
 - 决策：按渲染场景区分，而不是按组件区分。新增 `--shadow-modal-window`/`--shadow-pop-window`/`--shadow-toast-window`（最大外扩 21px，适配 24px 窗口内边距）；在 `.view-widget/.view-capsule/.view-quickadd/.view-editor/.view-notice` 根类上把 `--shadow-modal/--shadow-pop/--shadow-toast` 覆盖为紧凑版本；`.view-manager`（不透明完整窗口）保留原大阴影。后续新增组件只要引用这三个 token 即自动获得正确场景阴影，不需要在组件里判断窗口类型。
 - 理由：透明窗口的窗口边界会裁切任何绘制在内容外的效果（与 D12 挂件/胶囊同一机理）；`--shadow-modal` 水平需 ≈90px、下侧 ≈124px，24px 内边距必然裁出「断边灰晕」。根类覆盖让「场景」成为唯一事实来源，避免逐组件重复实现。
 - 验证：178 用例、tsc 0 错、build 通过；CDP 实测编辑窗口 `.modal`/`.dp-pop` 为紧凑值且完整落在窗口内、四边 alpha=0（旧值 26/255）；完整窗口 token 保持大阴影。
+
+## D19 · 同一时刻只显示一个 Popover（2026-11-22，用户 m05701 问题 1）
+
+- 背景：筛选行的标签/日期/优先级三个浮层与标题旁的视图菜单各自持有 open state、各自监听 document mousedown；真实鼠标点击第二个浮层时 body mousedown 会先关掉前一个，但键盘或程序化打开不会触发外部点击，于是两个 `.pop` 同时存在，保存视图表单叠在筛选浮层上，看起来「布局混乱」。
+- 决策：把「浮层互斥」收敛为浮层层的不变量，加在共享模块 `src/renderer/src/components/anchoredPosition.ts`：`PopoverCloser` 类型 + `activatePopover(close)` / `closeActivePopover()` / `hasActivePopover()`；`Popover.tsx` 挂载时激活（返回释放函数，仅当仍是当前 token 才清空），卸载时释放；新浮层打开先关闭上一个。嵌套的日期选择器 `.dp-pop` 属于 Popover 内部层级，不参与注册、保持独立。
+- 理由：每个调用方自己管理互斥会继续漏（本问题正是真实鼠标路径掩盖了键盘/程序化路径）；Popover 全部 portal 到 body、互不嵌套，注册器不依赖 DOM 层级与调用方配合。
+- 验证：`anchoredPosition.test.ts` 新增 3 用例（新开关旧、旧释放不误清新、close 单次且幂等重挂载）；`scripts/audit-ui.mjs` 新增断言「打开优先级浮层后点视图菜单仍只有 1 个 `.pop`，且 `.view-form` 在浮层内」；dev 与打包版审计均 63/63 PASS。

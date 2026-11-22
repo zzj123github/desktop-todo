@@ -7,6 +7,7 @@ import type { ReactElement } from 'react'
 import type { LinkDTO } from '../../../shared/types'
 import { Icon } from './Icons'
 import { zh } from '../i18n/zh'
+import { autoLinkTitle } from '../lib/links'
 
 export interface LinkRowProps {
   link: Pick<LinkDTO, 'id' | 'kind' | 'target' | 'display'>
@@ -19,7 +20,7 @@ export interface LinkRowProps {
 const KIND_ICON = { url: 'globe', folder: 'folder', file: 'file' } as const
 
 export function LinkRow({ link, onOpen, onRemove, removable = true }: LinkRowProps): ReactElement {
-  const name = link.display || link.target
+  const name = link.display || autoLinkTitle(link.target)
   const icon = KIND_ICON[link.kind]
   return (
     <div className="link-row">

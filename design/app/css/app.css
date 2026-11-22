@@ -794,3 +794,26 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;box
 .composer textarea.cinput::-webkit-scrollbar-thumb{background:var(--sb-thumb);border-radius:var(--sb-radius);
   border:var(--sb-inset) solid transparent;background-clip:padding-box;min-height:32px}
 .composer textarea.cinput::-webkit-scrollbar-thumb:hover{background:var(--sb-thumb-hover);border:var(--sb-inset) solid transparent;background-clip:padding-box}
+
+/* ================= 使用说明入口 / 链接标题编辑 / 拖拽区副文案 ================= */
+/* 侧栏 footer：使用说明入口在设置之上，两行同构（结构复用 .sb-settings，无额外布局） */
+.sb-foot .sb-settings{width:100%;text-align:left}
+/* 链接标题行内编辑：类名与 src/renderer/src/styles/app.css 保持一致 */
+.link-row .lr-name-btn{display:block;width:100%;max-width:100%;padding:0;border:0;background:transparent;
+  color:var(--ink-2);font-family:inherit;font-size:12px;line-height:1.4;text-align:left;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;border-radius:var(--radius-xs)}
+.link-row .lr-name-btn:hover{color:var(--ink);background:var(--hover)}
+.link-row .lr-name-btn:focus-visible{outline:none;box-shadow:var(--focus-halo)}
+.link-row .lr-title-input{width:100%;height:20px;padding:0 4px;border:1px solid var(--border-focus);
+  border-radius:var(--radius-xs);background:var(--field-bg);color:var(--ink);font-family:inherit;
+  font-size:12px;line-height:18px;outline:none}
+.link-row .lr-title-input::placeholder{color:var(--faint)}
+.link-list > .m-empty{padding:12px 0 6px}
+/* 拖拽区副文案（与 src 的 dropHintSub 一致，单独一行） */
+.dropzone .dz-sub{margin-top:1px;font-size:10px;color:var(--faint);line-height:1.5}
+/* 使用说明弹窗：与 src HelpModal 的 .help-body / .help-section 一致 */
+.help-body{display:flex;flex-direction:column;gap:14px}
+.help-section h3{margin:0 0 5px;font-family:var(--serif);font-size:13.5px;font-weight:600;color:var(--ink)}
+.help-section ul{margin:0;padding:0 0 0 14px;list-style:disc}
+.help-section li{margin:3px 0;font-size:12px;line-height:1.6;color:var(--muted)}
+.help-section li::marker{color:var(--faint)}

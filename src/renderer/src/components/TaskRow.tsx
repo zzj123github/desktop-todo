@@ -6,6 +6,7 @@
 import type { KeyboardEvent, MouseEvent, ReactElement } from 'react'
 import type { LinkDTO, TagDTO, TaskDTO } from '../../../shared/types'
 import { dueParts } from '../lib/date'
+import { autoLinkTitle } from '../lib/links'
 import { Chip, PriorityChip } from './Chip'
 import { Checkbox } from './Checkbox'
 import { Icon } from './Icons'
@@ -104,14 +105,14 @@ export function TaskRow({
                 type="button"
                 className="t-link"
                 title={link.target}
-                aria-label={zh.aria.openLink(link.display || link.target)}
+                aria-label={zh.aria.openLink(link.display || autoLinkTitle(link.target))}
                 onClick={(event) => {
                   event.stopPropagation()
                   onOpenLink(link)
                 }}
               >
                 <Icon name={KIND_ICON[link.kind]} className="ic" />
-                {link.display || link.target}
+                {link.display || autoLinkTitle(link.target)}
               </button>
             </span>
           ))}
