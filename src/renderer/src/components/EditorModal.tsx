@@ -3,11 +3,10 @@
  * Contract: docs/08-UI-ENGINEERING-SPEC.md §3.8 · design/app-editor.png / app-dp-editor.png
  * 字段：标题/备注/项目/标签（可内联新建）/优先级/日期时间（自绘）/多链接（拖拽或粘贴）/删除二次确认。
  */
-import { useMemo, useRef, useState, type DragEvent, type ReactElement } from 'react'
+import { useMemo, useRef, useState, type DragEvent, type FocusEvent, type ReactElement } from 'react'
 import type { LinkKind, TagDTO, TaskDTO, TaskPriority } from '../../../shared/types'
 import { addDays, atFuture, dayStart, sameDay, type TimeUsageMap } from '../lib/date'
-import { detectLink } from '../lib/parseQuick'
-import { autoLinkTitle, isLinkUnavailable } from '../lib/links'
+import { autoLinkTitle, isLinkUnavailable, parseLinkInput } from '../lib/links'
 import { Modal } from './Modal'
 import { DateTimePicker } from './DateTimePicker'
 import { Icon, type IconName } from './Icons'
@@ -82,9 +81,15 @@ export function EditorModal({
       display: link.display
     }))
   )
-  const [linkInput, setLinkInput] = useState('')
-  /** 正在行内编辑标题的链接（key 与链接行 DOM key 一致） */
-  const [editingLink, setEditingLink] = useState<{ key: string; value: string } | null>(null)
+  const [linkForm, setLinkForm] = useState({ target: '', title: '' })
+  const linkTargetRef = useRef<HTMLInputElement>(null)
+  /** 正在行内编辑的链接（key 与链接行 DOM key 一致）：地址与标题可同时修改（用户 m06711） */
+  const [editingLink, setEditingLink] = useState<{
+    key: string
+    target: string
+    title: string
+    field: 'target' | 'title'
+  } | null>(null)
   const editingLinkRef = useRef(false)
   const [adding, setAdding] = useState<'project' | 'tag' | null>(null)
   const [newName, setNewName] = useState('')
@@ -98,48 +103,77 @@ export function EditorModal({
   const tomorrowAt = useMemo(() => atFuture(now, 1, 18, 0), [now])
 
   const addLinkByTarget = (target: string): void => {
-    const recognized = detectLink(target)
-    if (!recognized) {
-      showToast(zh.toast.openFailed)
+    const parsed = parseLinkInput(target)
+    if (!parsed) {
+      showToast(zh.toast.linkInvalid)
       return
     }
-    setLinks((prev) => [...prev, recognized])
+    setLinks((prev) => [...prev, parsed])
   }
 
-  /** 新链接创建后直接进入标题编辑（用户反馈 #2：手动添加的链接也应能填标题） */
-  const beginLinkTitleEdit = (key: string, link: DraftLink): void => {
+  /** 行内编辑：标题与路径都可点开，一次编辑地址与标题（用户 m06711） */
+  const beginLinkEdit = (key: string, link: DraftLink, field: 'target' | 'title'): void => {
     editingLinkRef.current = true
-    setEditingLink({ key, value: link.display || autoLinkTitle(link.target) })
+    setEditingLink({
+      key,
+      target: link.target,
+      title: link.display || autoLinkTitle(link.target),
+      field
+    })
   }
 
-  const cancelLinkTitleEdit = (): void => {
+  const cancelLinkEdit = (): void => {
     editingLinkRef.current = false
     setEditingLink(null)
   }
 
-  /** 失焦/Enter 保存；空标题回退自动标题（URL 去协议截 44 / 路径取最后一段） */
-  const commitLinkTitle = (index: number): void => {
+  /**
+   * 失焦/Enter 保存：地址重新识别，无效则保持编辑。
+   * 标题未改（空或等于旧自动标题）时跟随新地址重算自动标题；自定义标题保持不变。
+   */
+  const commitLinkEdit = (index: number): void => {
     if (!editingLinkRef.current || !editingLink) return
-    const value = editingLink.value.trim()
+    const parsed = parseLinkInput(editingLink.target)
+    if (!parsed) {
+      showToast(zh.toast.linkInvalid)
+      return
+    }
+    const current = links[index]
+    const oldAutoTitle = current ? autoLinkTitle(current.target) : ''
+    const title = editingLink.title.trim()
+    const customTitle = Boolean(title) && title !== oldAutoTitle
     editingLinkRef.current = false
     setLinks((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, display: value || autoLinkTitle(item.target) } : item))
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              kind: parsed.kind,
+              target: parsed.target,
+              display: customTitle ? title.slice(0, 120) : parsed.display
+            }
+          : item
+      )
     )
     setEditingLink(null)
   }
 
+  /** 两个输入之间切换焦点时不提交，离开整组后才保存 */
+  const handleLinkEditBlur = (index: number, event: FocusEvent<HTMLInputElement>): void => {
+    const next = event.relatedTarget
+    if (next && event.currentTarget.closest('.lr-edit')?.contains(next)) return
+    commitLinkEdit(index)
+  }
+
   const addLinkFromInput = (): void => {
-    const raw = linkInput.trim()
-    if (!raw) return
-    const recognized = detectLink(raw)
-    if (!recognized) {
-      showToast(zh.toast.openFailed)
+    const parsed = parseLinkInput(linkForm.target, linkForm.title)
+    if (!parsed) {
+      showToast(zh.toast.linkInvalid)
       return
     }
-    const index = links.length
-    setLinks((prev) => [...prev, recognized])
-    setLinkInput('')
-    beginLinkTitleEdit(`${recognized.target}-${index}`, recognized)
+    setLinks((prev) => [...prev, parsed])
+    setLinkForm({ target: '', title: '' })
+    window.requestAnimationFrame(() => linkTargetRef.current?.focus())
   }
 
   const onDrop = (event: DragEvent<HTMLDivElement>): void => {
@@ -495,48 +529,83 @@ export function EditorModal({
             const rowKey = `${link.target}-${index}`
             const editing = editingLink?.key === rowKey
             return (
-              <div key={rowKey} className="link-row">
+              <div key={rowKey} className={`link-row${editing ? ' editing' : ''}`}>
                 <span className="lr-ic" aria-hidden="true">
                   <Icon name={LINK_ICON[link.kind]} size={12} />
                 </span>
                 <div className="lr-main">
-                  {editing ? (
-                    <input
-                      className="lr-title-input"
-                      value={editingLink?.value ?? ''}
-                      aria-label={zh.editor.linkTitleLabel}
-                      placeholder={zh.editor.linkTitlePlaceholder}
-                      autoFocus
-                      maxLength={120}
-                      onFocus={(event) => event.currentTarget.select()}
-                      onChange={(event) =>
-                        setEditingLink({ key: rowKey, value: event.target.value })
-                      }
-                      onBlur={() => commitLinkTitle(index)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault()
-                          commitLinkTitle(index)
+                  {editing && editingLink ? (
+                    <div className="lr-edit">
+                      <input
+                        className="lr-target-input"
+                        value={editingLink.target}
+                        aria-label={zh.editor.linkTargetLabel}
+                        placeholder={zh.editor.linkPlaceholder}
+                        autoFocus={editingLink.field === 'target'}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onChange={(event) =>
+                          setEditingLink({ ...editingLink, target: event.target.value })
                         }
-                        if (event.key === 'Escape') {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          cancelLinkTitleEdit()
+                        onBlur={(event) => handleLinkEditBlur(index, event)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            commitLinkEdit(index)
+                          }
+                          if (event.key === 'Escape') {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            cancelLinkEdit()
+                          }
+                        }}
+                      />
+                      <input
+                        className="lr-title-input"
+                        value={editingLink.title}
+                        aria-label={zh.editor.linkTitleLabel}
+                        placeholder={zh.editor.linkTitlePlaceholder}
+                        autoFocus={editingLink.field === 'title'}
+                        maxLength={120}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onChange={(event) =>
+                          setEditingLink({ ...editingLink, title: event.target.value })
                         }
-                      }}
-                    />
+                        onBlur={(event) => handleLinkEditBlur(index, event)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            commitLinkEdit(index)
+                          }
+                          if (event.key === 'Escape') {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            cancelLinkEdit()
+                          }
+                        }}
+                      />
+                    </div>
                   ) : (
-                    <button
-                      type="button"
-                      className="lr-name lr-name-btn"
-                      title={zh.editor.linkTitleEdit}
-                      aria-label={zh.aria.editLinkTitle(name)}
-                      onClick={() => beginLinkTitleEdit(rowKey, link)}
-                    >
-                      {name}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="lr-name lr-name-btn"
+                        title={zh.editor.linkTitleEdit}
+                        aria-label={zh.aria.editLinkTitle(name)}
+                        onClick={() => beginLinkEdit(rowKey, link, 'title')}
+                      >
+                        {name}
+                      </button>
+                      <button
+                        type="button"
+                        className="lr-path lr-path-btn"
+                        title={zh.editor.linkTargetEdit}
+                        aria-label={zh.aria.editLinkTarget(name)}
+                        onClick={() => beginLinkEdit(rowKey, link, 'target')}
+                      >
+                        {link.target}
+                      </button>
+                    </>
                   )}
-                  <div className="lr-path">{link.target}</div>
                 </div>
                 {invalidId && (invalidId === link.id || invalidId === link.target) && link.id ? (
                   <button type="button" className="btn-sm" onClick={() => void relocateLink(link)}>
@@ -568,12 +637,28 @@ export function EditorModal({
         </div>
         <div className="add-link-row">
           <input
-            className="text-input"
+            ref={linkTargetRef}
+            className="text-input link-target-input"
             type="text"
-            value={linkInput}
+            value={linkForm.target}
             placeholder={zh.editor.linkPlaceholder}
-            aria-label={zh.editor.linksLabel}
-            onChange={(event) => setLinkInput(event.target.value)}
+            aria-label={zh.editor.linkTargetLabel}
+            onChange={(event) => setLinkForm({ ...linkForm, target: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                addLinkFromInput()
+              }
+            }}
+          />
+          <input
+            className="text-input link-title-input"
+            type="text"
+            value={linkForm.title}
+            placeholder={zh.editor.linkTitleOptional}
+            aria-label={zh.editor.linkTitleLabel}
+            maxLength={120}
+            onChange={(event) => setLinkForm({ ...linkForm, title: event.target.value })}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()

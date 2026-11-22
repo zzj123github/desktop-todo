@@ -268,7 +268,7 @@ function rerenderEditor(){
   if(!ov || ov.hidden) return;
   R.overlayUpdate(R.editorModal(ED));
 }
-/* ---------------- 链接标题行内编辑 ---------------- */
+/* ---------------- 链接行内编辑（地址 + 标题双字段） ---------------- */
 /* 自动标题规则与 src/renderer/src/lib/links.ts autoLinkTitle 一致：
    URL 去协议截 44 字（DT.detectLink），路径取最后一段；识别失败退回原始文本。 */
 function autoLinkTitle(lk){
@@ -276,36 +276,44 @@ function autoLinkTitle(lk){
   var d = DT.detectLink(lk.path);
   return (d && d.name) || lk.path || '';
 }
-function startLinkTitleEdit(i){
+/* 标题与路径都点得开；field 决定先聚焦哪个输入框。 */
+function startLinkEdit(i, field){
   if(!ED) return;
   var lk = ED.draft.links[i];
   if(!lk) return;
-  if(ED.linkTitle && ED.linkTitle.i!==i) commitLinkTitle();
-  if(ED.linkTitle && ED.linkTitle.i===i) return;
-  ED.linkTitle = {i:i};
+  field = field || 'title';
+  if(ED.linkEdit && ED.linkEdit.i!==i) commitLinkEdit();
+  if(ED.linkEdit && ED.linkEdit.i===i && ED.linkEdit.field===field) return;
+  ED.linkEdit = {i:i, field:field};
   rerenderEditor();
-  focusSoon($('#edLinkTitle'), true);
+  focusSoon($(field==='target' ? '#edLinkTarget' : '#edLinkTitle'), true);
 }
-/* 失焦 / Enter 保存：trim 后为空回退自动标题。
-   故意不在 commit 内立即重绘：失焦由点击触发时，同步重绘会让 mousedown 后的 click 落空
-   （保存 / 取消被吞），改为下一轮事件循环里补一次重绘，等点击动作先执行。 */
-function commitLinkTitle(){
-  if(!ED || !ED.linkTitle) return;
-  var i = ED.linkTitle.i;
+/* Enter / 失焦保存：地址重新识别 url / folder / file 并更新图标；无效地址 toast 且保持编辑态；
+   标题 trim 后为空回退自动标题。故意不在 commit 内立即重绘：失焦由点击触发时，
+   同步重绘会让 mousedown 后的 click 落空（保存 / 取消被吞），改为下一轮事件循环里补一次重绘。 */
+function commitLinkEdit(){
+  if(!ED || !ED.linkEdit) return;
+  var i = ED.linkEdit.i;
   var lk = ED.draft.links[i];
-  var inp = document.getElementById('edLinkTitle');
-  if(inp && lk){
-    var v = inp.value.trim();
-    lk.name = v || autoLinkTitle(lk);
+  var titleEl = document.getElementById('edLinkTitle');
+  var targetEl = document.getElementById('edLinkTarget');
+  if(!lk || !titleEl || !targetEl){ ED.linkEdit = null; return; }
+  var parsed = DT.parseLinkInput(targetEl.value, titleEl.value);
+  if(!parsed){
+    toast('不支持的链接格式，请粘贴网址、文件夹路径或 UNC 共享路径');
+    return;
   }
-  ED.linkTitle = null;
+  lk.type = parsed.type;
+  lk.path = parsed.path;
+  lk.name = parsed.name;
+  ED.linkEdit = null;
   setTimeout(function(){
-    if(ED && !ED.linkTitle && document.getElementById('edLinkTitle')) rerenderEditor();
+    if(ED && !ED.linkEdit && document.getElementById('edLinkTitle')) rerenderEditor();
   }, 0);
 }
-function cancelLinkTitle(){
-  if(!ED || !ED.linkTitle) return;
-  ED.linkTitle = null;
+function cancelLinkEdit(){
+  if(!ED || !ED.linkEdit) return;
+  ED.linkEdit = null;
   rerenderEditor();
 }
 function closeOverlay(){
@@ -453,17 +461,18 @@ function saveEditor(){
 }
 
 /* ---------------- 编辑面板里的链接 / 项目 / 标签 ---------------- */
-function editorAddLink(raw){
+function editorAddLink(target, title){
   if(!ED) return;
-  var lk = DT.detectLink(raw);
-  if(!lk){ toast('没识别出链接，试试 https://… 或 \\\\服务器\\共享 或 C:\\文件夹'); return; }
-  ED.draft.links.push({id:DT.uid('lk'), type:lk.type, name:lk.name, path:lk.path});
-  /* 新链接直接进入标题编辑（与 src EditorModal.beginLinkTitleEdit 一致） */
-  ED.linkTitle = {i:ED.draft.links.length-1};
+  var parsed = DT.parseLinkInput(target, title);
+  if(!parsed){
+    toast('不支持的链接格式，请粘贴网址、文件夹路径或 UNC 共享路径');
+    return;
+  }
+  ED.draft.links.push({id:DT.uid('lk'), type:parsed.type, name:parsed.name, path:parsed.path});
+  ED.linkEdit = null;
   rerenderEditor();
-  var inp = $('#edLinkInput');
-  if(inp){ inp.value = ''; }
-  focusSoon($('#edLinkTitle'), true);
+  /* 添加成功后两个输入随重绘清空，焦点回到地址框（与 src EditorModal.addLinkFromInput 一致） */
+  focusSoon($('#edLinkInput'));
   toast('已添加链接');
 }
 function editorCreateProject(){
@@ -1082,13 +1091,14 @@ function handleClick(e){
     case 'ed-add-tag': if(ED){ ED.addingTag = true; rerenderEditor(); focusSoon($('#edNewTag')); } break;
     case 'ed-save-project': editorCreateProject(); break;
     case 'ed-save-tag': editorCreateTag(); break;
-    case 'ed-link-title': startLinkTitleEdit(parseInt(t.getAttribute('data-i'),10)); break;
+    case 'ed-link-title': startLinkEdit(parseInt(t.getAttribute('data-i'),10), 'title'); break;
+    case 'ed-link-path': startLinkEdit(parseInt(t.getAttribute('data-i'),10), 'target'); break;
     case 'ed-add-link': {
-      var el = $('#edLinkInput');
-      editorAddLink(el ? el.value : '');
+      var targetEl = $('#edLinkInput'), titleEl = $('#edLinkTitleInput');
+      editorAddLink(targetEl ? targetEl.value : '', titleEl ? titleEl.value : '');
       break;
     }
-    case 'ed-remove-link': if(ED){ ED.draft.links.splice(parseInt(t.getAttribute('data-i'),10),1); rerenderEditor(); } break;
+    case 'ed-remove-link': if(ED){ ED.linkEdit = null; ED.draft.links.splice(parseInt(t.getAttribute('data-i'),10),1); rerenderEditor(); } break;
     case 'ed-preview-link': {
       if(ED){
         var li = parseInt(t.getAttribute('data-i'),10);
@@ -1142,7 +1152,7 @@ function handleKeydown(e){
     if(DP){ dpClose(); return; }
     if(POP){ closePops(); return; }
     if(DEL){ cancelDeleteConfirm(); return; }
-    if(ED && ED.linkTitle){ cancelLinkTitle(); return; }
+    if(ED && ED.linkEdit){ cancelLinkEdit(); return; }
     /* 临时调整 C：Esc 收起挂件展开的输入区 */
     if(R.ctx.widgetComposerOpen && document.getElementById('overlay').hidden){ closeWidgetComposer(); return; }
     if(!document.getElementById('overlay').hidden){
@@ -1170,8 +1180,13 @@ function handleKeydown(e){
       if(e.shiftKey) return; /* Shift+Enter 换行，回车保存 */
       e.preventDefault(); addFromComposer(id==='mainCInput' ? 'main' : 'widget'); return;
     }
-    if(id==='edLinkInput'){ e.preventDefault(); editorAddLink(e.target.value); return; }
-    if(id==='edLinkTitle'){ e.preventDefault(); commitLinkTitle(); return; }
+    if(id==='edLinkInput' || id==='edLinkTitleInput'){
+      e.preventDefault();
+      var addTarget = $('#edLinkInput'), addTitle = $('#edLinkTitleInput');
+      editorAddLink(addTarget ? addTarget.value : '', addTitle ? addTitle.value : '');
+      return;
+    }
+    if(id==='edLinkTitle' || id==='edLinkTarget'){ e.preventDefault(); commitLinkEdit(); return; }
     if(id==='edNewProject'){ e.preventDefault(); editorCreateProject(); return; }
     if(id==='edNewTag'){ e.preventDefault(); editorCreateTag(); return; }
     if(id==='popLinkInput'){ e.preventDefault();
@@ -1350,15 +1365,21 @@ function bind(){
   document.addEventListener('keydown', handleKeydown);
   document.addEventListener('input', handleInput);
   document.addEventListener('change', handleChange);
-  /* 链接标题行内编辑：pointerdown 早于 blur，先保存再让点击动作（保存/取消/删除）正常执行；
-     纯失焦（Tab 等）也保存；点击输入框自身不处理。 */
+  /* 链接行内编辑（地址 + 标题）：pointerdown 早于 blur，先保存再让点击动作（保存 / 取消 / 删除）正常执行；
+     点击同一编辑容器内的另一个输入不提交；纯失焦（Tab 等）也保存。 */
   document.addEventListener('pointerdown', function(e){
-    if(!ED || !ED.linkTitle) return;
-    if(e.target && e.target.id==='edLinkTitle') return;
-    commitLinkTitle();
+    if(!ED || !ED.linkEdit) return;
+    if(e.target && e.target.closest && e.target.closest('.lr-edit')) return;
+    commitLinkEdit();
   }, true);
   document.addEventListener('focusout', function(e){
-    if(e.target && e.target.id==='edLinkTitle' && ED && ED.linkTitle) commitLinkTitle();
+    if(!ED || !ED.linkEdit) return;
+    var t = e.target;
+    if(!t || (t.id!=='edLinkTitle' && t.id!=='edLinkTarget')) return;
+    var next = e.relatedTarget;
+    var box = t.closest ? t.closest('.lr-edit') : null;
+    if(next && box && box.contains(next)) return;  /* 两个输入之间换焦点，不提前提交 */
+    commitLinkEdit();
   });
   document.addEventListener('pointerdown', function(e){
     if(e.target.closest('#widgetLayer .cap-wrap')){ startCapsuleDrag(e); return; }

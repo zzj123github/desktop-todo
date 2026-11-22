@@ -722,6 +722,17 @@ DT.detectLink = function(raw){
   return null;
 };
 
+/* 链接输入解析：地址 + 可选标题 → {type,path,name}。
+   规则与 src/renderer/src/lib/links.ts parseLinkInput 一致：地址无法识别（如 javascript:）返回 null；
+   标题为空时回退自动标题（URL 去协议截 44 字、路径取最后一段）。 */
+DT.parseLinkInput = function(target, title){
+  var lk = DT.detectLink(target);
+  if(!lk) return null;
+  var t = String(title||'').trim();
+  if(t) lk.name = t;
+  return lk;
+};
+
 /* ---------- 设置 ---------- */
 DT.settings = function(){ return DT.state.ui.settings; };
 DT.setSetting = function(k,v){ DT.state.ui.settings[k]=v; DT.save(); };

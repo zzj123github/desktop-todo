@@ -721,21 +721,29 @@ R.editorModal = function(ed){
   html += '<div class="link-list">';
   (d.links||[]).forEach(function(lk,i){
     var name = lk.name || lk.path || '';
-    var editing = ed.linkTitle && ed.linkTitle.i===i;
-    html += '<div class="link-row"><div class="lr-ic">'+R.icon(LINK_ICON[lk.type]||'link')+'</div>'
+    var editing = ed.linkEdit && ed.linkEdit.i===i;
+    html += '<div class="link-row'+(editing?' editing':'')+'"><div class="lr-ic">'+R.icon(LINK_ICON[lk.type]||'link')+'</div>'
       + '<div class="lr-main">'
       + (editing
-        ? '<input class="lr-title-input" id="edLinkTitle" data-i="'+i+'" type="text" maxlength="120" autocomplete="off"'
+        ? '<div class="lr-edit">'
+          + '<input class="lr-title-input" id="edLinkTitle" data-i="'+i+'" type="text" maxlength="120" autocomplete="off"'
           + ' value="'+esc(name)+'" placeholder="链接标题（留空自动生成）" aria-label="链接标题">'
+          + '<input class="lr-target-input" id="edLinkTarget" data-i="'+i+'" type="text" autocomplete="off"'
+          + ' value="'+esc(lk.path)+'" placeholder="粘贴网址 / 文件夹路径 / UNC 共享路径" aria-label="链接地址">'
+          + '</div>'
         : '<button type="button" class="lr-name lr-name-btn" data-act="ed-link-title" data-i="'+i+'"'
-          + ' title="点击编辑标题" aria-label="编辑链接标题「'+esc(name)+'」">'+esc(name)+'</button>')
-      + '<div class="lr-path">'+esc(lk.path)+'</div></div>'
+          + ' title="点击编辑标题" aria-label="编辑链接标题「'+esc(name)+'」">'+esc(name)+'</button>'
+          + '<button type="button" class="lr-path lr-path-btn" data-act="ed-link-path" data-i="'+i+'"'
+          + ' title="点击修改链接地址" aria-label="编辑链接地址「'+esc(name)+'」">'+esc(lk.path)+'</button>')
+      + '</div>'
       + '<button type="button" class="lr-btn" data-act="ed-preview-link" data-i="'+i+'" title="查看打开方式">'+R.icon('arrow-up')+'</button>'
       + '<button type="button" class="lr-btn danger" data-act="ed-remove-link" data-i="'+i+'" title="移除链接">'+R.icon('trash')+'</button></div>';
   });
   if(!(d.links||[]).length) html += '<div class="m-empty">还没有链接</div>';
   html += '</div>';
-  html += '<div class="add-link-row"><input class="text-input" id="edLinkInput" type="text" placeholder="粘贴网址 / 文件夹路径 / UNC 共享路径" autocomplete="off">'
+  html += '<div class="add-link-row">'
+    + '<input class="text-input link-target-input" id="edLinkInput" type="text" placeholder="粘贴网址 / 文件夹路径 / UNC 共享路径" aria-label="链接地址" autocomplete="off">'
+    + '<input class="text-input link-title-input" id="edLinkTitleInput" type="text" maxlength="120" placeholder="标题（可选）" aria-label="链接标题" autocomplete="off">'
     + '<button type="button" class="btn-sm" data-act="ed-add-link">添加</button></div>';
   html += '<div class="dropzone" id="edDrop">'+R.icon('folder')+'<div>把文件 / 文件夹拖到这里，或粘贴路径</div><div class="dz-sub">拖入后自动识别为文件、文件夹或网址</div></div>';
   html += '<div class="help-block"><p class="note">链接保存为绝对路径；网页用默认浏览器打开，文件夹用资源管理器打开；UNC 共享盘不可达时会提示。</p></div>';

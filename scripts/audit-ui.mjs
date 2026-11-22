@@ -286,6 +286,11 @@ async function main() {
   check('点击任务行打开独立编辑窗口', Boolean(editorTarget), editorTarget?.url.replace(/^.*index\.html/, 'index.html'))
   if (editorTarget) {
     const editor = await connect('view=editor')
+    // 编辑窗口为按内容自适应高度，等 React 挂载完成再断言，避免读到初始空窗
+    for (let i = 0; i < 20; i++) {
+      if (await editor.evaluate(`Boolean(document.querySelector('.modal.wide'))`)) break
+      await sleep(150)
+    }
     const info = await editor.evaluate(
       `JSON.stringify({inner:innerWidth+'x'+innerHeight,wide:Boolean(document.querySelector('.modal.wide')),overlay:Boolean(document.querySelector('.overlay')),title:document.querySelector('.modal-title')?.textContent})`
     )
@@ -302,6 +307,49 @@ async function main() {
     await editor.typeInto('.link-row .lr-title-input', '', 'Enter')
     const fallbackTitle = await editor.evaluate(`document.querySelector('.link-row .lr-name')?.textContent?.trim()`)
     check('清空链接标题回退自动名称', Boolean(autoTitle) && fallbackTitle === autoTitle, `${editedTitle} -> ${fallbackTitle}`)
+    // 地址与标题可同时修改（用户 m06711）：点击路径进入同一编辑态，改地址后重识别
+    await editor.clickAt('.link-row .lr-path-btn')
+    await sleep(200)
+    const twoFields = await editor.evaluate(
+      `JSON.stringify({target:Boolean(document.querySelector('.link-row .lr-target-input')),title:Boolean(document.querySelector('.link-row .lr-title-input'))})`
+    )
+    check(
+      '链接编辑态同时可改地址与标题',
+      twoFields.includes('"target":true') && twoFields.includes('"title":true'),
+      twoFields
+    )
+    await editor.screenshot('03c-editor-link-edit.png', 550, 781)
+    await editor.typeInto('.link-row .lr-target-input', 'https://example.com/edited/path', 'Enter')
+    const editedTarget = await editor.evaluate(
+      `JSON.stringify({path:document.querySelector('.link-row .lr-path')?.textContent?.trim(),name:document.querySelector('.link-row .lr-name')?.textContent?.trim()})`
+    )
+    check(
+      '链接地址可修改并重算自动标题',
+      editedTarget.includes('example.com/edited/path') && editedTarget.includes('"name":"example.com/edited/path"'),
+      editedTarget
+    )
+    // 无效地址：拒绝并保持编辑，Esc 取消后保留原地址
+    await editor.clickAt('.link-row .lr-path-btn')
+    await sleep(150)
+    await editor.typeInto('.link-row .lr-target-input', 'javascript:alert(1)', 'Enter')
+    const invalidEdit = await editor.evaluate(
+      `JSON.stringify({editing:Boolean(document.querySelector('.link-row .lr-edit')),toast:Boolean(document.querySelector('.toast'))})`
+    )
+    check(
+      '无效链接地址被拒绝并保持编辑',
+      invalidEdit.includes('"editing":true') && invalidEdit.includes('"toast":true'),
+      invalidEdit
+    )
+    await editor.pressKey('Escape')
+    await sleep(200)
+    const afterEsc = await editor.evaluate(
+      `JSON.stringify({editing:Boolean(document.querySelector('.link-row .lr-edit')),path:document.querySelector('.link-row .lr-path')?.textContent?.trim()})`
+    )
+    check(
+      '无效地址 Esc 取消后保留原地址',
+      !afterEsc.includes('"editing":true') && afterEsc.includes('example.com/edited/path'),
+      afterEsc
+    )
     await editor.screenshot('03b-editor-link-title.png', 550, 781)
     await editor.evaluate('window.close()')
     check('编辑窗口可关闭', await waitNoTarget('view=editor'))
@@ -600,6 +648,27 @@ async function main() {
       emptyLinkCopy.includes('把文件 / 文件夹拖到这里') &&
       emptyLinkCopy.includes('"dup":false'),
     emptyLinkCopy
+  )
+  // 添加链接行：地址 + 标题两个输入，添加时可直接填标题（用户 m06711）
+  const addForm = await mev(`(()=>{
+    const row=document.querySelector('.overlay .add-link-row');
+    if(!row) return 'missing';
+    return JSON.stringify({inputs:row.querySelectorAll('input').length,target:Boolean(row.querySelector('.link-target-input')),title:Boolean(row.querySelector('.link-title-input'))});
+  })()`)
+  check(
+    '添加链接行含地址与标题两个输入',
+    addForm.includes('"inputs":2') && addForm.includes('"target":true') && addForm.includes('"title":true'),
+    addForm
+  )
+  await manager.typeInto('.overlay .add-link-row .link-target-input', 'https://example.com/audit/link')
+  await manager.typeInto('.overlay .add-link-row .link-title-input', '审计链接标题')
+  await manager.evaluate(`document.querySelector('.overlay .add-link-row .btn-sm').click()`)
+  await sleep(400)
+  const addedLink = await mev(`JSON.stringify({name:document.querySelector('.overlay .link-row .lr-name')?.textContent?.trim(),path:document.querySelector('.overlay .link-row .lr-path')?.textContent?.trim()})`)
+  check(
+    '添加链接时可直接填标题',
+    addedLink.includes('审计链接标题') && addedLink.includes('example.com/audit/link'),
+    addedLink
   )
   await manager.typeInto('.modal .text-input', '审计新建任务')
   await manager.clickAt('.modal .btn-pri')

@@ -494,3 +494,32 @@
 - `DesktopTodo-1.0.0-portable.exe` 97,684,719 B / SHA-256 `28b3630b644e86af031a540d41702c0aaed55cdfc7e02a60ee8bdb6e2026b7ee`
 - `DesktopTodo-1.0.0-setup.exe` 106,247,506 B / SHA-256 `692d3853275cca73a6b06c409f612b5b293744a1e9634fa6fd001ec14e61ef50`
 - 已复制 `release/` 与 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，并更新 `使用说明.txt` 与根 `README.md`。
+
+## 13) 2026-11-22 17:4x 链接添加/编辑支持「地址 + 标题」双字段（用户 m06711）
+
+**用户反馈（原文）**：「仍有问题，添加了标题的输入，但是再添加时没有设置口，只能添加完后，再进行修改；同时，修改时，只能修改标题，而不能修改链接，这些小的UI交互为什么不补齐」。
+
+**问题与根因**：
+- 添加行只有地址输入：上一版在添加后自动进入标题编辑，但添加阶段无法先填标题，用户必须先添加再改名。
+- 行内编辑只覆盖标题：展示态只有标题是按钮，路径是纯文本；且编辑态只有一个标题输入，无法改地址。
+- 深层原因：链接编辑模型以 `display` 为中心，没有统一的「地址 + 标题」双字段草稿；地址与标题的联动规则（自动标题跟随、自定义标题保留、无效地址拒绝）也未定义。
+
+**实现**：
+- `src/renderer/src/lib/links.ts` 新增 `parseLinkInput(target, title='')`：地址必填并 `detectLink` 识别，标题 trim 后最多 120 字，`display = 自定义标题 || 自动标题`；`src/renderer/src/lib/links.test.ts` 新增 4 用例（自动标题回退、标题截断、空/危险地址拒绝、UNC 类型与默认名）。
+- `EditorModal.tsx`：添加区改为「地址 + 标题（可选）+ 添加」两个输入，两者 Enter 均可提交；成功后清空并聚焦地址；行内编辑改为同一编辑态同时显示地址与标题两输入，点击标题或路径都进入该态并按点击定位焦点；Enter/失焦保存、切换焦点不误提交（`relatedTarget` 判断）、Esc 取消；地址变更后重新识别类型/图标；地址无效 toast 拒绝并保持编辑；标题清空回退自动标题；仅地址变化且原标题为自动名称时标题跟随重算，自定义标题保留。
+- i18n 新增 `editor.linkTargetLabel / linkTargetEdit / linkTitleOptional`、`toast.linkInvalid`、`aria.editLinkTarget`；样式新增 `.add-link-row` 三列栅格、`.lr-path-btn`、`.lr-edit` 与双输入样式（全 token）。
+- 规范/文档：`docs/01-PRD.md` FR-3.4；`docs/08-UI-ENGINEERING-SPEC.md` §3.12（添加区 + 编辑态双字段规则）；`docs/02-DESIGN-SPEC.md` 编辑弹窗字段清单。
+- 原型同步（task-10）：`design/app/js/core.js` 增 `DT.parseLinkInput`；`render.js` 添加行两输入、链接行标题/路径按钮与 `.lr-edit` 双输入；`interactions.js` 增 `startLinkEdit/commitLinkEdit/cancelLinkEdit/editorAddLink`（Enter/Esc/失焦、relatedTarget、无效 toast、类型重识别）；`design/static-prototype.html` 升 v2.4（图注 08「添加链接 · 地址与标题一次填好」，18 图）；`design/README.md` 升 app v1.3 / static v2.4；截图重导 `app-editor.png`、`app-editor-link-title.png`、`app-dp-editor.png`，新增 `app-editor-link-fields.png`，重导 `app-fullpage.webp`（2725×16343，dsf 1.73）。
+
+**验证**：
+- `npx tsc --noEmit` 通过；`node scripts/run-tests.cjs run` → **15 文件 / 192 用例通过**（基线 188，+4：`parseLinkInput`）。
+- dev 全量审计：**ALL PASS（70 项）**；新增/更新断言：编辑态同时出现地址与标题两输入、改地址后类型/名称重算、危险地址被拒绝且保持编辑、添加行含两个输入、添加时可直接填标题；截图 `03c-editor-link-edit.png`、`09-manager-editor-modal.png`、`03b-editor-link-title.png`。
+- 原型与静态页：`node --check design/app/js/{core,render,interactions}.js` 通过；headless CDP 交互 41/41 PASS；静态页 12/12 PASS（18 图无 404、无 console error、图注 01–18、v2.4）。
+- 打包版复验：2026-11-22 17:45 重打包后，从桌面交付目录启动便携版（`--remote-debugging-port=9290`）执行 `CDP_PORT=9290 node scripts/audit-ui.mjs` → **ALL PASS（70 项）**。
+
+**截图**：`docs/acceptance/screens/m06711-link-add-row.png`（添加行地址+标题）、`docs/acceptance/screens/m06711-link-edit-both.png`（行内双字段编辑）、`docs/acceptance/screens/m06711-link-invalid-toast.png`（无效地址 toast）。
+
+**交付物（2026-11-22 17:45 重打包）**：
+- `DesktopTodo-1.0.0-portable.exe` 97,700,017 B / SHA-256 `029e7cee8013b75e0dcf977ca03bacfd5ef0d049166c0b9465ebc5cddafeb90f`
+- `DesktopTodo-1.0.0-setup.exe` 106,248,129 B / SHA-256 `df45b7c447b7e29c63f5394dacc1a5f2f087246efe08203c8258e6f9baa095cd`
+- 已复制 `release/` 与 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，并更新 `使用说明.txt` 与根 `README.md`。

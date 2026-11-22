@@ -1073,3 +1073,44 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
   color:var(--muted);
 }
 .help-section li::marker{color:var(--faint)}
+
+/* ── 链接添加/编辑双字段（用户 m06711：添加时填标题、编辑时可改地址）────── */
+.add-link-row{display:grid;grid-template-columns:minmax(0,1fr) 132px auto;gap:6px;align-items:center}
+.add-link-row .text-input{min-width:0}
+.link-row .lr-path-btn{
+  display:block;
+  width:100%;
+  max-width:100%;
+  margin-top:1px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:var(--faint);
+  font-family:inherit;
+  font-size:10px;
+  text-align:left;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  direction:ltr;
+  cursor:text
+}
+.link-row .lr-path-btn:hover{color:var(--muted)}
+.link-row .lr-path-btn:focus-visible{outline:none;box-shadow:var(--focus-halo)}
+.link-row .lr-edit{display:flex;flex-direction:column;gap:4px;width:100%}
+.link-row .lr-edit .lr-target-input,
+.link-row .lr-edit .lr-title-input{
+  width:100%;
+  height:22px;
+  padding:0 5px;
+  border:1px solid var(--border-focus);
+  border-radius:var(--radius-xs);
+  background:var(--field-bg);
+  color:var(--ink);
+  font-family:inherit;
+  font-size:11.5px
+}
+.link-row .lr-edit .lr-title-input{font-size:12px}
+.link-row .lr-edit .lr-target-input:focus,
+.link-row .lr-edit .lr-title-input:focus{outline:none;border-color:var(--accent)}
+.link-row .lr-edit input::placeholder{color:var(--faint)}
