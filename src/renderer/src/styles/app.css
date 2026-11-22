@@ -741,6 +741,15 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 .view-capsule .capsule:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
   transform:none}
 
+/* 独立透明窗口内的浮层阴影：挂件/胶囊/编辑/提示窗口的尺寸≈内容尺寸，
+   modal/pop/toast 的大外投影会被窗口边界裁切、只留下断开的灰底，
+   因此这些窗口统一把大阴影 token 覆盖为紧凑版本；完整窗口（不透明）保留大阴影。 */
+.view-widget,.view-capsule,.view-quickadd,.view-editor,.view-notice{
+  --shadow-modal:var(--shadow-modal-window);
+  --shadow-pop:var(--shadow-pop-window);
+  --shadow-toast:var(--shadow-toast-window);
+}
+
 /* 完整窗口：铺满浏览器窗口，圆角交给系统 */
 .view-manager .manager-scene{padding:0;background:var(--paper);align-items:stretch;justify-content:stretch;
   position:fixed;inset:0}
@@ -971,8 +980,9 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 }
 
 /* ===== 任务编辑弹窗独立窗口（?view=editor，Lead m04418） =====
-   窗口是 550×auto 的透明普通窗口：内容 = EditorModal（embedded）+ 24px 内边距，
-   给 08 §3.8 的 modal 阴影留出空间；高度由渲染层测量后上报主进程居中。 */
+   窗口是 550×auto 的透明普通窗口：内容 = EditorModal（embedded）+ 24px 内边距。
+   该窗口内的弹层（modal/pop/toast）统一用紧凑阴影（见「独立透明窗口内的浮层阴影」段）：
+   窗口尺寸≈弹窗尺寸，90px 级外投影会被窗口边界裁切、留下断边灰晕；高度由渲染层测量后上报主进程居中。 */
 .view-editor{background:transparent}
 .view-editor #root{height:auto;min-height:100%}
 .editor-window-host{

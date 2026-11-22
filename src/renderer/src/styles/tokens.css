@@ -131,6 +131,12 @@
   --shadow-card-strong:0 2px 8px rgba(60,50,30,.05);
   --shadow-pop:0 18px 40px rgba(60,50,30,.16),0 2px 6px rgba(60,50,30,.06);
   --shadow-modal:0 34px 90px rgba(40,30,15,.34),0 0 0 1px rgba(60,50,30,.06);
+  /* 独立透明窗口（挂件/胶囊/编辑/提示）内的弹层：窗口尺寸≈内容尺寸，90px 级大外投影会被
+     窗口边界裁切、只留下断开的灰底。这些场景由窗口根类覆盖为紧凑阴影（见 app.css
+     「独立透明窗口内的浮层阴影」段）；应用窗口（完整窗口）内仍用上面的大阴影 */
+  --shadow-modal-window:0 5px 16px rgba(40,30,15,.18),0 0 0 1px rgba(60,50,30,.06);
+  --shadow-pop-window:0 4px 14px rgba(60,50,30,.16),0 2px 6px rgba(60,50,30,.06);
+  --shadow-toast-window:0 2px 8px rgba(20,15,5,.28);
   /* 桌面形态（挂件/胶囊）不使用外投影：窗口边界＝卡片边界，外投影会被矩形窗口裁切、只在圆角缺口露灰边；用 1px 内描边表达边界（原型与实现一致） */
   --shadow-widget:inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
   --shadow-widget-unpinned:inset 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent);

@@ -122,3 +122,10 @@
 - 决策：新增通用「应用内提示」体系——`src/main/notices.ts` 负责提示队列（注入 presenter，不直接 import electron），窗口为独立透明 472 宽 BrowserWindow（`?view=notice`，424 弹窗 + 24×2 内边距，居中挂件所在显示器，高度由渲染层上报）；渲染层 `NoticeModal` 复用 `Modal`（size confirm / role alertdialog / embedded），`NoticeWindowHost` 订阅 `on.notice`、`notice.ready({height})`、`notice.acknowledge()`；快捷键冲突与数据库异常均走该体系，仅提示窗口加载失败 2.5s 才回退原生 dialog。
 - 理由：胶囊/挂件窗口只有 284/352 宽，424 的应用内模态放不下会被裁切，提示必须与挂件形态解耦；独立窗口也保证应用最小化到托盘时提示可见。
 - 可复用：后续启动/后台类提示统一 `postNotice({kind,title,message,items,hint,acknowledgeLabel})`，不再新增原生 dialog 调用点（文件选择器除外）。
+
+## D17 · 独立透明窗口内浮层一律用紧凑阴影（2026-11-22，用户 m01200/m01273）
+
+- 背景：D14 的编辑窗口（550×auto，24px 内边距）与 D16 的提示窗口（472×auto）沿用 `--shadow-modal`（0 34px 90px），用户发现弹窗仍有一层阴影、并指出「是灰色底」；进一步要求 toast/modal 等任何可能出现在独立透明窗口里的组件都不能用大阴影，而纯 Web（应用窗口内）可以保留。
+- 决策：按渲染场景区分，而不是按组件区分。新增 `--shadow-modal-window`/`--shadow-pop-window`/`--shadow-toast-window`（最大外扩 21px，适配 24px 窗口内边距）；在 `.view-widget/.view-capsule/.view-quickadd/.view-editor/.view-notice` 根类上把 `--shadow-modal/--shadow-pop/--shadow-toast` 覆盖为紧凑版本；`.view-manager`（不透明完整窗口）保留原大阴影。后续新增组件只要引用这三个 token 即自动获得正确场景阴影，不需要在组件里判断窗口类型。
+- 理由：透明窗口的窗口边界会裁切任何绘制在内容外的效果（与 D12 挂件/胶囊同一机理）；`--shadow-modal` 水平需 ≈90px、下侧 ≈124px，24px 内边距必然裁出「断边灰晕」。根类覆盖让「场景」成为唯一事实来源，避免逐组件重复实现。
+- 验证：178 用例、tsc 0 错、build 通过；CDP 实测编辑窗口 `.modal`/`.dp-pop` 为紧凑值且完整落在窗口内、四边 alpha=0（旧值 26/255）；完整窗口 token 保持大阴影。

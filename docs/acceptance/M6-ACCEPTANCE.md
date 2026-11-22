@@ -422,3 +422,25 @@
 **已知边界**：原生文件选择器（导出/导入/重新选择链接）按规格保持原生；系统级文件拖放、托盘菜单点击仍需人工验证。
 
 **打包版复验（2026-11-22 14:18）**：从桌面交付目录启动新便携版（CDP 9260）→ 提示窗口 `473×299`、标题与 `Alt+H` / `Alt+2` 清单正确、真实点击「知道了」后只剩 `?view=widget`；随后 `CDP_PORT=9260 node scripts/audit-ui.mjs` → **ALL PASS（53 项）**。截图补充：`docs/acceptance/screens/notice-window-packaged.png`。
+
+## 10) 2026-11-22 14:3x 独立透明窗口内的浮层改用紧凑阴影（用户 m01200 / m01273）
+
+**用户反馈**：独立窗口里的 Modal 仍有一层大投影；进一步要求「其他可能用独立透明窗口打开的 toast、modal 这类组件，应该去掉大阴影，不然还是会出现灰色底；纯 Web 应用（应用窗口内）可以用大阴影，需要按情况区分使用」。
+
+**机制**：独立透明窗口的窗口尺寸≈内容尺寸，`--shadow-modal`（0 34px 90px）/`--shadow-pop`（0 18px 40px）/`--shadow-toast`（0 16px 36px）画在内容外侧会被窗口边界裁切，浅色背景上表现为「到边就断」的灰晕/灰底（与挂件/胶囊 D12 同一机理）。
+
+**调整（按渲染场景区分）**：
+- tokens（`design/ui/tokens.css`、`src/renderer/src/styles/tokens.css`）：新增 `--shadow-modal-window`（`0 5px 16px rgba(40,30,15,.18)` + 1px ring）、`--shadow-pop-window`（`0 4px 14px` + `0 2px 6px`）、`--shadow-toast-window`（`0 2px 8px`）——最大外扩 21px < 24px 窗口内边距，可完整渲染。
+- `src/renderer/src/styles/app.css`：新增「独立透明窗口内的浮层阴影」段，在 `.view-widget/.view-capsule/.view-quickadd/.view-editor/.view-notice` 根类上把 `--shadow-modal`/`--shadow-pop`/`--shadow-toast` 覆盖为对应 `*-window` 紧凑 token；完整窗口 `.view-manager`（不透明窗口）保留大阴影。编辑窗口注释同步修正（不再声称 24px 内边距能容纳 90px 阴影）。
+- 规范：`docs/02-DESIGN-SPEC.md` §3、`docs/08-UI-ENGINEERING-SPEC.md` §1.4（token 表 + 说明 + 窗口规格表 + toast 条目）。
+
+**验证**：
+- `node scripts/run-tests.cjs` 14 文件 178 用例通过；`npx tsc --noEmit` 0 错误；`pnpm build` 通过（renderer CSS 68.97 kB）。
+- dev + CDP（隔离实例，`--remote-debugging-port=9241`）：
+  - 透明窗口（widget/capsule 根类 `view-capsule`）：computed `--shadow-modal` = `0 5px 16px …`、`--shadow-pop` = `0 4px 14px …`、`--shadow-toast` = `0 2px 8px …`。
+  - 编辑窗口（`?view=editor`，551×828）：`.modal` computed box-shadow = `rgba(40,30,15,0.18) 0px 5px 16px 0px, rgba(60,50,30,0.06) 0px 0px 0px 1px`；窗口内日期面板 `.dp-pop` computed = `rgba(60,50,30,0.16) 0px 4px 14px 0px, rgba(60,50,30,0.06) 0px 2px 6px 0px`，面板 rect (196.9, 99.4, 288×351.3) 完全落在 551×828 窗口内。
+  - 应用窗口（`view=manager`）：computed `--shadow-modal` 仍为 `0 34px 90px …`、`--shadow-pop` 仍为 `0 18px 40px …`。
+  - 编辑窗口页面截图（`docs/acceptance/screens/editor-window-compact-shadow.png`，965×1449 @1.75x）窗口四边 alpha=0（旧实现左边界 alpha 26/255、底边界 18/255），阴影在 24px 内边距内自然衰减到 0。
+- 说明：本次改动尚未重新打包，14:15 的 portable/setup 交付物不含此修复。
+
+**截图**：`docs/acceptance/screens/editor-window-compact-shadow.png`。

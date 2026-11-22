@@ -100,7 +100,10 @@
 |---|---|
 | --shadow-card | 静置卡片、composer |
 | --shadow-pop | 筛选/下拉/日期选择器 |
-| --shadow-modal | 编辑/管理/确认弹窗 |
+| --shadow-modal | 编辑/管理/确认弹窗（应用窗口内） |
+| --shadow-modal-window | 独立透明窗口内的弹窗（紧凑，适配 24px 内边距） |
+| --shadow-pop-window | 独立透明窗口内的浮层/下拉/日期面板（紧凑） |
+| --shadow-toast-window | 独立透明窗口内的 toast（紧凑） |
 | --shadow-widget | 挂件（置顶，1px 内描边） |
 | --shadow-widget-unpinned | 挂件（未置顶，1px 内描边） |
 | --shadow-capsule | 胶囊静置（1px 内描边） |
@@ -111,6 +114,8 @@
 禁止用纯黑阴影；阴影颜色必须来自 tokens.css。
 
 桌面形态（挂件/胶囊）的 4 个 token（--shadow-widget / --shadow-widget-unpinned / --shadow-capsule / --shadow-capsule-hover）是 **1px 内描边**，不是外投影：Electron 窗口边界＝卡片边界，外投影会被矩形窗口裁切、只在圆角缺口露灰边；原型与实现统一不使用任何外投影（2026-11-22 用户确认）。
+
+独立透明窗口（挂件 / 胶囊 / 编辑 / 提示）的窗口尺寸≈内容尺寸：`--shadow-modal`/`--shadow-pop`/`--shadow-toast` 的 90px 级外投影会在窗口边界被裁切、只留下断开的灰底。由窗口根类 `.view-widget/.view-capsule/.view-quickadd/.view-editor/.view-notice`统一把这三个 token 覆盖为 `--shadow-modal-window`/`--shadow-pop-window`/`--shadow-toast-window`（紧凑，24px 内边距内可完整渲染）；完整窗口 `.view-manager`（不透明窗口）保留大阴影（2026-11-22 规范调整，按渲染场景区分）。
 
 ### 1.5 动效（数值即契约）
 
@@ -174,10 +179,10 @@
 | 胶囊 | 284 × 54 | 否 | 无边框、圆角 999 | 默认右上；与挂件共用位置（就近角基准）；单击展开挂件、双击打开完整窗口 |
 | 快速添加 | 520 × auto | 否 | 同挂件 | MVP 可退化为唤起挂件并聚焦输入框 |
 | 编辑任务（完整窗口内） | 460 宽；wide 502 | 否 | 模态 | 日期选择器 190 层 |
-| 编辑任务（挂件内点击任务） | 550 × auto（502 弹窗 + 24×2 内边距） | 否 | 独立透明窗口、圆角 14、阴影 modal | 居中挂件所在显示器；高度由内容上报；Esc / X / 取消 / 保存 / 删除后关闭；挂件保持原样 |
+| 编辑任务（挂件内点击任务） | 550 × auto（502 弹窗 + 24×2 内边距） | 否 | 独立透明窗口、圆角 14、紧凑阴影（window token） | 居中挂件所在显示器；高度由内容上报；Esc / X / 取消 / 保存 / 删除后关闭；挂件保持原样 |
 | 管理项目/标签 | 468 宽；单项 424 | 否 | 模态 | 底部完成；从设置进入时关闭返回设置 |
 | 删除确认 | 424 宽 | 否 | 模态 | alertdialog；仅关联任务 > 0 时出现 |
-| 应用内提示（快捷键冲突/数据库异常） | 472 × auto（424 弹窗 + 24×2 内边距） | 否 | 独立透明窗口、圆角 14、阴影 modal | 居中挂件所在显示器；高度由内容上报；自建 NoticeModal（embedded，不画遮罩）；「知道了」右对齐；窗口加载失败 2.5s 才回退原生 dialog |
+| 应用内提示（快捷键冲突/数据库异常） | 472 × auto（424 弹窗 + 24×2 内边距） | 否 | 独立透明窗口、圆角 14、紧凑阴影（window token） | 居中挂件所在显示器；高度由内容上报；自建 NoticeModal（embedded，不画遮罩）；「知道了」右对齐；窗口加载失败 2.5s 才回退原生 dialog |
 
 ### 2.2 桌面挂件结构
 
@@ -228,7 +233,7 @@
 ### 2.5 模态与浮层
 
 - overlay：`--overlay` + blur(2px)，z 120；点击不关闭。
-- modal：背景 --card，radius 14，shadow --shadow-modal；max-height calc(100vh - 60px)；head 15 17 6；body overflow-y auto；footer 11 17 15，顶部 1px --hairline-soft。
+- modal：背景 --card，radius 14，shadow --shadow-modal（应用窗口内；独立透明窗口内嵌用 --shadow-modal-window，见 §1.4）；max-height calc(100vh - 60px)；head 15 17 6；body overflow-y auto；footer 11 17 15，顶部 1px --hairline-soft。
 - modal 默认不播放入场动画；首次打开加 .enter -> modalIn 240ms，animationend 移除；原地重绘不得重播。保留 .modal-body scrollTop。
 - pop：320 宽，radius 12，padding 12，shadow --shadow-pop，z 131；从触发点生长 250ms，关闭 120ms。
 - 日期选择器：288 宽，radius 14，padding 12 12 10，z 190，shadow --shadow-pop；下方空间不足翻上方，距视口 12px。
@@ -354,7 +359,7 @@
 
 ### 3.11 Toast
 
-- 位置固定底部居中，bottom 26，z 200，最大宽 90vw；深底 --toast-bg，文字 --toast-ink，padding 9 14，radius 10，shadow --shadow-toast。
+- 位置固定底部居中，bottom 26，z 200，最大宽 90vw；深底 --toast-bg，文字 --toast-ink，padding 9 14，radius 10，shadow --shadow-toast（独立透明窗口内由窗口根类改为 --shadow-toast-window，见 §1.4）。
 - 图标 15，--toast-icon；撤销按钮 --toast-accent，hover `--toast-hover`。
 - 入场 200ms toastIn；停留 3.2s（撤销类 5s）；不阻挡点击。
 - 文案必须包含动作对象；删除/完成保留撤销。
