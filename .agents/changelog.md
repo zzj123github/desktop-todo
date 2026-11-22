@@ -77,3 +77,9 @@
 2026-11-22 | update | scripts/audit-ui.mjs | 审计扩到 70 项：编辑窗口等待 wide 模态就绪；新增双字段编辑、改地址重算名称、危险地址拒绝、添加行两输入、添加时直接填标题等断言 | 用户 m06711 回归
 2026-11-22 | repackage | release/, Desktop 交付目录, README.md, 使用说明.txt, docs/acceptance/M6-ACCEPTANCE.md | 17:45 重打包：portable 97,700,017 B / 029e7cee…，setup 106,248,129 B / df45b7c4…；打包版审计 70/70 PASS；更新 README 校验表/修复清单、使用说明 v17:45 与验收 §13 | 链接双字段修复进入交付物
 2026-11-22 | update | .agents/memory/decisions.md | 新增 D21（链接添加/编辑双字段模型与自动标题跟随规则） | 用户 m06711 决策记录
+2026-11-22 | update | design/app/js/interactions.js, design/app/css/app.css, design/README.md | 时间列表（时/分）滚轮改为应用内平滑滚动：增量归一（像素×0.4/行×24/页×clientHeight，单次限幅 ±120）、rAF ease-out 160ms、连续滚动从当前位置重设目标、reduced-motion 直接定位、键盘与滚动条保持原生、pointerdown 让位；app v1.4，static v2.4 不变（视觉无变化，不重导截图）；CDP 断言 23/23 PASS | 用户 m06992 反馈滚轮跳变
+2026-11-22 | update | src/renderer/src/lib/scroll.ts, src/renderer/src/lib/scroll.test.ts, src/renderer/src/components/DateTimePicker.tsx, src/renderer/src/styles/app.css | 时间列表（时/分）滚轮改为应用内平滑滚动：scroll.ts 纯函数（deltaMode 归一×0.4/×24/×clientHeight、限幅 ±120、160ms ease-out 进度）+ DateTimePicker wheel 接管（passive:false、命中 .dp-tl-scroll、连续滚动重设目标、reduced-motion 直接定位、pointerdown 让位）+ overscroll-behavior:contain；新增 9 单测，201 项全通过 | 用户 m06992 反馈滚轮跳变
+2026-11-22 | update | scripts/audit-ui.mjs | 审计扩到 74 项：manager 模态内展开时间列表、CDP 滚轮采样断言出现中间帧、reduced-motion 直接定位到 48px、Esc 只关日期浮层不关模态 | 用户 m06992 回归
+2026-11-22 | update | docs/08-UI-ENGINEERING-SPEC.md, docs/02-DESIGN-SPEC.md, docs/09-PROJECT-STRUCTURE.md, docs/acceptance/screens/m06992-dp-smooth-scroll.png | 同步平滑滚动规范（08 §3.9、02 日期选择器）、登记 lib/scroll.ts 与测试、存档审计截图 | 用户 m06992 要求规范一并调整
+2026-11-22 | update | .agents/memory/decisions.md | 新增 D22（时间列表应用内平滑滚动及理由/验证） | 用户 m06992 决策记录
+2026-11-22 | repackage | release/, Desktop 交付目录, README.md, 使用说明.txt, docs/acceptance/M6-ACCEPTANCE.md | 18:25 重打包：portable 97,697,084 B / b9483529…，setup 106,248,940 B / b0d3191e…；打包版审计 74/74 PASS；更新 README 校验表/修复清单、使用说明 v18:25 与验收 §14 | 时间列表平滑滚动修复进入交付物

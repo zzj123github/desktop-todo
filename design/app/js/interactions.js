@@ -181,6 +181,72 @@ function dpScrollTimeLists(){
   if(hs && hEl){ var hh = parseInt(hEl.value,10); if(!isNaN(hh)) hs.scrollTop = Math.max(0, hh*24 - 48); }
   if(ms && mEl){ var mm = parseInt(mEl.value,10); if(!isNaN(mm)) ms.scrollTop = Math.max(0, mm*24 - 48); }
 }
+/* 时间列表（时/分）滚轮平滑滚动：与 src/renderer/src/lib/scroll.ts 同一口径——
+   增量归一（像素×0.4 / 行×24 / 页×clientHeight，单次限幅 ±120）→ 目标夹取 → rAF ease-out 160ms。
+   键盘方向键与拖动滚动条不拦截，保留原生行为；弹层重绘后元素重建，状态放 WeakMap 天然失效。 */
+var TL_SCROLL_DURATION = 160;
+var TL_SCROLL_MAX_STEP = 120;
+var TL_SCROLL_ROW = 24;
+var tlScrollStates = new WeakMap();
+var tlReducedMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
+function tlScrollDelta(e, el){
+  if(!isFinite(e.deltaY) || e.deltaY === 0) return 0;
+  var raw;
+  if(e.deltaMode === 1) raw = e.deltaY * TL_SCROLL_ROW;              /* 行模式 */
+  else if(e.deltaMode === 2) raw = e.deltaY * el.clientHeight;       /* 页模式 */
+  else raw = e.deltaY * 0.4;                                         /* 像素/触控板增量按比例缩放 */
+  return DT.clamp(raw, -TL_SCROLL_MAX_STEP, TL_SCROLL_MAX_STEP);
+}
+function tlScrollState(el){
+  var st = tlScrollStates.get(el);
+  if(!st){
+    st = {from:el.scrollTop, target:el.scrollTop, start:0, raf:0};
+    tlScrollStates.set(el, st);
+  }
+  return st;
+}
+function tlScrollStop(el){
+  var st = tlScrollStates.get(el);
+  if(st && st.raf){ cancelAnimationFrame(st.raf); st.raf = 0; }
+}
+function tlScrollBy(el, delta){
+  if(!delta) return;
+  var st = tlScrollState(el);
+  if(st.raf){ cancelAnimationFrame(st.raf); st.raf = 0; }  /* 连续滚轮：从当前可见位置重新起一段，不叠加动画 */
+  var max = Math.max(0, el.scrollHeight - el.clientHeight);
+  var from = el.scrollTop;
+  var target = DT.clamp(from + delta, 0, max);
+  if(target === from) return;
+  if(tlReducedMotion && tlReducedMotion.matches){ el.scrollTop = target; return; }
+  st.from = from;
+  st.target = target;
+  st.start = performance.now();
+  function frame(now){
+    var p = DT.clamp((now - st.start) / TL_SCROLL_DURATION, 0, 1);
+    var k = 1 - Math.pow(1 - p, 3);                        /* ease-out cubic */
+    el.scrollTop = st.from + (st.target - st.from) * k;
+    if(p < 1){
+      st.raf = requestAnimationFrame(frame);
+    } else {
+      st.raf = 0;
+      el.scrollTop = st.target;
+    }
+  }
+  st.raf = requestAnimationFrame(frame);
+}
+function handleTimeListWheel(e){
+  var el = e.target && e.target.closest ? e.target.closest('.dp-tl-scroll') : null;
+  if(!el) return;
+  e.preventDefault();
+  tlScrollBy(el, tlScrollDelta(e, el));
+}
+/* 拖动滚动条 / 点列表项时让位原生滚动，先取消未结束的缓动 */
+function stopTimeListScrolls(e){
+  if(!e.target || !e.target.closest || !e.target.closest('.dp-tl-scroll')) return;
+  var lists = document.querySelectorAll('#dpPop .dp-tl-scroll');
+  for(var i=0;i<lists.length;i++) tlScrollStop(lists[i]);
+}
 function dpToggleTimeList(){
   if(!DP) return;
   dpTimeSync();
@@ -1381,6 +1447,10 @@ function bind(){
     if(next && box && box.contains(next)) return;  /* 两个输入之间换焦点，不提前提交 */
     commitLinkEdit();
   });
+  /* 时间列表滚轮改为应用内平滑滚动（见 handleTimeListWheel），只拦截列表内部，页面其余滚动不受影响；
+     拖动滚动条或点列表项时先取消缓动，让位原生滚动。 */
+  document.addEventListener('wheel', handleTimeListWheel, {passive:false});
+  document.addEventListener('pointerdown', stopTimeListScrolls, true);
   document.addEventListener('pointerdown', function(e){
     if(e.target.closest('#widgetLayer .cap-wrap')){ startCapsuleDrag(e); return; }
     var handle = e.target.closest('[data-drag="widget"]');

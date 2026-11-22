@@ -217,6 +217,8 @@ desktop-todo/
 - `src/renderer/src/lib/links.ts`（M4 登记）：`isLinkUnavailable(result)` 统一「找不到该位置」判定（missing + 网络位置 unreachable，docs/03 第 127 行）；`autoLinkTitle(target)` 生成/回退链接自动标题（编辑弹窗内联标题留空时使用，规则同原型：URL 去协议截断 44 字、本地路径取最后一段）。
 - `src/renderer/src/lib/links.test.ts`（2026-11-22 登记）：链接自动标题与识别规则的单元测试（URL/www/UNC/盘符/危险协议/空白）。
 - `src/renderer/src/app/HelpModal.tsx`（2026-11-22 登记）：应用内「使用说明」弹窗，复用 `Modal` wide，只读渲染 `i18n/zh.ts` 的 `help.sections`；入口在完整窗口侧栏 footer「设置」之上。
+- `src/renderer/src/lib/scroll.ts`（2026-11-22 登记）：日期选择器时/分列表的滚轮平滑滚动纯函数——滚轮增量按 deltaMode 归一（像素 ×0.4 / 行 ×24 / 页 ×clientHeight，单次限幅 ±120）、目标值 clamp、160ms ease-out 进度；`DateTimePicker.tsx` 用它接管 `.dp-tl-scroll` 的 wheel，reduced-motion 直接定位。
+- `src/renderer/src/lib/scroll.test.ts`（2026-11-22 登记）：滚轮归一、目标 clamp 与缓动进度的单元测试（3 describe / 9 用例）。
 - `src/renderer/src/lib/scope.ts`（M2 登记）：九视图作用域、五维筛选、Tab、排序、分组、计数、进度环、胶囊摘要等纯函数；渲染层一次性拉全量任务后本地计算（IPC `FilterDTO` 无法表达收件箱/即将到期/保存视图的作用域语义）。
 - `src/renderer/src/hooks/useFilter.ts`、`useTimeUsage.ts`（M2 登记）：筛选状态与快捷时间使用统计（读 settings `timeUsage`，写入用 `settings.set`）。
 - `src/renderer/quickadd.html`（M5 登记）：快速添加独立窗口入口，与 `index.html` 共用同一 renderer bundle（`main.tsx?view=quickadd`）。

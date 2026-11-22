@@ -27,6 +27,7 @@ import {
   weekday,
   type TimeUsageMap
 } from '../lib/date'
+import { clampScrollTarget, easeOutCubic, normalizeWheelPixels, scrollProgress } from '../lib/scroll'
 import { useToast } from './Toast'
 
 export type PickerMode = 'datetime' | 'date'
@@ -38,6 +39,14 @@ interface CalendarDay {
   past: boolean
   today: boolean
   selected: boolean
+}
+
+/** 时间列表滚轮的单个动画状态（每个 .dp-tl-scroll 一份） */
+interface WheelScrollAnim {
+  raf: number
+  from: number
+  target: number
+  start: number
 }
 
 /** 字段文案：11月25日 周三 09:00 / 11月25日 周三 */
@@ -170,6 +179,9 @@ export function DatePickerOverlay({
   })
   const [timeList, setTimeList] = useState(false)
   const popRef = useRef<HTMLDivElement>(null)
+  const listWrapRef = useRef<HTMLDivElement>(null)
+  /** 时间列表每列一个缓动动画，滚轮切换时以当前实际位置为新起点 */
+  const wheelAnims = useRef(new Map<HTMLElement, WheelScrollAnim>())
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
 
   useLayoutEffect(() => {
@@ -219,6 +231,64 @@ export function DatePickerOverlay({
       document.removeEventListener('mousedown', onPointer, true)
     }
   }, [anchor, onClose])
+
+  /**
+   * 时间列表滚轮平滑滚动（用户 m06992）
+   * 原生滚轮一格会把 132px 可视区一次换掉 5 行，没有中间帧，观感像跳变；
+   * 这里统一接管：增量归一 → 目标夹取 → rAF ease-out；键盘/滚动条仍走原生。
+   */
+  useEffect(() => {
+    if (!timeList) return
+    const wrap = listWrapRef.current
+    if (!wrap) return
+    const anims = wheelAnims.current
+    const stopAll = (): void => {
+      anims.forEach((anim) => cancelAnimationFrame(anim.raf))
+      anims.clear()
+    }
+    const reduceMotion = (): boolean =>
+      typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const onWheel = (event: WheelEvent): void => {
+      const col = event.target instanceof Element ? event.target.closest('.dp-tl-scroll') : null
+      if (!(col instanceof HTMLElement)) return
+      event.preventDefault()
+      const delta = normalizeWheelPixels(event.deltaY, event.deltaMode, col.clientHeight)
+      if (!delta) return
+      const maxScroll = col.scrollHeight - col.clientHeight
+      const from = col.scrollTop
+      const target = clampScrollTarget(from, delta, maxScroll)
+      const prev = anims.get(col)
+      if (prev) cancelAnimationFrame(prev.raf)
+      anims.delete(col)
+      if (target === from) return
+      if (reduceMotion()) {
+        col.scrollTop = target
+        return
+      }
+      const start = performance.now()
+      const anim: WheelScrollAnim = { raf: 0, from, target, start }
+      const step = (now: number): void => {
+        const progress = easeOutCubic(scrollProgress(now - start))
+        col.scrollTop = from + (target - from) * progress
+        if (progress < 1) {
+          anim.raf = requestAnimationFrame(step)
+        } else {
+          col.scrollTop = target
+          if (anims.get(col) === anim) anims.delete(col)
+        }
+      }
+      anim.raf = requestAnimationFrame(step)
+      anims.set(col, anim)
+    }
+    wrap.addEventListener('wheel', onWheel, { passive: false })
+    // 拖动滚动条/键盘滚动时让位给原生行为，避免与动画争夺 scrollTop
+    wrap.addEventListener('pointerdown', stopAll)
+    return () => {
+      wrap.removeEventListener('wheel', onWheel)
+      wrap.removeEventListener('pointerdown', stopAll)
+      stopAll()
+    }
+  }, [timeList])
 
   const pickDay = (day: CalendarDay): void => {
     if (day.past) return
@@ -394,7 +464,7 @@ export function DatePickerOverlay({
         </div>
       ) : null}
       {timeList && mode === 'datetime' ? (
-        <div className="dp-timelist">
+        <div className="dp-timelist" ref={listWrapRef}>
           <div className="dp-tl-col">
             <div className="dp-tl-hd">{zh.datePicker.hour}</div>
             <div className="dp-tl-scroll">

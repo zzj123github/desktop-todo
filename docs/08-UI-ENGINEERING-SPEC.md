@@ -349,6 +349,7 @@
 - 默认 datetime：今天 18:00；已过则下一个未来半点。
 - 键盘：Esc 只关选择器，不关下层弹窗；Tab 在日历/时间/按钮间可达；Enter 确认。
 - 筛选 date 模式不显示时间行和快捷 chips。
+- 时间列表（时/分两列）滚轮平滑滚动：应用内接管 wheel（passive:false），只有命中 `.dp-tl-scroll` 才处理；一格约 2 行（48px），ease-out 160ms；deltaMode 归一（像素 ×0.4 / 行 ×24 / 页 ×clientHeight，单次限幅 ±120）；连续滚动从当前 scrollTop 重设目标、不叠加；pointerdown、键盘方向键与滚动条保持原生；prefers-reduced-motion: reduce 时直接定位；列表加 overscroll-behavior: contain。
 
 ### 3.10 ManageModal / DeleteConfirm
 

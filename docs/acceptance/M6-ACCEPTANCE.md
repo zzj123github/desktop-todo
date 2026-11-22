@@ -523,3 +523,33 @@
 - `DesktopTodo-1.0.0-portable.exe` 97,700,017 B / SHA-256 `029e7cee8013b75e0dcf977ca03bacfd5ef0d049166c0b9465ebc5cddafeb90f`
 - `DesktopTodo-1.0.0-setup.exe` 106,248,129 B / SHA-256 `df45b7c447b7e29c63f5394dacc1a5f2f087246efe08203c8258e6f9baa095cd`
 - 已复制 `release/` 与 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，并更新 `使用说明.txt` 与根 `README.md`。
+
+## 14) 2026-11-22 18:2x 日期时间选择器时间列表平滑滚动（用户 m06992）
+
+**用户反馈（原文）**：「时间日期选择这个时间区滚动时，发现不够顺滑，现在本机是300hz刷新，但是这里看着明显很卡顿，这是为什么」。截图：时间行展开时/分两列列表（当前 22:00，快捷 18:00 / 18:30，底部 清除 / 取消 / 确定）。
+
+**诊断（数据）**：
+- 渲染链路无异常：挂件/编辑窗口空闲 rAF 301–302 帧/1000ms（合成器 vsync 300Hz）；JS 驱动 `scrollTop` 滚动 89 帧，帧间隔 p50 3.30ms、p95 3.40ms、>20ms 帧 0。
+- 问题出在滚轮步进：CDP 注入 `deltaY=120` ×4，`scrollTop` 实测变化为 `[120,120,120,89.7]`，每次滚轮一次跳 5 行（24px/行），没有任何插值帧；`Page.startScreencast` 期间一次滚轮仅产生 1 帧内容更新（总 5 帧，间隔 p50 65–73ms）。
+- 与 GPU 无关：`DESKTOP_TODO_GPU=1` 与 Chromium `--enable-smooth-scrolling` 下结果完全相同（idle 302/1003、scrollTop 跳变相同、帧数相同）。
+- 结论：时间列表可视区仅 132px（约 5.5 行），原生滚轮一格就是 120px（5 行）瞬间跳变，一次滚轮几乎换掉全部可见内容，视觉上就是「卡」。高刷新率并不能让离散跳变变平滑。
+
+**实现**：
+- `src/renderer/src/lib/scroll.ts`（新增，纯函数）：`WHEEL_ROW_PX=24`、`WHEEL_PIXEL_SCALE=0.4`、`WHEEL_STEP_LIMIT=120`、`SCROLL_ANIM_MS=160`；`normalizeWheelPixels(deltaY, deltaMode, viewportPx)`（像素×0.4 / 行×24 / 页×clientHeight，单次限幅 ±120）、`clampScrollTarget`、`easeOutCubic`、`scrollProgress`。
+- `DateTimePicker.tsx`：在 `.dp-timelist` 上以 `{passive:false}` 委托 wheel，只有命中 `.dp-tl-scroll` 才 `preventDefault`；每次滚轮先取消上一段 rAF、从当前 `scrollTop` 重设目标，160ms ease-out 插值；`pointerdown` 取消缓动让位滚动条/键盘；`prefers-reduced-motion: reduce` 直接定位；组件卸载时清理监听与 rAF。
+- `styles/app.css`：`.dp-tl-scroll` 增加 `overscroll-behavior: contain`。
+- 规范：`docs/08-UI-ENGINEERING-SPEC.md` §3.9、`docs/02-DESIGN-SPEC.md` 日期选择器、`docs/09-PROJECT-STRUCTURE.md` §6.1（登记 `lib/scroll.ts` / `scroll.test.ts`）。
+- 原型同步（task-12）：`design/app/js/interactions.js` 同一口径实现（`TL_SCROLL_DURATION=160`、`MAX_STEP=120`、`ROW=24`、deltaMode 归一、WeakMap 状态、连续滚动重设目标、pointerdown 停止）；`design/app/css/app.css` 同步 `overscroll-behavior`；`design/README.md` 升 app v1.4（static 保持 v2.4，视觉无变化故不重导截图）。
+
+**验证**：
+- `npx tsc --noEmit` 通过；`node scripts/run-tests.cjs run` → **16 文件 / 201 用例通过**（基线 192，+9：滚动归一/缓动）。
+- dev 全量审计：**ALL PASS（74 项）**；新增断言：时间列表展开（`.dp-time-pick` 后等待渲染）、一次滚轮采样出现 ≥4 个不同 `scrollTop` 且最终 ≥90px、`prefers-reduced-motion` 下直接定位到 48px、Esc 只关日期浮层不关模态；截图 `13-dp-smooth-scroll.png`。
+- 原型：`node --check design/app/js/{core,render,interactions}.js` 通过；`node .agents/tmp/verify-wheel.mjs` **23/23 PASS**（单格 120→48px 且 5 个中间位置、连续两格 92px 单调不回跳、deltaMode 行/页归一、列表内 preventDefault、列表外/方向键不拦截、reduced-motion 直接到位）。
+- 打包版复验：2026-11-22 18:25 重打包后，从桌面交付目录启动便携版（`--remote-debugging-port=9290`）执行 `CDP_PORT=9290 node scripts/audit-ui.mjs` → **ALL PASS（74 项）**。
+
+**截图**：`docs/acceptance/screens/m06992-dp-smooth-scroll.png`（时间列表滚轮平滑滚动后的状态）。
+
+**交付物（2026-11-22 18:25 重打包）**：
+- `DesktopTodo-1.0.0-portable.exe` 97,697,084 B / SHA-256 `b94835293b960829e1465934361d8c6c0a670843d2185fdbd8f687c202aa9f30`
+- `DesktopTodo-1.0.0-setup.exe` 106,248,940 B / SHA-256 `b0d3191e8a01915b35add10a3ffb8bd561c92956dfb3380c1b8902231a6445f7`
+- 已复制 `release/` 与 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，并更新 `使用说明.txt` 与根 `README.md`。

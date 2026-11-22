@@ -523,6 +523,46 @@ async function main() {
   await sleep(500)
   check('完整窗口内点击任务打开模态', await mev(`Boolean(document.querySelector('.overlay .modal.wide'))`))
   await manager.screenshot('09-manager-editor-modal.png', 1100, 720)
+
+  // 时间列表滚轮平滑滚动（用户 m06992）：原生滚轮一次跳 5 行，这里改为应用内缓动
+  await mev(`document.querySelector('.modal .dp-field')?.click()`)
+  await sleep(700)
+  await mev(`(()=>{const b=document.querySelector('.dp-time-pick');if(b)b.click();return !!b})()`)
+  await sleep(450)
+  const smoothList = await mev(`(()=>{
+    const el=document.querySelector('.dp-tl-scroll');
+    if(!el) return null;
+    el.scrollTop=0;
+    const r=el.getBoundingClientRect();
+    return JSON.stringify({x:Math.round(r.x+8),y:Math.round(r.y+r.height/2)});
+  })()`)
+  check('时间列表展开（滚轮平滑前置）', Boolean(smoothList), smoothList || '')
+  if (smoothList) {
+    const pt = JSON.parse(smoothList)
+    await mev(`(()=>{const el=document.querySelector('.dp-tl-scroll');window.__aw=[];function f(){window.__aw.push(el.scrollTop);if(window.__aw.length<1200)requestAnimationFrame(f)}requestAnimationFrame(f);return true})()`)
+    for (let k = 0; k < 2; k += 1) {
+      await manager.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: pt.x, y: pt.y, deltaX: 0, deltaY: 120 })
+      await sleep(150)
+    }
+    await sleep(500)
+    const tops = (await mev(`window.__aw||[]`)).map((n) => Number(Number(n).toFixed(2)))
+    const uniq = [...new Set(tops)]
+    const finalTop = tops.length ? tops[tops.length - 1] : 0
+    check('时间列表滚轮平滑滚动（出现中间帧）', uniq.length >= 4 && finalTop >= 90, `uniq=${uniq.length} final=${finalTop}`)
+    await manager.screenshot('13-dp-smooth-scroll.png', 1100, 720)
+    // prefers-reduced-motion：直接定位、不播动画
+    await manager.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] })
+    await mev(`document.querySelector('.dp-tl-scroll').scrollTop=0`)
+    await manager.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: pt.x, y: pt.y, deltaX: 0, deltaY: 120 })
+    await sleep(180)
+    const rmTop = await mev(`document.querySelector('.dp-tl-scroll').scrollTop`)
+    check('reduced-motion 下时间列表直接定位', rmTop === 48, `top=${rmTop}`)
+    await manager.send('Emulation.setEmulatedMedia', { features: [] })
+    await mev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))`)
+    await sleep(350)
+    const escKeptModal = await mev(`Boolean(document.querySelector('.overlay .modal')) && !document.querySelector('.dp-pop')`)
+    check('Esc 只关日期浮层不关模态', escKeptModal)
+  }
   await mev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))`)
   await sleep(500)
   check('Esc 只关模态不关窗口', await mev(`Boolean(document.querySelector('.mgr')) && !document.querySelector('.overlay')`))

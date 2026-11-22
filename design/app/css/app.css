@@ -760,7 +760,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;box
 .dp-timelist{display:flex;gap:8px;margin:8px 2px 0;padding-top:8px;border-top:1px dashed var(--hairline)}
 .dp-tl-col{flex:1;min-width:0;border:1px solid var(--hairline);border-radius:8px;background:#fff;overflow:hidden}
 .dp-tl-hd{padding:4px 8px;border-bottom:1px solid var(--hairline);font-size:10px;color:var(--faint)}
-.dp-tl-scroll{max-height:132px;overflow-y:auto;padding:3px;scrollbar-width:thin;scrollbar-color:var(--sb-thumb) transparent}
+.dp-tl-scroll{max-height:132px;overflow-y:auto;padding:3px;scrollbar-width:thin;scrollbar-color:var(--sb-thumb) transparent;overscroll-behavior:contain}
 .dp-tl-scroll::-webkit-scrollbar{width:var(--sb-w-c)}
 .dp-tl-scroll::-webkit-scrollbar-thumb{background:var(--sb-thumb);border-radius:var(--sb-radius);border:1px solid transparent;background-clip:padding-box}
 .dp-tl-item{display:block;width:100%;height:24px;border:0;border-radius:5px;background:transparent;

@@ -149,3 +149,11 @@
 - 决策：链接的输入模型统一为 `{target, title}` 双字段，新增 `parseLinkInput(target,title)` 作为唯一解析入口（地址必填 + detectLink 识别类型；标题 trim 后 ≤120；`display = 自定义标题 || 自动标题`）。添加行与行内编辑共用该模型：添加行两输入（地址 + 标题可选，任一 Enter 提交）；行内编辑同一编辑态显示两输入（点击标题或路径都进入、按点击定位焦点）；Enter/失焦保存、Esc 取消、`relatedTarget` 防切换焦点误提交；地址变更后按新地址重识别类型/图标，无效地址 toast 拒绝并保持编辑；标题留空回退自动标题；仅地址变化且原标题为自动名称时标题跟随重算，自定义标题保留。
 - 理由：地址与标题是同一实体的两个字段，分散成「先添加再改名」只是把一次交互拆成两次；把联动规则收敛到 `parseLinkInput` + `commitLinkEdit` 可避免各处重复判断，原型 `DT.parseLinkInput` 与 `startLinkEdit/commitLinkEdit` 与之逐字对齐。
 - 验证：`links.test.ts` 4 用例（192 项总）、dev/打包版审计各 70 项 ALL PASS（含添加行两输入、添加时填标题、改地址重算名称、危险地址拒绝）；原型静态页 41 + 12 项断言 PASS。
+
+## D22 日期选择器时间列表用应用内平滑滚动（2026-11-22，用户 m06992）
+
+- 现象：用户在高刷新率（300Hz）机器上仍感觉时间列表滚轮「卡顿」。实测排除了渲染/合成因素：空闲 rAF 301–302 帧/秒（vsync 300Hz），JS 驱动滚动帧间隔 p50 3.30ms、无 >20ms 丢帧，开/关硬件加速与 `--enable-smooth-scrolling` 表现一致。
+- 根因：Electron/Chromium 原生滚轮按固定像素步进（一格 120px = 5 行）一次性跳变，时间列表可视区只有 132px（约 5.5 行），一格几乎换掉整屏内容且没有插值帧，视觉上就是跳变。
+- 决策：在 `.dp-tl-scroll` 上接管 wheel（passive:false，命中才 preventDefault），自己按 deltaMode 归一增量（像素 ×0.4 / 行 ×24 / 页 ×clientHeight，单次限幅 ±120），以 160ms ease-out 用 rAF 把 scrollTop 插值到目标；连续滚动从当前 scrollTop 重设目标并取消上一段动画；`prefers-reduced-motion: reduce` 直接定位；pointerdown、键盘方向键与滚动条保持原生；列表加 `overscroll-behavior: contain`。
+- 理由：不能依赖 Chromium 原生平滑滚动（不同平台/开关表现不一致，CDP 与真实滚轮均观察到无插值）；自己接管可精确控制步长与时长，并用纯函数（`scroll.ts`）覆盖归一/缓动逻辑，避免把行为散落在组件里。
+- 验证：`scroll.test.ts` 9 用例（201 项总）；CDP 采样器在一次滚轮内采到 70 个不同 scrollTop（修复前仅 1 个）；audit 新增 4 条断言（展开、平滑中间帧、reduced-motion 直接定位、Esc 只关日期浮层），dev 74 项 ALL PASS；原型 `interactions.js` 同步实现，23/23 断言 PASS；app v1.4，static v2.4 不变。
