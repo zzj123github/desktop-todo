@@ -64,8 +64,8 @@ node server.mjs
 | static-prototype.html | **静态原型 v2.1**，同步当前界面：三形态、任务与链接、五维筛选、管理入口、删除确认、侧栏边界 |
 | app-fullpage.webp | **唯一整页长图（视觉验收基准）**，由 static-prototype.html 整页导出 |
 | app-manager.png | 完整窗口 · 今天视图（最新左栏 pencil 入口） |
-| app-desktop.png | 桌面挂件 · 主入口 |
-| app-capsule.png | 收起胶囊 · 只留今天进度 |
+| app-desktop.png | 桌面挂件 · 主入口（2026-11-22 重新导出：无外投影） |
+| app-capsule.png | 收起胶囊 · 只留今天进度（2026-11-22 重新导出：无外投影） |
 | app-editor.png | 编辑任务 · 多链接挂在任务下 |
 | app-dp-editor.png | 自定义日期时间选择器 |
 | app-filter.png | 五维筛选：项目与标签分组下拉 |
@@ -84,4 +84,5 @@ node server.mjs
 
 - 字体在 `app/fonts/` 与 `fonts/`，需与 HTML 一起拷贝，否则会回退系统字体
 - 原型数据在浏览器 localStorage（key: `desktopTodo.proto.v1`），清缓存/重置演示都会恢复 seed
+- 桌面形态（挂件/胶囊）不使用外投影：Electron 窗口边界＝卡片边界，外投影会被裁切、只在圆角缺口露灰边；`ui/tokens.css` 的 --shadow-widget* / --shadow-capsule* 是 1px 内描边（8% / 未置顶 6% / hover 12%），与实现一致（2026-11-22 调整）
 - 静态服务器只监听 127.0.0.1，不对外网开放

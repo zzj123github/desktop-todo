@@ -35,7 +35,7 @@ a{color:var(--link)}
 [hidden]{display:none !important}
 
 /* ================= 桌面挂件层 ================= */
-/* 挂件 */
+/* 挂件：窗口边界＝卡片边界，桌面形态不画外投影（被矩形窗口裁切），--shadow-widget* 是 1px 内描边 */
 .widget{
   width:352px;max-height:520px;display:flex;flex-direction:column;
   background:var(--card);border-radius:var(--radius-2xl);overflow:hidden;

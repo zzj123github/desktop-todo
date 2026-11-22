@@ -101,3 +101,9 @@
 - 决策：主进程新建独立透明窗口（`openEditorWindow` / `closeEditorWindow` / `resizeEditorWindow`），窗口宽 550（502 + 24×2 内边距），高度由渲染层 `editor:ready` 上报后居中到挂件所在显示器；渲染层用同一 `EditorModal` + `Modal embedded` 模式（不画遮罩、不锁滚动）。挂件/完整窗口的既有编辑路径不变。
 - 理由：同一 bundle 多视图（docs/09）、不复制表单实现；窗口级隔离避免 352/1100 两种窗口尺寸的裁切问题；三态互斥不受影响（编辑窗口是瞬态覆盖层，挂件保持可见）。
 - 配套修正：`anchoredPosition` 的翻转阈值 `needed` 从 `min(popHeight,320)` 改为 `popHeight`——351 高的日期面板在 829 高窗口里「差一点」不翻转会被裁 11px。
+## D15 · 原型与实现统一去掉桌面形态外投影（2026-11-22，用户 m00565 指示）
+
+- 背景：用户确认不需要「浮在桌面上、四周带大外投影」的效果，要求原型与相关说明一起调整。此前 D9/D12 只改了 Electron 实现，原型 `design/app` 仍保留大外投影——这正是「原型能力 vs 窗口能力」的错位。
+- 决策：`design/ui/tokens.css` 与 `src/renderer/src/styles/tokens.css` 的 4 个桌面形态 shadow token 改为 `inset 0 0 0 1px` 内描边（8% / 未置顶 6% / hover 12% ink）；`design/app/css/app.css` 的 `.widget` / `.widget.unpinned` / `.capsule` / `.capsule:hover` / `.cap-wrap.dragging .capsule` 改用这些 token，原型不再画外投影；`docs/02` §3、`docs/08` §1.4/§2.2/§2.4、`README.md`、`design/README.md` 同步。
+- 理由：Electron 透明窗口边界＝卡片边界，任何绘制在卡片外的效果（外投影/外发光/位移）都会被矩形窗口裁切，只在圆角缺口露灰边；原型作为像素基准必须表达「窗口内可落地」的形态，否则实现只能二次偏离。
+- 验证：更新后的原型用无头 Chrome 重新导出 `design/app-desktop.png` / `design/app-capsule.png`；卡片四周无外投影、只剩 1px 内描边；`node scripts/run-tests.cjs` 全绿。

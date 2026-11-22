@@ -172,7 +172,7 @@
 
 | 反馈 | 根因 | 修复 | 验证 |
 | --- | --- | --- | --- |
-| 挂件/胶囊下有灰色底板 | 透明窗口沿用了 08 原型的大投影 `--shadow-widget/--shadow-capsule`，在浅色桌面上渲染成灰色矩形 | `src/renderer/src/styles/app.css` 桌面形态改用 token 派生轻投影 + 1px 内描边；`.unpinned` 更轻；tokens.css 未改 | CDP `getComputedStyle(...).boxShadow` = `0 4px 16px color(ink 10%) + 1px ink 8%`；OS 截图确认无灰色矩形 |
+| 挂件/胶囊下有灰色底板 | 透明窗口沿用了 08 原型的大投影 `--shadow-widget/--shadow-capsule`，在浅色桌面上渲染成灰色矩形 | `src/renderer/src/styles/app.css` 桌面形态改用 1px 内描边；后续原型与 tokens 也统一去掉外投影（见第 7 节） | 真机四角像素＝背景色（挂件 `(247,249,255)`、胶囊 `(251,252,255)`）；桌面形态 computed `box-shadow` 为 inset 1px 内描边 |
 | 胶囊只有左侧对勾可点开 | 胶囊主体是 `-webkit-app-region: drag` 拖动区，吞掉点击 | 改用 renderer pointer 事件 + 主进程 `setBounds`：新增 `widget:beginDrag/dragMove/endDrag`；整块可点，位移 ≥4px 才进入拖动并抑制展开 | CDP `Input.dispatchMouseEvent`：点胶囊中部 → `view-widget` ✓；点对勾圆 → 展开 ✓；拖动 6 步后仍 `view-capsule`（未误展开）且 `settings.capsuleBounds` 从 {994,77} 写回 {1162,182} ✓ |
 | 胶囊很难拖动 | 同上，只有拖动区可用 | 同上，整块可拖；松手写回 `capsuleBounds`（clamp 到 workArea） | 同上；另设 `.view-capsule .capsule{cursor:grab}`、`.dragging{cursor:grabbing}` |
 | 完整窗口输入框下方日期面板一点就关、无法选择 | `Popover` 的 outside-click 把 portal 出来的 `.dp-pop` 当成外部点击 | `anchoredPosition.ts` 增加 `FLOATING_LAYER_SELECTOR='.pop, .dp-pop, .overlay'` + `isInsideFloatingLayer()`；`Popover` mousedown 判断命中内嵌浮层则不关闭 | CDP：composer 日期浮层 → 打开 `.dp-pop` → 点 25 日 → `.pop`/`.dp-pop` 均保持打开 → 点「确定」→ 生效为「11月25日 00:30」并关闭；截图 `.agents/reports/screens/m6-fix-datepicker.png` |
@@ -359,3 +359,20 @@
 **补充（2026-11-22 11:30 打包版复验）**：
 - 修复「hover 位移」之外又修了亚像素裁切：`175%` DPI 下胶囊窗口 client 为 284×54 但渲染视口 innerHeight≈55，`height:100%` 会让卡片比窗口高约 0.4px、底部圆角被裁。改为 `.view-capsule .cap-wrap{display:flex;align-items:center;justify-content:center}` + `.capsule{height:var(--capsule-h,54px)}`，卡片固定 54 高并居中。
 - 打包版（桌面交付目录启动）复验：胶囊 `y=0.71 / h=54`（完整可见、无裁切），`Input.dispatchMouseEvent` 悬停后 `transform:none`、`y/h` 不变、内描边 12%；OS 截图圆角上下弧线连续。
+
+
+## 7) 2026-11-22 11:36 原型与实现统一去掉桌面形态外投影（用户 2026-11-22 11:33 指示）
+
+**用户指示**：不需要「浮在桌面上、四周带大外投影」的效果，要求原型与相关说明同步调整。
+
+**改动**：
+- `design/ui/tokens.css` 与 `src/renderer/src/styles/tokens.css`：4 个桌面形态 shadow token（`--shadow-widget` / `--shadow-widget-unpinned` / `--shadow-capsule` / `--shadow-capsule-hover`）改为 `inset 0 0 0 1px` 内描边（8% / 未置顶 6% / hover 12% ink），两份 tokens 保持一致。
+- `design/app/css/app.css`：`.widget` / `.widget.unpinned` / `.capsule` / `.capsule:hover` / `.cap-wrap.dragging .capsule` 改用上述 token，原型不再画外投影。
+- 说明文档：`docs/02` §3、`docs/08` §1.4/§2.2/§2.4、`README.md`、`design/README.md` 同步为「桌面形态只用 1px 内描边、不使用外投影」。
+- 参考截图：`design/app-desktop.png`、`design/app-capsule.png` 由更新后的原型重新导出（1280×696 @2x，演示时钟固定在 2026-11-21 20:58，与旧图同状态便于对比）。
+
+**验证**：
+- 原型（无头 Edge 158 + CDP，1280×696 @2x）：`.widget` / `.capsule` 的 computed `box-shadow` 均为 `color(srgb 0.121569 0.117647 0.113725 / 0.08) 0px 0px 0px 1px inset`（只剩内描边）；重新导出 `design/app-desktop.png`、`design/app-capsule.png`。
+- 像素复核（重导图）：卡片四边外 3px 取样与同方向远处壁纸的差值 ≤5/255（属于壁纸渐变本身的量级），无外投影造成的暗带；旧图同一位置为明显的外投影暗带。
+- 实现：桌面形态规则仍为 `inset 0 0 0 1px ...`（8% / 未置顶 6% / hover 12%）；tokens 的 4 个 shadow token 同步改为内描边（base 规则与拖拽态使用），未引入新的外投影绘制。
+- 回归：`node scripts/run-tests.cjs` 13 文件 171 用例全部通过；`npx tsc --noEmit` 0 错误；`pnpm build` 通过并更新 `out/`（renderer CSS 66.95 kB）。

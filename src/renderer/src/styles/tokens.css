@@ -131,10 +131,11 @@
   --shadow-card-strong:0 2px 8px rgba(60,50,30,.05);
   --shadow-pop:0 18px 40px rgba(60,50,30,.16),0 2px 6px rgba(60,50,30,.06);
   --shadow-modal:0 34px 90px rgba(40,30,15,.34),0 0 0 1px rgba(60,50,30,.06);
-  --shadow-widget:0 24px 60px rgba(20,15,10,.35),0 0 0 1px rgba(255,255,255,.12) inset;
-  --shadow-widget-unpinned:0 14px 34px rgba(20,15,10,.22),0 0 0 1px rgba(255,255,255,.10) inset;
-  --shadow-capsule:0 18px 50px rgba(20,15,10,.36),0 0 0 1px rgba(255,255,255,.10) inset;
-  --shadow-capsule-hover:0 22px 56px rgba(20,15,10,.42),0 0 0 1px rgba(255,255,255,.12) inset;
+  /* 桌面形态（挂件/胶囊）不使用外投影：窗口边界＝卡片边界，外投影会被矩形窗口裁切、只在圆角缺口露灰边；用 1px 内描边表达边界（原型与实现一致） */
+  --shadow-widget:inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  --shadow-widget-unpinned:inset 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent);
+  --shadow-capsule:inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  --shadow-capsule-hover:inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
   --shadow-manager:0 30px 80px rgba(50,40,25,.20),0 0 0 1px rgba(60,50,30,.06);
   --shadow-toast:0 16px 36px rgba(20,15,5,.32);
 

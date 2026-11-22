@@ -101,14 +101,16 @@
 | --shadow-card | 静置卡片、composer |
 | --shadow-pop | 筛选/下拉/日期选择器 |
 | --shadow-modal | 编辑/管理/确认弹窗 |
-| --shadow-widget | 挂件（置顶） |
-| --shadow-widget-unpinned | 挂件（未置顶） |
-| --shadow-capsule | 胶囊静置 |
-| --shadow-capsule-hover | 胶囊 hover |
+| --shadow-widget | 挂件（置顶，1px 内描边） |
+| --shadow-widget-unpinned | 挂件（未置顶，1px 内描边） |
+| --shadow-capsule | 胶囊静置（1px 内描边） |
+| --shadow-capsule-hover | 胶囊 hover（1px 内描边，12% ink） |
 | --shadow-manager | 完整窗口 |
 | --shadow-toast | toast |
 
 禁止用纯黑阴影；阴影颜色必须来自 tokens.css。
+
+桌面形态（挂件/胶囊）的 4 个 token（--shadow-widget / --shadow-widget-unpinned / --shadow-capsule / --shadow-capsule-hover）是 **1px 内描边**，不是外投影：Electron 窗口边界＝卡片边界，外投影会被矩形窗口裁切、只在圆角缺口露灰边；原型与实现统一不使用任何外投影（2026-11-22 用户确认）。
 
 ### 1.5 动效（数值即契约）
 
@@ -180,7 +182,7 @@
 
 从上到下：拖拽区 → 标题/日期/工具 → 待办分组 → 已完成折叠 → 输入框 → footer。
 
-- 根：宽 352，max-height 520，radius 16，background --card，shadow --shadow-widget；未置顶用 --shadow-widget-unpinned。
+- 根：宽 352，max-height 520，radius 16，background --card，1px 内描边 --shadow-widget（不使用外投影）；未置顶用 --shadow-widget-unpinned。
 - 拖拽区：高 14，居中 6 个 2.5px 圆点；与头部合计顶部 36px 可拖动。
 - 头部：padding 0 14px 8px；标题 20/1.2 500；日期行 10.5，逾期数字 --accent-deep；工具按钮 26×26，图标 15；进度环 34。
 - 内容区：横向 padding 6，纵向滚动；任务行 padding 6 8，gap 8；任务标题 12.5，元信息 10。
@@ -210,9 +212,9 @@
 
 ### 2.4 胶囊
 
-- 284×54，radius 999，background --card，shadow --shadow-capsule；hover 加深内描边（12% ink），**不做位移**——窗口高度＝胶囊高度，`translateY` 会让圆角边缘被窗口边界裁切（2026-11-22 用户反馈「圆弧不连贯、被截断」）。
+- 284×54，radius 999，background --card，1px 内描边 --shadow-capsule（不使用外投影）；hover 加深内描边（12% ink，--shadow-capsule-hover），**不做位移**——窗口高度＝胶囊高度，`translateY` 会让圆角边缘被窗口边界裁切（2026-11-22 用户反馈「圆弧不连贯、被截断」）。
 - 左侧 32 陶土圆 + 白勾；标题 12/550（今天 N 项，逾期用 --accent-deep）；副行 10 --muted；右侧进度环 26。
-- 拖拽时取消 transform，阴影加深；与挂件共用同一位置记忆，切换形态时保持「就近角」屏幕坐标不变（见 §2.8）。
+- 拖拽时取消 transform、内描边加深（--shadow-capsule-hover）；与挂件共用同一位置记忆，切换形态时保持「就近角」屏幕坐标不变（见 §2.8）。
 - 单击展开挂件（约 250ms 判定窗口以区分双击）；双击打开完整窗口；Enter 展开。
 
 ### 2.8 三态互斥与位置基准
