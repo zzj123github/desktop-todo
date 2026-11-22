@@ -67,12 +67,12 @@ node server.mjs
 | app/ | **可交互原型 v1.4（交互与行为基准）**，以实时页面为准 |
 | index.html | 原型预览首页：一个入口指向可交互原型 / 静态原型 / 整页长图；`design/` 整目录可直接作为静态站根目录发布（GitHub Pages、Cloudflare Pages 等） |
 | static-prototype.html | **静态原型 v2.4**，同步当前界面：三形态与切换按钮、挂件添加收起、任务与链接（链接区双字段：添加行地址 + 标题、行内同时改标题与地址）、使用说明弹窗、五维筛选、管理入口、删除确认、侧栏边界 |
-| app-fullpage.webp | **唯一整页长图（视觉验收基准）**，由 static-prototype.html v2.4 等比例整页导出（因 WebP 单边上限 16383px，v2.4 整页高 9447 CSS，按整页高度等比用 dsf 1.73，输出 2725×16343） |
+| app-fullpage.webp | **唯一整页长图（视觉验收基准）**，由 static-prototype.html v2.4 等比例整页导出（因 WebP 单边上限 16383px，v2.4 整页高 9456 CSS，按整页高度等比用 dsf 1.73，输出 2725×16359） |
 | app-manager.png | 完整窗口 · 今天视图（含标题行形态按钮与关闭） |
 | app-desktop.png | 桌面挂件 · 主入口（添加区默认收起；2026-11-22 重新导出） |
 | app-capsule.png | 收起胶囊 · 只留今天进度（2026-11-22 重新导出） |
 | app-shapes.png | 完整窗口标题行局部：进度环、收起到挂件 / 胶囊、新建、关闭 |
-| app-widget-composer.png | 桌面挂件 · 点开「+ 添加任务」后的输入区 |
+| app-widget-composer.png | 桌面挂件 · 点开「+ 添加任务」后的输入区（2026-11-22 重新导出：任务栏贴底、挂件标题完整） |
 | app-editor.png | 编辑任务 · 多链接挂在任务下（链接区添加行为地址 + 标题两输入） |
 | app-editor-link-title.png | 编辑任务 · 点链接标题或路径进入行内双字段编辑（标题 + 地址） |
 | app-editor-link-fields.png | 添加链接 · 地址与标题一次填好（两输入 + 添加按钮） |
@@ -94,6 +94,6 @@ node server.mjs
 
 - 字体在 `app/fonts/` 与 `fonts/`，需与 HTML 一起拷贝，否则会回退系统字体
 - 原型数据在浏览器 localStorage（key: `desktopTodo.proto.v1`），清缓存/重置演示都会恢复 seed
-- 截图由 `app/` 当前版本真实导出（视口 1280×696 @2x，固定演示时间 2026-11-21 20:58）；文案里的「今天 / 逾期 / 时间」都以该演示时间为准，重新导出时请保持同一固定时间。2026-11-22 第一轮重新导出 manager / inbox / filter / settings-manage / sidebar-manage-entry / sidebar-overflow / manage / manage-project / delete-confirm / editor / dp-editor，并新增 app-help.png 与 app-editor-link-title.png；v1.3 链接区双字段版本再次导出 app-editor.png、app-editor-link-title.png（行内双字段编辑态）与 app-dp-editor.png（选择器打开时可见两输入添加行），并新增 app-editor-link-fields.png；其余截图（含桌面形态 app-desktop / app-capsule / app-widget-composer、app-shapes 局部裁剪与各管理弹窗）不涉及链接区交互，沿用旧图。整页长图 app-fullpage.webp 同步 v2.4 内容重新导出（`.page` 版式宽度 1575 CSS，整页高 9447 CSS，因超 WebP 单边 16383px 上限，按整页高度等比改用 dsf 1.73，输出 2725×16343）
+- 截图由 `app/` 当前版本真实导出（视口 1280×696 @2x，固定演示时间 2026-11-21 20:58）；文案里的「今天 / 逾期 / 时间」都以该演示时间为准，重新导出时请保持同一固定时间。2026-11-22 第一轮重新导出 manager / inbox / filter / settings-manage / sidebar-manage-entry / sidebar-overflow / manage / manage-project / delete-confirm / editor / dp-editor，并新增 app-help.png 与 app-editor-link-title.png；v1.3 链接区双字段版本再次导出 app-editor.png、app-editor-link-title.png（行内双字段编辑态）与 app-dp-editor.png（选择器打开时可见两输入添加行），并新增 app-editor-link-fields.png；其余截图（含桌面形态 app-desktop / app-capsule、app-shapes 局部裁剪与各管理弹窗）不涉及链接区交互，沿用旧图。整页长图 app-fullpage.webp 同步 v2.4 内容重新导出（`.page` 版式宽度 1575 CSS，整页高 9456 CSS，因超 WebP 单边 16383px 上限，按整页高度等比改用 dsf 1.73，输出 2725×16359）；2026-11-22 单独重导 app-widget-composer.png（修正导出视口偏小造成的挂件标题被裁、模拟桌面任务栏未贴底，任务栏现与图片底边对齐），并同步重导整页长图（导出方式：视口宽 1671px 使 `.page` 列宽 1575px，从 `.page` 左缘裁剪 1575 宽、整页高，dsf 1.73；导出前加 cache-bust 并等字体与全部图片 ready）
 - 桌面形态（挂件/胶囊）不使用外投影：Electron 窗口边界＝卡片边界，外投影会被裁切、只在圆角缺口露灰边；`ui/tokens.css` 的 --shadow-widget* / --shadow-capsule* 是 1px 内描边（8% / 未置顶 6% / hover 12%），与实现一致（2026-11-22 调整）
 - 静态服务器只监听 127.0.0.1，不对外网开放

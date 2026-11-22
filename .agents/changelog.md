@@ -83,3 +83,4 @@
 2026-11-22 | update | docs/08-UI-ENGINEERING-SPEC.md, docs/02-DESIGN-SPEC.md, docs/09-PROJECT-STRUCTURE.md, docs/acceptance/screens/m06992-dp-smooth-scroll.png | 同步平滑滚动规范（08 §3.9、02 日期选择器）、登记 lib/scroll.ts 与测试、存档审计截图 | 用户 m06992 要求规范一并调整
 2026-11-22 | update | .agents/memory/decisions.md | 新增 D22（时间列表应用内平滑滚动及理由/验证） | 用户 m06992 决策记录
 2026-11-22 | repackage | release/, Desktop 交付目录, README.md, 使用说明.txt, docs/acceptance/M6-ACCEPTANCE.md | 18:25 重打包：portable 97,697,084 B / b9483529…，setup 106,248,940 B / b0d3191e…；打包版审计 74/74 PASS；更新 README 校验表/修复清单、使用说明 v18:25 与验收 §14 | 时间列表平滑滚动修复进入交付物
+2026-11-22 | update | design/app-widget-composer.png, design/app-fullpage.webp, design/static-prototype.html, design/README.md | 修正静态原型页的桌面挂件添加区截图：原图导出视口偏小（1280×696 内容被裁成 580 CSS 高再补底），挂件标题被裁、模拟桌面任务栏未贴底；按 1280×696@2x + 固定演示时间 2026-11-21 20:58 重导（实测 .taskbar bottom=696、像素底行为任务栏色），整页长图同步重导（2725×16359，整页高 9456 CSS、dsf 1.73），图注 05 改为「桌面挂件 · 添加任务输入区（点开后）」 | 用户 m07464 反馈图片中模拟桌面状态栏不在最底部
