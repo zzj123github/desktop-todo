@@ -19,6 +19,17 @@
 
 全部界面截图与整页长图在 `design/`。
 
+## 下载
+
+安装包发布在 GitHub Releases：
+
+- 下载页：https://github.com/kkk-kppi/desktop-todo/releases
+- 推送 `v*` tag 后，GitHub Actions 会自动构建并上传两个包：
+  - `DesktopTodo-<version>-portable.exe`：便携版，双击即用
+  - `DesktopTodo-<version>-setup.exe`：安装版，按向导安装
+
+本机自行构建：`pnpm install && pnpm dist:win`，产物输出到 `release/`。
+
 ## 安装
 
 系统要求：Windows 10 1903+ / Windows 11（x64）。
