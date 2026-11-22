@@ -553,3 +553,28 @@
 - `DesktopTodo-1.0.0-portable.exe` 97,697,084 B / SHA-256 `b94835293b960829e1465934361d8c6c0a670843d2185fdbd8f687c202aa9f30`
 - `DesktopTodo-1.0.0-setup.exe` 106,248,940 B / SHA-256 `b0d3191e8a01915b35add10a3ffb8bd561c92956dfb3380c1b8902231a6445f7`
 - 已复制 `release/` 与 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，并更新 `使用说明.txt` 与根 `README.md`。
+
+## 15) 2026-11-22 20:4x 便携版「托盘 → 退出」偶发主进程异常弹窗（用户 m07685）
+
+**用户反馈**：使用便携版测试时，退出应用（托盘图标右键 →「退出」）偶尔弹出错误提示；用户通过选项确认为「A JavaScript error occurred in the main process（主进程异常，带堆栈）」，今日已出现几次。原始截图附件未成功上传，未取得栈文本。
+
+**根因（审计结论）**：
+- 应用未注册 `process.on('uncaughtException')` / `process.on('unhandledRejection')`，Electron 默认会在主进程未捕获异常时弹出该系统级错误框；Node 15+ 未处理的 Promise rejection 默认按 throw 处理，同样进入此路径。
+- 退出过程中存在多类未加保护的异步回调/事件：窗口 `loadView()` 丢弃 `loadFile/loadURL` 返回的 Promise（退出/销毁时 reject 变成 unhandledRejection）；导出/导入文件对话框 `dialog.showSaveDialog/showOpenDialog(...).then(...)` 没有 `.catch`；`before-quit` 先关闭数据库，随后窗口 `focus`/`blur`、bounds 防抖、显示设置变化等事件仍可能读取 settings（getDb 抛「数据库不可用」）；提示队列重试定时器与启动提示定时器在退出时未清理，可能在退出中新建提示窗口；`broadcast` 未判断 `webContents.isDestroyed()`，退出中 send 可能抛「Object has been destroyed」。
+
+**修复**：
+- 退出顺序：`before-quit` 只做 `setQuitting(true)` → flush 窗口位置 → 清空提示队列与启动定时器；`will-quit`（窗口全部关闭后）再 checkpoint、关闭数据库、注销快捷键、销毁托盘，各步独立 try/catch。
+- 退出阶段静默：`loadView()` 的加载 Promise 增加 catch（退出/已销毁时忽略）；文件对话框 Promise 补 catch 并在退出时直接返回；`applyWidgetOpacity`/`settleWidgetIdleOpacity`/`applyAlwaysOnTop` 在退出或数据库不可用时提前返回并使用安全读取；bounds 防抖回调内持久化与透明度恢复同 try/catch；`reclampWindows` 退出时提前返回；`broadcast*` 增加 webContents 存活判断；窗口创建/显示入口（提示窗、编辑窗、完整窗口、挂件）在退出时直接返回。
+- 提示队列：新增 `disposeNotices()`，清理 presenter、队列、当前提示与重试定时器；启动提示改用 `scheduleStartupNotice()` 记录定时器句柄，退出时 `clearStartupTimers()`。
+- 日志与兜底：新增 `src/main/logger.ts`（`userData/logs/main.log`，512KB 轮转为 `main.old.log`）；`installProcessGuards()` 捕获 `uncaughtException` / `unhandledRejection`，退出阶段只记录不弹框，非退出阶段记录后仍弹出错误框（不静默吞错）。
+
+**验证**：
+- `npx tsc --noEmit` 通过；`node scripts/run-tests.cjs run` → **17 个测试文件 / 208 用例通过**（基线 16/201；新增 `logger` 5 例、`notices.dispose` 2 例）。
+- dev 退出压力（175% DPI）：启动即退出 clean 957ms、打开完整窗口后退出 clean 940ms、打开编辑窗口后退出 clean 942ms；提示窗「部分全局快捷键注册失败」待确认时退出 clean 595ms（修复前该路径会卡住/残留进程）；均无异常日志、无弹窗。
+- dev 全量审计 **ALL PASS（74 项）**。
+- 打包版（2026-11-22 20:37 重打包）：立即退出 clean 6237ms（首次含便携解包）、完整窗口退出 518ms、提示窗待确认退出 527ms；均无 `%APPDATA%\DesktopTodo\logs` 异常日志；`CDP_PORT=9320 node scripts/audit-ui.mjs` → **ALL PASS（74 项）**。
+
+**交付物（2026-11-22 20:37 重打包）**：
+- `DesktopTodo-1.0.0-portable.exe` 97,708,366 B / SHA-256 `a0a92dbbe6465f340501946e0f2d65a753c5ace836eae465757b754b9a38281b`
+- `DesktopTodo-1.0.0-setup.exe` 106,249,746 B / SHA-256 `c8bef06aaa7a3e4a3c210920bfa80e3a4af36b4345bd182dc3fabe74379ff5e0`
+- 已复制 `release/` 与 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，并更新 `使用说明.txt` 与根 `README.md`。

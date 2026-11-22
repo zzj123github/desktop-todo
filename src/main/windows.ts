@@ -20,6 +20,7 @@ import { app, BrowserWindow, screen, type Rectangle } from 'electron'
 import { join } from 'node:path'
 import type { AppNotice, SettingsKey } from '../shared/types'
 import { handleNoticeWindowClosed } from './notices'
+import { logMainError } from './logger'
 import {
   getBooleanSetting,
   getNumberSetting,
@@ -111,6 +112,32 @@ function preloadPath(): string {
   return join(__dirname, '../preload/index.js')
 }
 
+/** 主进程日志目录：退出阶段 userData 仍可读，异常统一写 logs/main.log（用户 m07685） */
+function mainLogDir(): string {
+  try {
+    return join(app.getPath('userData'), 'logs')
+  } catch {
+    return ''
+  }
+}
+
+function recordMainError(scope: string, error: unknown): void {
+  const dir = mainLogDir()
+  if (dir) logMainError(dir, scope, error)
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(`[main] ${scope}：${message}`)
+}
+
+/** 退出阶段读设置会命中已关闭的数据库（closeDatabase 后 getDb 抛错）：静默回退 */
+function readNumberSettingSafe(key: SettingsKey, fallback: number): number {
+  if (quitting) return fallback
+  try {
+    return getNumberSetting(key)
+  } catch {
+    return fallback
+  }
+}
+
 function loadView(
   win: BrowserWindow,
   view: 'widget' | 'manager' | 'quickadd' | 'editor' | 'notice',
@@ -119,11 +146,15 @@ function loadView(
   const file = view === 'quickadd' ? 'quickadd.html' : 'index.html'
   const search = new URLSearchParams({ view, ...params }).toString()
   const devUrl = process.env['ELECTRON_RENDERER_URL']
-  if (devUrl) {
-    void win.loadURL(`${devUrl}/${file}?${search}`)
-  } else {
-    void win.loadFile(join(__dirname, `../renderer/${file}`), { search: `?${search}` })
-  }
+  const loading = devUrl
+    ? win.loadURL(`${devUrl}/${file}?${search}`)
+    : win.loadFile(join(__dirname, `../renderer/${file}`), { search: `?${search}` })
+  // 窗口在加载完成前被销毁（退出、切换形态、编辑器复用）会以 ERR_ABORTED 拒绝，
+  // 属于预期路径；不能让 Promise 拒绝冒泡成主进程未捕获异常（用户 m07685）。
+  void loading.catch((error: unknown) => {
+    if (quitting || win.isDestroyed()) return
+    recordMainError(`窗口加载失败（${view}）`, error)
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -346,10 +377,11 @@ function scheduleBoundsSave(kind: 'widget' | 'capsule' | 'manager'): void {
       boundsTimers.delete(kind)
       try {
         persistBounds(kind)
-      } catch {
-        // 退出过程中设置表可能已关闭：忽略，避免崩溃
+        settleWidgetIdleOpacity()
+      } catch (error) {
+        // 退出过程中设置表/窗口可能已关闭：记录但不弹框（用户 m07685）
+        if (!quitting) recordMainError('窗口位置保存失败', error)
       }
-      settleWidgetIdleOpacity()
     }, BOUNDS_SAVE_DEBOUNCE_MS)
   )
 }
@@ -382,8 +414,9 @@ function bindBoundsPersistence(win: BrowserWindow, kind: 'manager' | 'widget'): 
 
 /** 非焦点时按设置降低不透明度（仅挂件；Windows 支持 setOpacity） */
 export function applyWidgetOpacity(): void {
-  if (!widgetWindow || widgetWindow.isDestroyed()) return
-  const configured = getNumberSetting('opacity')
+  if (quitting || !widgetWindow || widgetWindow.isDestroyed()) return
+  // 退出阶段数据库可能已关闭：读取失败时保持当前不透明度，不要把异常抛进 focus/blur 回调
+  const configured = readNumberSettingSafe('opacity', 1)
   const focused = widgetWindow.isFocused()
   const target = focused ? 1 : Math.min(1, Math.max(0.2, configured))
   try {
@@ -400,15 +433,15 @@ export function applyWidgetOpacity(): void {
  * 必须再点一下别处才恢复 80%。拖动不是文本输入，结束后主动失焦即可立即恢复设定值。
  */
 function settleWidgetIdleOpacity(): void {
-  if (!widgetWindow || widgetWindow.isDestroyed() || quitting) return
-  const configured = getNumberSetting('opacity')
+  if (quitting || !widgetWindow || widgetWindow.isDestroyed()) return
+  const configured = readNumberSettingSafe('opacity', 1)
   if (configured >= 1) return
   if (!widgetWindow.isFocused()) return
   widgetWindow.blur()
 }
 
 export function applyAlwaysOnTop(enabled: boolean): void {
-  if (!widgetWindow || widgetWindow.isDestroyed()) return
+  if (quitting || !widgetWindow || widgetWindow.isDestroyed()) return
   if (enabled) widgetWindow.setAlwaysOnTop(true, 'floating')
   else widgetWindow.setAlwaysOnTop(false)
 }
@@ -689,6 +722,7 @@ function editorWindowBounds(height: number): Rectangle {
 
 /** 打开任务编辑弹窗；taskId 为空表示新建任务 */
 export function openEditorWindow(taskId: string | null): void {
+  if (quitting) return
   if (editorWindow && !editorWindow.isDestroyed()) {
     editorWindow.destroy()
     editorWindow = null
@@ -782,6 +816,8 @@ function noticeWindowBounds(height: number): Rectangle {
 
 /** 打开（或聚焦）应用内提示窗口 */
 export function createNoticeWindow(): void {
+  // 退出阶段不再新建窗口，避免在 teardown 中重新触发加载/队列（用户 m07685）
+  if (quitting) return
   if (noticeWindow && !noticeWindow.isDestroyed()) {
     if (!noticeWindow.isVisible()) {
       noticeWindow.show()
@@ -922,6 +958,8 @@ function createManagerWindow(): BrowserWindow {
 
 /** 显示器增删/分辨率变化后把已存在窗口重新夹进可见工作区（桌面形态保持基准角） */
 function reclampWindows(): void {
+  // 退出过程中显示器变化不再重排窗口，避免操作正在销毁的窗口
+  if (quitting) return
   if (widgetWindow && !widgetWindow.isDestroyed()) {
     const bounds = widgetWindow.getBounds()
     const wa = screen.getDisplayMatching(bounds).workArea
@@ -974,7 +1012,7 @@ export function getManagerWindow(): BrowserWindow | null {
 
 /** 显示桌面形态（挂件/胶囊）；三态互斥：显示时隐藏完整窗口 */
 export function showWidget(): void {
-  if (!widgetWindow || widgetWindow.isDestroyed()) return
+  if (quitting || !widgetWindow || widgetWindow.isDestroyed()) return
   if (managerWindow && !managerWindow.isDestroyed() && managerWindow.isVisible()) {
     managerWindow.hide()
   }
@@ -1038,6 +1076,7 @@ function ensureManagerWindow(initialView?: string): BrowserWindow {
 }
 
 export function showManager(): void {
+  if (quitting) return
   const win = ensureManagerWindow()
   if (win.webContents.isLoadingMainFrame()) {
     win.once('ready-to-show', revealManager)
@@ -1048,6 +1087,7 @@ export function showManager(): void {
 
 /** 打开完整窗口并定位到指定内置视图（全局快捷键 Alt+1..5） */
 export function showManagerView(viewId: string): void {
+  if (quitting) return
   if (!managerWindow || managerWindow.isDestroyed()) {
     const win = ensureManagerWindow(viewId)
     win.once('ready-to-show', revealManager)
@@ -1065,13 +1105,18 @@ export function showManagerView(viewId: string): void {
 
 export function broadcast(channel: string, payload?: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) win.webContents.send(channel, payload)
+    if (win.isDestroyed()) continue
+    // webContents 可能先于窗口销毁：退出阶段 send 会抛 "Object has been destroyed"
+    if (!win.webContents || win.webContents.isDestroyed()) continue
+    win.webContents.send(channel, payload)
   }
 }
 
 export function broadcastToOthers(channel: string, payload: unknown, senderId: number): void {
   for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed() && win.webContents.id !== senderId) win.webContents.send(channel, payload)
+    if (win.isDestroyed()) continue
+    if (!win.webContents || win.webContents.isDestroyed()) continue
+    if (win.webContents.id !== senderId) win.webContents.send(channel, payload)
   }
 }
 

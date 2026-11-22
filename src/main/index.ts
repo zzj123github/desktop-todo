@@ -11,9 +11,11 @@
  */
 import { app, dialog } from 'electron'
 import type { BrowserWindow } from 'electron'
+import { join } from 'node:path'
 import { checkpoint, closeDatabase, getDbError, isDbHealthy, openDatabase } from './db'
+import { formatErrorDetail, logMainError } from './logger'
 import { registerIpcHandlers } from './ipc'
-import { initNotices, postNotice } from './notices'
+import { disposeNotices, initNotices, postNotice } from './notices'
 import { syncLaunchAtLogin } from './login'
 import { runSeed } from './seed'
 import { disposeShortcuts, setupShortcuts } from './shortcuts'
@@ -26,6 +28,7 @@ import {
   getManagerWindow,
   getWidgetWindow,
   isNoticeWindowLoaded,
+  isQuitting,
   sendNoticeToWindow,
   setQuitting,
   showWidget
@@ -60,6 +63,60 @@ function reportFatal(message: string, error?: unknown): void {
   const detail = error instanceof Error ? error.message : error === undefined ? '' : String(error)
   console.error(`[main] ${message}${detail ? `：${detail}` : ''}`)
 }
+
+/** 启动阶段 800ms 后的提示定时器：退出时要清掉，避免 teardown 中再投递（用户 m07685） */
+const startupTimers: NodeJS.Timeout[] = []
+
+function scheduleStartupNotice(task: () => void, delayMs: number): void {
+  const timer = setTimeout(() => {
+    const index = startupTimers.indexOf(timer)
+    if (index >= 0) startupTimers.splice(index, 1)
+    task()
+  }, delayMs)
+  timer.unref?.()
+  startupTimers.push(timer)
+}
+
+function clearStartupTimers(): void {
+  for (const timer of startupTimers.splice(0)) clearTimeout(timer)
+}
+
+/**
+ * 主进程异常收口（用户 m07685）
+ *
+ * Electron 默认把未捕获异常/未处理 Promise 拒绝直接弹成原生错误框；
+ * 应用退出阶段（托盘 → 退出）最容易因为窗口销毁、数据库关闭、加载被中断等
+ * 预期中的异步拒绝触发它。这里统一：写日志到 userData/logs/main.log，
+ * 退出阶段只记录不弹框；非退出阶段保留原有可见性（自建错误框）。
+ */
+function installProcessGuards(): void {
+  let reporting = false
+  function logDir(): string {
+    try {
+      return join(app.getPath('userData'), 'logs')
+    } catch {
+      return ''
+    }
+  }
+  function report(scope: string, error: unknown): void {
+    const dir = logDir()
+    if (dir) logMainError(dir, scope, error)
+    console.error(`[main] ${scope}：`, error)
+    // 退出阶段：只记录，不弹原生错误框
+    if (isQuitting()) return
+    if (reporting) return
+    reporting = true
+    try {
+      dialog.showErrorBox('桌面待办 · 主进程异常', `${scope}\n\n${formatErrorDetail(error)}`)
+    } finally {
+      reporting = false
+    }
+  }
+  process.on('uncaughtException', (error) => report('未捕获异常', error))
+  process.on('unhandledRejection', (reason) => report('未处理的 Promise 拒绝', reason))
+}
+
+installProcessGuards()
 
 /** --seed：导入演示数据后退出，不创建任何窗口 */
 function runSeedMode(): void {
@@ -156,7 +213,7 @@ function bootstrap(): void {
     if (!result.healthy) {
       // 数据库彻底打不开：提示用户本次运行的数据无法保存（getInfo 里也会带 dbHealthy/dbError）
       const detail = result.error ?? getDbError() ?? undefined
-      setTimeout(() => {
+      scheduleStartupNotice(() => {
         postNotice({
           kind: 'error',
           title: '数据文件不可用',
@@ -167,7 +224,7 @@ function bootstrap(): void {
       }, 800)
     } else if (result.error) {
       // 损坏后自动重建成功：告知备份位置，避免用户以为数据凭空消失
-      setTimeout(() => {
+      scheduleStartupNotice(() => {
         postNotice({
           kind: 'warning',
           title: '数据文件已重建',
@@ -201,21 +258,38 @@ if (!gotLock) {
   })
 
   app.on('before-quit', () => {
+    // 先置退出标志：窗口 close/blur、加载 promise、屏幕事件等回调据此走静默路径
+    setQuitting(true)
     try {
-      setQuitting(true)
       flushWindowBounds()
-      checkpoint()
     } catch (error) {
       reportFatal('退出前保存窗口位置失败', error)
+    }
+    try {
+      disposeNotices()
+    } catch (error) {
+      reportFatal('退出前清理提示队列失败', error)
+    }
+    clearStartupTimers()
+  })
+
+  app.on('will-quit', () => {
+    // 窗口已全部关闭后再收尾：此时不会再有 focus/blur/moved 回调访问数据库（用户 m07685）
+    try {
+      disposeNotices()
+    } catch (error) {
+      reportFatal('退出前清理提示队列失败', error)
+    }
+    try {
+      checkpoint()
+    } catch (error) {
+      reportFatal('退出前合并数据库日志失败', error)
     }
     try {
       closeDatabase()
     } catch (error) {
       reportFatal('退出前关闭数据库失败', error)
     }
-  })
-
-  app.on('will-quit', () => {
     try {
       disposeShortcuts()
     } catch (error) {

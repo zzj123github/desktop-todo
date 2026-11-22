@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   acknowledgeNotice,
+  disposeNotices,
   getCurrentNotice,
   getPendingNoticeCount,
   initNotices,
@@ -154,5 +155,35 @@ describe('原生兜底', () => {
     })
     expect(getPendingNoticeCount()).toBe(0)
     expect(harness.closed).toBe(1)
+  })
+})
+
+describe('disposeNotices（退出前清理）', () => {
+  it('丢弃排队与当前提示，之后 postNotice 不会再打开/投递窗口', () => {
+    const harness = createHarness()
+    initNotices(harness.presenter)
+    postNotice(notice('退出前的提示'))
+    expect(getPendingNoticeCount()).toBe(1)
+
+    disposeNotices()
+
+    expect(getPendingNoticeCount()).toBe(0)
+    const openedBefore = harness.opened
+    postNotice(notice('退出后再投递'))
+    expect(harness.opened).toBe(openedBefore)
+    expect(harness.sent).toHaveLength(1)
+  })
+
+  it('清掉加载重试定时器，退出后不会再触发原生兜底', () => {
+    vi.useFakeTimers()
+    const harness = createHarness()
+    harness.setLoaded(false)
+    initNotices(harness.presenter)
+    postNotice(notice())
+
+    disposeNotices()
+    vi.advanceTimersByTime(5000)
+
+    expect(harness.fallbacks).toHaveLength(0)
   })
 })

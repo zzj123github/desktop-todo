@@ -78,6 +78,7 @@ new BrowserWindow({
 })
 ```
 - 完整窗口：`frame:false` + 自绘顶部拖拽条，`resizable:true`，`skipTaskbar:false`。
+- 退出生命周期（2026-11-22，用户 m07685）：`before-quit` 只置退出标志、flush 窗口位置、清理提示队列与启动定时器；`will-quit` 在窗口全部关闭后再 checkpoint / closeDatabase、释放快捷键、销毁托盘。窗口加载 Promise、文件对话框 Promise、focus/blur 与 bounds 防抖在退出阶段一律静默；未捕获异常 / 未处理 Promise 拒绝写入 `userData/logs/main.log`，退出阶段只记录不弹原生错误框。
 - 挂件：`skipTaskbar:true`、`alwaysOnTop:'floating'`（默认）、`setVisibleOnAllWorkspaces(false)`。
 - 挂件置顶切换：`win.setAlwaysOnTop(on, 'floating')`。
 - 透明度：非焦点时 `win.setOpacity(0.9)`（仅 Windows；配合 blur/focus 事件）。

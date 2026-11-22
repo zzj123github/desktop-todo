@@ -58,6 +58,7 @@ import {
   endCapsuleDrag,
   getManagerWindow,
   getWidgetWindow,
+  isQuitting,
   moveCapsuleDrag,
   openEditorWindow,
   resizeEditorWindow,
@@ -188,6 +189,7 @@ function parentWindow(): BrowserWindow | undefined {
 }
 
 function showSaveDialogForExport(): Promise<string | null> {
+  if (isQuitting()) return Promise.resolve(null)
   const win = parentWindow()
   const options = {
     title: '导出备份',
@@ -199,15 +201,22 @@ function showSaveDialogForExport(): Promise<string | null> {
     const done = (result: { canceled: boolean; filePath?: string }): void => {
       resolve(result.canceled || !result.filePath ? null : result.filePath)
     }
+    // 退出/窗口销毁会让 dialog reject：必须在这里收口，否则 unhandledRejection 会触发
+    // 主进程未捕获异常弹窗（用户 m07685）
+    const fail = (error: unknown): void => {
+      if (!isQuitting()) console.error('[ipc] 导出对话框失败：', error)
+      resolve(null)
+    }
     if (win && !win.isDestroyed()) {
-      void dialog.showSaveDialog(win, options).then(done)
+      void dialog.showSaveDialog(win, options).then(done).catch(fail)
     } else {
-      void dialog.showSaveDialog(options).then(done)
+      void dialog.showSaveDialog(options).then(done).catch(fail)
     }
   })
 }
 
 function showOpenDialogForImport(): Promise<string | null> {
+  if (isQuitting()) return Promise.resolve(null)
   const win = parentWindow()
   const options = {
     title: '导入备份',
@@ -218,10 +227,14 @@ function showOpenDialogForImport(): Promise<string | null> {
     const done = (result: { canceled: boolean; filePaths: string[] }): void => {
       resolve(result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0])
     }
+    const fail = (error: unknown): void => {
+      if (!isQuitting()) console.error('[ipc] 导入对话框失败：', error)
+      resolve(null)
+    }
     if (win && !win.isDestroyed()) {
-      void dialog.showOpenDialog(win, options).then(done)
+      void dialog.showOpenDialog(win, options).then(done).catch(fail)
     } else {
-      void dialog.showOpenDialog(options).then(done)
+      void dialog.showOpenDialog(options).then(done).catch(fail)
     }
   })
 }

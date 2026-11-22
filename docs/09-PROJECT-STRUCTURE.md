@@ -77,6 +77,7 @@ src/
 │  ├─ shortcuts.ts      # globalShortcut 注册/注销
 │  ├─ login.ts          # app.setLoginItemSettings
 │  ├─ db.ts             # SQLite 连接、迁移、事务
+│  ├─ logger.ts         # 主进程异常日志（userData/logs/main.log，512KB 轮转）
 │  ├─ opener.ts         # 安全打开网页/路径、存在性校验（UNC 超时）
 │  ├─ settings.ts       # settings 表 + 窗口 bounds 记忆
 │  ├─ ipc.ts            # 注册所有 ipcMain.handle
@@ -213,6 +214,7 @@ desktop-todo/
 - `src/shared/types.ts`（M2 登记）：跨层 DTO / API 类型（`TaskDTO`、`FilterDTO`、`DesktopTodoApi` 等），只放类型；preload 从这里 `import type` 并 `export type { ... } from '../shared/types'` 对外转出，renderer 用 `import type` 引用，避免 renderer 直接 import preload 源码。
 - `src/renderer/src/app/`（M2/M3 登记）：页面与页面级组合，M0 只有 `main.tsx`，现按视图拆为 `App.tsx`（按 `?view=` 路由 + ToastProvider + 挂件/胶囊形态切换）、`Widget.tsx`、`Manager.tsx`、`Capsule.tsx`、`QuickAdd.tsx`、`FilterBar.tsx`（筛选行与四个浮层）、`SettingsModal.tsx`、`ViewMenu.tsx`（桌面视图下拉）。页面层只做组合与数据接线，不复制组件样式。
 - `src/renderer/src/components/`（M2 登记）：`Icons.tsx`、`anchoredPosition.ts`、`Button.tsx`、`IconButton.tsx`、`Checkbox.tsx`、`Chip.tsx`、`ProgressRing.tsx`、`EmptyState.tsx`、`Modal.tsx`、`Popover.tsx`、`Toast.tsx`、`LinkRow.tsx`、`TaskRow.tsx`、`DateTimePicker.tsx`、`Composer.tsx`、`EditorModal.tsx`、`ManageModal.tsx`、`DeleteConfirm.tsx`、`NoticeModal.tsx`（M6 后追加：应用内提示弹窗，复用 Modal embedded），与 docs/08 §6 落点一致。
+- `src/main/logger.ts`、`src/main/logger.test.ts`（2026-11-22 登记）：主进程异常日志——错误详情格式化、`userData/logs/main.log` 追加写入、超过 512KB 轮转为 `main.old.log`；由 `index.ts` 注册 `uncaughtException` / `unhandledRejection` 收口（退出阶段只写日志、不弹原生错误框，用户 m07685）。
 - `src/main/notices.ts`、`src/main/notices.test.ts`、`src/renderer/src/app/NoticeWindowHost.tsx`（2026-11-22 登记）：应用内提示体系——主进程提示队列（注入 presenter，独立 472 宽透明提示窗口，加载失败 2.5s 回退原生 dialog）+ 渲染层宿主（订阅 `on.notice`、测量高度上报、确认回执）。
 - `src/renderer/src/lib/links.ts`（M4 登记）：`isLinkUnavailable(result)` 统一「找不到该位置」判定（missing + 网络位置 unreachable，docs/03 第 127 行）；`autoLinkTitle(target)` 生成/回退链接自动标题（编辑弹窗内联标题留空时使用，规则同原型：URL 去协议截断 44 字、本地路径取最后一段）。
 - `src/renderer/src/lib/links.test.ts`（2026-11-22 登记）：链接自动标题与识别规则的单元测试（URL/www/UNC/盘符/危险协议/空白）。

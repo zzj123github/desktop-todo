@@ -143,3 +143,14 @@ export function resetNotices(): void {
   clearRetry()
   sequence = 0
 }
+
+/**
+ * 退出前丢弃队列与重试定时器，避免 teardown 中再新建/操作提示窗口
+ * （用户 m07685：提示窗未确认时退出曾出现卡住/异常）。
+ */
+export function disposeNotices(): void {
+  presenter = null
+  queue.length = 0
+  displayed = null
+  clearRetry()
+}

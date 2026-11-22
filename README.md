@@ -102,7 +102,7 @@ pnpm dist:nsis              # 只打安装包
 #    审计会临时创建「审计*」任务/项目/标签并在结束时清理，同时恢复被切换的设置。
 ```
 
-开发调试：`pnpm dev` 启动后，在任一应用窗口（挂件 / 胶囊 / 完整窗口 / 编辑弹窗）按 **F12** 打开或关闭分离式 DevTools（DevTools 打开时不抢焦点，再按 F12 即可关闭；若焦点已切到 DevTools 窗口，点回应用窗口再按 F12）。该快捷键仅开发模式注册，打包版按 F12 无行为。主进程日志直接输出在 `pnpm dev` 终端。
+开发调试：`pnpm dev` 启动后，在任一应用窗口（挂件 / 胶囊 / 完整窗口 / 编辑弹窗）按 **F12** 打开或关闭分离式 DevTools（DevTools 打开时不抢焦点，再按 F12 即可关闭；若焦点已切到 DevTools 窗口，点回应用窗口再按 F12）。该快捷键仅开发模式注册，打包版按 F12 无行为。主进程日志输出在 `pnpm dev` 终端；未捕获异常 / 未处理 Promise 拒绝会额外写入 `%APPDATA%\DesktopTodo\logs\main.log`（超过 512KB 轮转为 `main.old.log`，便于用户复现后取证）。
 
 技术栈：Electron 40 + React 18 + TypeScript + better-sqlite3 + electron-vite + electron-builder + Vitest。
 
@@ -110,8 +110,8 @@ pnpm dist:nsis              # 只打安装包
 
 | 文件 | 说明 |
 | --- | --- |
-| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,697,084 B），双击运行 |
-| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,248,940 B） |
+| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,708,366 B），双击运行 |
+| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,249,746 B） |
 | `release/win-unpacked/` | 解包目录（调试用） |
 
 本机无 MSVC 环境时，better-sqlite3 使用与 Electron ABI 匹配的预编译产物：`python scripts/fetch-native-assets.py`（脚本从 npmmirror 镜像取 Electron 与预编译 `.node`）。打包配置已设 `npmRebuild: false`，直接用预编译产物。
@@ -162,15 +162,16 @@ design/        UI 契约（tokens.css）与交互原型
 - 胶囊单击需 250ms 判定窗口（用于区分双击打开完整窗口），属交互设计而非延迟缺陷。
 - 默认使用软件合成（见「性能与内存」）：若显式设置 `DESKTOP_TODO_GPU=1`，内存会回升到表中原有水平。
 
-## 交付物校验（2026-11-22 18:25 重新打包）
+## 交付物校验（2026-11-22 20:37 重新打包）
 
 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- |
-| `DesktopTodo-1.0.0-portable.exe` | 97,697,084 B（93.2 MiB） | `b94835293b960829e1465934361d8c6c0a670843d2185fdbd8f687c202aa9f30` |
-| `DesktopTodo-1.0.0-setup.exe` | 106,248,940 B（101.3 MiB） | `b0d3191e8a01915b35add10a3ffb8bd561c92956dfb3380c1b8902231a6445f7` |
+| `DesktopTodo-1.0.0-portable.exe` | 97,708,366 B（93.2 MiB） | `a0a92dbbe6465f340501946e0f2d65a753c5ace836eae465757b754b9a38281b` |
+| `DesktopTodo-1.0.0-setup.exe` | 106,249,746 B（101.3 MiB） | `c8bef06aaa7a3e4a3c210920bfa80e3a4af36b4345bd182dc3fabe74379ff5e0` |
 
 本次重打包包含以下缺陷修复：
 
+- 退出时偶发主进程异常弹窗（托盘右键 →「退出」）：退出链路改为先置退出标志、清理提示队列与启动定时器，窗口全部关闭后再 checkpoint/关闭数据库；窗口加载 Promise、文件对话框 Promise、挂件 focus/blur 透明度读设置、窗口位置防抖、广播与显示器事件在退出阶段一律静默；新增主进程异常日志 `%APPDATA%\DesktopTodo\logs\main.log`（退出阶段只记录不弹框）。验证：17 个测试文件 / 208 用例、dev 与打包版各 74 项审计、退出压力矩阵（启动即退出 / 打开完整窗口退出 / 提示窗待确认退出）均退出干净且无异常日志。
 - 日期选择器的时间列表滚动更顺滑：滚轮改为应用内平滑滚动（一格约 2 行、160ms ease-out，连续滚动不叠加），并尊重「减少动态效果」；不再出现一格滚轮整屏跳变（原型 app v1.4、验证见验收 §14）。
 - 链接添加/编辑支持「地址 + 标题」双字段：添加链接行同时提供地址与标题（可选）两个输入；编辑弹窗内点击链接标题或路径进入同一行内编辑态，可同时改地址与标题；地址无效拒绝并保持编辑，Esc 取消，空标题回退自动标题，仅改地址且原标题为自动名称时跟随重算（原型 app v1.3 / static v2.4、截图同步）。
 - 高 DPI（如 175%）下挂件 / 胶囊右/下边缘被裁切：桌面形态窗口改为「可见卡片四周各 2px 透明留白」（挂件窗口 356 ×（内容高+4）、胶囊窗口 288×58，卡片仍精确为 352 / 284×54），并规范化落盘尺寸，消除 DPI 取整导致的 ±1px 漂移；审计新增挂件/胶囊卡片完整位于窗口内的断言。

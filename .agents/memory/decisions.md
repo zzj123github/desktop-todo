@@ -157,3 +157,10 @@
 - 决策：在 `.dp-tl-scroll` 上接管 wheel（passive:false，命中才 preventDefault），自己按 deltaMode 归一增量（像素 ×0.4 / 行 ×24 / 页 ×clientHeight，单次限幅 ±120），以 160ms ease-out 用 rAF 把 scrollTop 插值到目标；连续滚动从当前 scrollTop 重设目标并取消上一段动画；`prefers-reduced-motion: reduce` 直接定位；pointerdown、键盘方向键与滚动条保持原生；列表加 `overscroll-behavior: contain`。
 - 理由：不能依赖 Chromium 原生平滑滚动（不同平台/开关表现不一致，CDP 与真实滚轮均观察到无插值）；自己接管可精确控制步长与时长，并用纯函数（`scroll.ts`）覆盖归一/缓动逻辑，避免把行为散落在组件里。
 - 验证：`scroll.test.ts` 9 用例（201 项总）；CDP 采样器在一次滚轮内采到 70 个不同 scrollTop（修复前仅 1 个）；audit 新增 4 条断言（展开、平滑中间帧、reduced-motion 直接定位、Esc 只关日期浮层），dev 74 项 ALL PASS；原型 `interactions.js` 同步实现，23/23 断言 PASS；app v1.4，static v2.4 不变。
+
+## D23 退出阶段异常静默并落主进程日志（2026-11-22，用户 m07685）
+
+- 背景：便携版偶尔在「托盘 → 退出」时弹出系统级「A JavaScript error occurred in the main process」框。应用未注册 `process.on('uncaughtException')`/`unhandledRejection`，Electron 默认弹框；退出期间存在多类未保护的异步回调：窗口加载 Promise 被 `void` 丢弃、文件对话框 `.then` 无 catch、`before-quit` 关闭数据库后窗口 focus/blur/位置防抖仍读 settings、提示队列与启动提示定时器未清、`broadcast` 未判断 webContents 存活。
+- 决策：退出顺序只依赖「退出标志」——`before-quit` 置 `setQuitting(true)`、flush 窗口位置、清提示队列与启动定时器；窗口全部关闭后的 `will-quit` 再 checkpoint、关库、注销快捷键、销毁托盘。退出期间所有窗口/浮层/对话框/定时器/广播入口提前返回或静默失败。未捕获异常与未处理拒绝统一走 `installProcessGuards()`：写 `userData/logs/main.log`（512KB 轮转 `main.old.log`）；退出阶段只记录不弹框，非退出阶段保留错误框，避免静默吞错。
+- 理由：退出问题的根因是生命周期竞态而非单一调用点；把「退出中不做副作用、异常有落点」变成全局不变量，比逐个补 `if (quitting)` 更可维护；日志同时为后续用户复现提供取证。
+- 验证：17 文件 208 用例（logger 5 例、notices.dispose 2 例）；dev 退出矩阵（启动即退/完整窗口/编辑窗口）940–957ms clean、提示窗待确认 595ms clean；打包版 518–6237ms clean 且无异常日志；dev 与打包版 74 项审计 ALL PASS。
