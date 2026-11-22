@@ -117,3 +117,9 @@
 - 静态页里的截图/长图必须与 `design/app` 同版本同时间重导；`design/app-shapes.png` 是 manager 截图裁剪（标题行+筛选区，2184×352），不是独立页面状态。
 - 无头截图必须用干净 profile + `--disable-extensions --disable-component-extensions-with-background-pages`；否则 Edge 会加载 Adblock/ChatGPT 等扩展，扩展悬浮图标和注入页面会进截图，页面布局尺寸也会偏移（mhead rect 从 304,84,862 变成 306,100,855）。
 - 公开可见页面不能只靠截图隐藏版本号：demo bar 的「交互原型 v1.1」、侧栏 brand 的 `v1.0`、静态原型页 title/eyebrow/stamp/footer 都在源码文本里，必须直接改 `design/app/index.html`、`design/app/js/render.js`、`design/static-prototype.html`，再重导截图与整页长图。
+
+## GitHub Actions 发布桌面包（2026-11-22）
+
+- electron-builder 在 tag 构建时会 `Implicit publishing triggered by git tag`，即使没配置 publish 也会尝试发布 GitHub Release；缺少 GH_TOKEN 时两个 exe 已成功打包仍会 `exit 1`。CI 用 `softprops/action-gh-release` 发布时，打包命令必须加 `--publish never`。
+- 公开仓库可用未认证 API 读 Actions runs / releases；但 job 日志接口未认证返回 403，需要认证（本机可临时用系统 Git 的 GCM 凭据取 token，token 不得写盘或回显）。
+- 修复后重跑 tag 构建：提交修复 → `git tag -f v1.0.0` + `git push origin v1.0.0 --force` 重新触发；tag 必须等于 `v` + package.json version。CI 打包约 3 分钟（electron 下载 + NSIS + portable 压缩）。
