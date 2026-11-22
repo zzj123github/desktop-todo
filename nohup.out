@@ -1,0 +1,9 @@
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9241
+
+
+DevTools listening on ws://127.0.0.1:9241/devtools/browser/a09fe593-28a6-4bc2-8f88-2afa023ff63d
+[55492:1122/111942.929:ERROR:content\browser\gpu\gpu_process_host.cc:1004] GPU process exited unexpectedly: exit_code=-1
+[dev-launch] C:\Users\lazasons\AppData\Local\desktop-todo-dev\electron-40.10.2\electron.exe C:\Users\lazasons\Workspace\desktop-todo --remote-debugging-port=9241
+
+
+DevTools listening on ws://127.0.0.1:9241/devtools/browser/5803026a-6265-4a9b-823a-a146d67cf2a9

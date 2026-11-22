@@ -305,13 +305,13 @@
 - `npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` **13 文件 / 171 用例全部通过**（新增 `src/main/windows.test.ts` 6 例：四角基准与 clamp）。
 - 证据截图（`docs/acceptance/screens/`）：`m6-widget-folded.png`（折叠按钮）、`m6-widget-composer.png`（展开输入）、`m6-widget-datepicker.png`（挂件内日历完整）、`m6-manager-shapes.png`（标题行两个收起按钮）、`m6-capsule-final.png`。
 
-**F. 交付物（2026-11-22 11:04 重打包）**
+**F. 交付物（2026-11-22 11:30 重打包）**
 
 - 打包命令（工作区外输出规避 VS Code 文件锁）：`ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ pnpm exec electron-builder --win -c.directories.output=C:/Users/lazasons/AppData/Local/desktop-todo-dev/release-build`
 - 产物并已复制到 `release/` 与桌面交付目录 `C:\Users\lazasons\Desktop\桌面待办-交付物\`：
-  - `DesktopTodo-1.0.0-portable.exe` 97,695,011 B / SHA-256 `bc3c6383e5dbd7f8342b03b2c20f93c7f3a460150a385a27f5aa8f40a23f46ba`
-  - `DesktopTodo-1.0.0-setup.exe` 106,243,797 B / SHA-256 `ba0a1c199f64bf0e4e14c082b67495df24db6ece171970baeb575a2ed553b6b6`
-- 本包相对 02:32 包新增：挂件内编辑改为独立桌面级编辑窗口（见 §5）；打包版复验：`window.api.editor` 打开 `?view=editor`、551×829、日期面板 `top 99 / bottom 451` 完整、Esc 关闭后只剩 `?view=widget`。
+  - `DesktopTodo-1.0.0-portable.exe` 97,675,053 B / SHA-256 `2a381d47a36061265adf44de9909d54d375176dde02014b292464e0cdf4cee82`
+  - `DesktopTodo-1.0.0-setup.exe` 106,243,771 B / SHA-256 `b2d475435fcdabe1e791b02a71b41cfafee5aa71d222f7ec0867b48a7e458aa7`
+- 本包相对 02:32 包新增：挂件内编辑改为独立桌面级编辑窗口（见 §5）、胶囊 hover 不再位移（见 §6）；打包版复验：`window.api.editor` 打开 `?view=editor`、551×829、日期面板 `top 99 / bottom 451` 完整、Esc 关闭后只剩 `?view=widget`。
 - 启动打包版注意：从本仓库 shell 用 `Start-Process` 会继承 `ELECTRON_RUN_AS_NODE=1` 而被当作 Node 静默退出；应先用 `$env:ELECTRON_RUN_AS_NODE=$null`，或 `env -u ELECTRON_RUN_AS_NODE ./DesktopTodo-1.0.0-portable.exe`。
 - `使用说明.txt` 与 README 校验表、修复清单已同步更新。
 
@@ -339,3 +339,23 @@
 - 完整窗口内点击任务仍为原地模态（`.overlay` + `.modal.wide`、无 embedded），Esc 只关模态，回归通过。
 - 回归：`npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` 13 文件 / 171 用例全部通过。
 - 证据截图（`docs/acceptance/screens/`）：`m6-editor-window.png`、`m6-editor-window-datepicker.png`、`m6-editor-window-delete.png`。
+
+## 6) 2026-11-22 11:2x 胶囊 hover 不再上下位移（m04721）
+
+**现象**：鼠标移到胶囊上，胶囊上下跳动一下，圆弧边缘看起来不连贯、像被截断一部分。
+
+**根因**：胶囊窗口高度（54）＝胶囊高度，`hover` 时的 `transform: translateY(-2px)` 把卡片推出窗口边界——顶部 2px 被窗口裁掉、底部露出空隙，圆角弧线因此断裂；同时造成「上下动」的观感。
+
+**修复**：
+- `src/renderer/src/styles/app.css`：移除 `.capsule:hover` 与 `.view-capsule .capsule:hover` 的位移，hover 仅把内描边从 8% 加深到 12%（`transform:none` 显式锁定）；头部注释记录原因。
+- `design/app/css/app.css` 同步去掉原型中同款位移，保持原型与实现一致。
+- 规范：`docs/08` §2.4 胶囊条目改为「hover 加深内描边、不做位移」；`docs/02` 胶囊条目补充同一说明。
+
+**验证**：
+- dev（CDP 9241）：胶囊窗口 284×55，`Input.dispatchMouseEvent` 悬停到胶囊中心后 `getComputedStyle(.capsule)` → `transform: none`、`box-shadow: inset 0 0 0 1px ink 12%`，`getBoundingClientRect` 与悬停前一致（无位移）。
+- OS 截图 `.agents/tmp/cap-hover-crop.png`：悬停态圆角上下弧线完整连续，无截断/灰边。
+- 回归：`npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` 13 文件 / 171 用例全部通过。
+
+**补充（2026-11-22 11:30 打包版复验）**：
+- 修复「hover 位移」之外又修了亚像素裁切：`175%` DPI 下胶囊窗口 client 为 284×54 但渲染视口 innerHeight≈55，`height:100%` 会让卡片比窗口高约 0.4px、底部圆角被裁。改为 `.view-capsule .cap-wrap{display:flex;align-items:center;justify-content:center}` + `.capsule{height:var(--capsule-h,54px)}`，卡片固定 54 高并居中。
+- 打包版（桌面交付目录启动）复验：胶囊 `y=0.71 / h=54`（完整可见、无裁切），`Input.dispatchMouseEvent` 悬停后 `transform:none`、`y/h` 不变、内描边 12%；OS 截图圆角上下弧线连续。

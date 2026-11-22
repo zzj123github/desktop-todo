@@ -123,7 +123,7 @@ a{color:var(--link)}
   background:var(--card);box-shadow:var(--shadow-capsule);
   display:flex;align-items:center;gap:9px;padding:0 11px;cursor:pointer;transition:transform .16s,box-shadow .2s;
   animation:capsuleIn .26s cubic-bezier(.34,1.4,.64,1)}
-.capsule:hover{transform:translateY(-2px);box-shadow:var(--shadow-capsule-hover)}
+.capsule:hover{box-shadow:var(--shadow-capsule-hover)}
 .cap-check{width:32px;height:32px;flex:none;border-radius:50%;background:var(--accent);color:var(--on-accent);
   display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-card)}
 .cap-check .ic{width:15px;height:15px;stroke-width:2.4}
@@ -732,12 +732,14 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 .view-widget .w-add{flex:none}
 .view-widget .w-foot{flex:none}
 
-/* 胶囊窗口：284×54 透明窗口 + 999 圆角（不用外投影，理由同上） */
+/* 胶囊窗口：284×54 透明窗口 + 999 圆角（不用外投影，理由同上）。
+   hover 只加深内描边、不做位移：窗口高度＝胶囊高度，translateY 会让圆角边缘被窗口裁切
+   （用户反馈「胶囊边上圆弧不连贯、被截断一部分」）。 */
 .view-capsule .capsule{position:relative;right:auto;bottom:auto;width:100%;height:100%;
   border-radius:var(--radius-pill);
   box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent)}
 .view-capsule .capsule:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
-  transform:translateY(-2px)}
+  transform:none}
 
 /* 完整窗口：铺满浏览器窗口，圆角交给系统 */
 .view-manager .manager-scene{padding:0;background:var(--paper);align-items:stretch;justify-content:stretch;
@@ -897,9 +899,11 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 .view-manager .manager-scene{padding:0;display:block;overflow:hidden}
 .view-manager .mgr{width:100%;height:100%;border-radius:0;box-shadow:none}
 
-/* 胶囊形态：窗口即卡片，.cap-wrap 铺满窗口（原型里 cap-wrap 只用于桌面绝对定位） */
-.view-capsule .cap-wrap{position:absolute;inset:0;width:100%;height:100%;transition:none}
-.view-capsule .cap-wrap .capsule{cursor:grab}
+/* 胶囊形态：窗口即卡片容器；胶囊固定 54 高并垂直居中，避免 175% DPI 下窗口
+   比 54px 多出亚像素（innerHeight≈55）时卡片 100% 高度被窗口裁掉圆角弧线。 */
+.view-capsule .cap-wrap{position:absolute;inset:0;width:100%;height:100%;transition:none;
+  display:flex;align-items:center;justify-content:center}
+.view-capsule .cap-wrap .capsule{cursor:grab;width:100%;height:var(--capsule-h,54px)}
 
 /* ── 筛选浮层标题补充（原型 pop-title 内的 faint 提示） ─────────── docs/08 §3.10 */
 .pop-title .pop-title-hint {

@@ -80,8 +80,8 @@ pnpm dist:nsis              # 只打安装包
 
 | 文件 | 说明 |
 | --- | --- |
-| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,695,011 B），双击运行 |
-| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,243,797 B） |
+| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,675,053 B），双击运行 |
+| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,243,771 B） |
 | `release/win-unpacked/` | 解包目录（调试用） |
 
 本机无 MSVC 环境时，better-sqlite3 使用与 Electron ABI 匹配的预编译产物：`python scripts/fetch-native-assets.py`（脚本从 npmmirror 镜像取 Electron 与预编译 `.node`）。打包配置已设 `npmRebuild: false`，直接用预编译产物。
@@ -131,12 +131,12 @@ design/        UI 契约（tokens.css）与交互原型
 - 胶囊单击需 250ms 判定窗口（用于区分双击打开完整窗口），属交互设计而非延迟缺陷。
 - 默认使用软件合成（见「性能与内存」）：若显式设置 `DESKTOP_TODO_GPU=1`，内存会回升到表中原有水平。
 
-## 交付物校验（2026-11-22 11:04 重新打包）
+## 交付物校验（2026-11-22 11:30 重新打包）
 
 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- |
-| `DesktopTodo-1.0.0-portable.exe` | 97,695,011 B（93.2 MiB） | `bc3c6383e5dbd7f8342b03b2c20f93c7f3a460150a385a27f5aa8f40a23f46ba` |
-| `DesktopTodo-1.0.0-setup.exe` | 106,243,797 B（101.3 MiB） | `ba0a1c199f64bf0e4e14c082b67495df24db6ece171970baeb575a2ed553b6b6` |
+| `DesktopTodo-1.0.0-portable.exe` | 97,675,053 B（93.2 MiB） | `2a381d47a36061265adf44de9909d54d375176dde02014b292464e0cdf4cee82` |
+| `DesktopTodo-1.0.0-setup.exe` | 106,243,771 B（101.3 MiB） | `b2d475435fcdabe1e791b02a71b41cfafee5aa71d222f7ec0867b48a7e458aa7` |
 
 本次重打包包含桌面形态的以下缺陷修复：
 
@@ -147,6 +147,7 @@ design/        UI 契约（tokens.css）与交互原型
 - 完整窗口输入框的日期面板可正常选择日期/时间（此前点击面板内部会关闭父浮层）。
 - 空列表时挂件高度按内容自适应（此前会停在 512px 留下大块空白）。
 - 挂件内点击任务改为独立的桌面级编辑窗口（550 宽、按内容高度居中）：不再被 352 宽挂件窗口裁切；X / 取消 / 保存 / Esc / 删除后关闭，挂件位置不变。
+- 胶囊悬停不再上下位移：hover 只加深内描边（窗口高度＝胶囊高度，位移会让圆弧被窗口裁切）。
 - 双击挂件标题可正常展开完整窗口（标题行改为非拖动区，拖动仍可用顶部拖拽条/头部空白）。
 - 挂件/胶囊/完整窗口三态互斥：完整窗口打开时隐藏桌面形态，关闭后回到桌面形态；完整窗口标题行新增「收起到挂件」「收起到胶囊」。
 - 挂件与胶囊共用同一位置：切换形态/高度变化时按就近角保持基准角不动（默认右上，高 DPI 下 ≤1 DIP 物理取整误差）。

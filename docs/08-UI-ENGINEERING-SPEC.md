@@ -210,7 +210,7 @@
 
 ### 2.4 胶囊
 
-- 284×54，radius 999，background --card，shadow --shadow-capsule；hover 上移 2px + --shadow-capsule-hover。
+- 284×54，radius 999，background --card，shadow --shadow-capsule；hover 加深内描边（12% ink），**不做位移**——窗口高度＝胶囊高度，`translateY` 会让圆角边缘被窗口边界裁切（2026-11-22 用户反馈「圆弧不连贯、被截断」）。
 - 左侧 32 陶土圆 + 白勾；标题 12/550（今天 N 项，逾期用 --accent-deep）；副行 10 --muted；右侧进度环 26。
 - 拖拽时取消 transform，阴影加深；与挂件共用同一位置记忆，切换形态时保持「就近角」屏幕坐标不变（见 §2.8）。
 - 单击展开挂件（约 250ms 判定窗口以区分双击）；双击打开完整窗口；Enter 展开。
