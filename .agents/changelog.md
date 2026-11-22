@@ -92,3 +92,5 @@
 2026-11-22 | update | release/, C:\\Users\\lazasons\\Desktop\\桌面待办-交付物\\ | 2026-11-22 20:37 重新打包并更新校验值（portable 97,708,366 B / setup 106,249,746 B）
 2026-11-22 | update | .gitignore, .agents/memory/project-overview.md | 接入本机 CodeGraph 代码索引：`codegraph init` 生成 `.codegraph/`（已 gitignore，本机重建）；记录 agent 查询命令（explore/context/node/callers/impact）与自动同步说明 | 用户要求给项目添加 codegraph（m01396）
 2026-11-22 | update | AGENTS.md, .agents/memory/project-overview.md | AGENTS.md 新增 §4.1：定位/理解/影响面默认先查 CodeGraph（explore/context/node/callers/impact），再用 grep/读文件复核；不可用时回退 grep，不阻塞任务 | 用户要求默认先查 codegraph（m01474）
+2026-11-22 | update | AGENTS.md, .agents/memory/project-overview.md, .agents/memory/decisions.md, docs/06-IMPLEMENTATION-BRIEF.md | 新增项目规范：新功能/UI·UX 调整先做原型、不得直接改已定稿原型（从 design/app 复制到 design/proto-v<版本>/ 提案目录），经用户确认后再同步规格与实施；docs/06 增加指向 | 用户 2026-11-22 明确要求（m01500）
+2026-11-23 | update | AGENTS.md, docs/06-IMPLEMENTATION-BRIEF.md, .agents/memory/project-overview.md, .agents/memory/decisions.md | 新增 §4.2.1 阶段门（原型确认前禁止实施、停点与确认定义、提案状态只由确认升级、误开工恢复、守卫建议）；docs/06 与长期纠正同步，决策 D26 | 用户 m01530：release/1.1.0 在未确认提案下直接开始实施
