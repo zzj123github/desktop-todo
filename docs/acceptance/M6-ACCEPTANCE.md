@@ -468,3 +468,29 @@
 - `DesktopTodo-1.0.0-portable.exe` 97,693,981 B / SHA-256 `9d2342317b86786e74d5484ab0f02bc09f7518ed99a3c01b6702cb474009c1ba`
 - `DesktopTodo-1.0.0-setup.exe` 106,247,407 B / SHA-256 `da8ffc3bd0d268447b8e0501fb6b1508a24548e54c3dc7986ee17f4aeaf1f5f1`
 - 已复制 `release/` 与桌面交付目录，并更新 `使用说明.txt` 与根 `README.md`。
+
+## 12) 2026-11-22 16:2x 高 DPI 下挂件/胶囊边缘裁切修复（用户 m06254）
+
+**用户反馈（原文）**：「仍存在挂件或胶囊会被截断的问题，排查下是否是前端大小大于窗口大小导致，如果是，我目前有个方向是，这种情况下，窗口大小始终大于前端页面大小2px（上下左右，相当于padding 2px），这样就能避免这些问题」。
+
+**根因**：175% DPI 下 Electron/Chromium 报告的窗口内容尺寸（`innerWidth/innerHeight`、`getContentSize()`）比 Win32 实际客户区大约 2 物理像素（例：请求 352 CSS → 客户区 616 物理=352 CSS，而 `getContentSize()` 回读 353；高度同理 +1）。渲染层卡片此前 `width/height:100%` 铺满视口，因此右/下边缘各被裁掉约 1.14 CSS px；同时窗口尺寸在落盘/恢复往返中会累积 ±1 DIP 漂移（曾出现 353 宽）。
+
+**实现（2px 透明留白）**：
+- 窗口尺寸 = 可见卡片 + 四周各 2px：挂件窗口 356 ×（内容高 + 4），胶囊窗口 288×58；可见卡片仍为 352 宽 / 284×54。常量 `SHAPE_PADDING=2`、`WIDGET_WINDOW_WIDTH=356`、`CAPSULE_WINDOW_* =288/58`、`WIDGET_WINDOW_MIN/MAX_HEIGHT=100/524`。
+- 渲染层：`.view-widget #root,.view-capsule #root{box-sizing:border-box;padding:2px}`；挂件卡片固定 `width:352px`、胶囊卡片固定 284×54。
+- 规范化：`normalizeShapeBounds(bounds, mode)` 在创建窗口、`saveShapeBounds`、`persistBounds` 时把宽高归一为当前形态窗口尺寸，消除 DPI 取整漂移；默认位置边距相应减 2，视觉间距与之前一致。
+- 窗口上限按内容高 520 计，窗口高最多 524。
+
+**验证**：
+- `npx tsc --noEmit` 通过；`node scripts/run-tests.cjs run` → **15 文件 / 188 用例通过**（新增 `normalizeShapeBounds` 3 用例：胶囊 288×58 保留坐标、挂件宽 356 高夹 100/524、窗口比卡片各多 2px）。
+- dev 全量审计：**ALL PASS（64 项）**；新增断言「挂件卡片完整位于窗口内」「胶囊卡片完整位于窗口内」：挂件 fit `{x:2,y:2,w:352,h:340,iw:357,ih:344}`、胶囊 fit `{x:2,y:2.71,w:284,h:54,iw:288,ih:59}`（卡片距窗口边均 ≥1，无裁切）。
+- 打包版复验：2026-11-22 16:29 重打包后，从桌面交付目录启动便携版（`--remote-debugging-port=9280`）执行 `CDP_PORT=9280 node scripts/audit-ui.mjs` → **ALL PASS（64 项）**。
+- 真实桌面（175% DPI）OS 截图核对：挂件可见卡片完整（含底部页脚与圆角），四周可透出桌面背景；胶囊左右圆弧完整、无裁切。切形态后基准角保持：挂件窗口右缘 1464 / 胶囊窗口右缘 1464（CSS），顶部均为 127，角坐标不变。
+- 说明：本次修复为窗口级尺寸补偿，可见像素与原型一致（原型按 352/284×54 绘制），因此原型与静态页无需改尺寸；`docs/02`、`docs/04`、`docs/08`、`docs/09` 已同步「窗口尺寸 = 卡片 + 2px 留白」。
+
+**截图**：`docs/acceptance/screens/dpi-widget-padding.png`（挂件，OS 截图裁切）、`docs/acceptance/screens/dpi-capsule-padding.png`（胶囊，OS 截图裁切）。
+
+**交付物（2026-11-22 16:29 重打包）**：
+- `DesktopTodo-1.0.0-portable.exe` 97,684,719 B / SHA-256 `28b3630b644e86af031a540d41702c0aaed55cdfc7e02a60ee8bdb6e2026b7ee`
+- `DesktopTodo-1.0.0-setup.exe` 106,247,506 B / SHA-256 `692d3853275cca73a6b06c409f612b5b293744a1e9634fa6fd001ec14e61ef50`
+- 已复制 `release/` 与 `C:\Users\lazasons\Desktop\桌面待办-交付物\`，并更新 `使用说明.txt` 与根 `README.md`。

@@ -68,10 +68,11 @@ UI 实现契约：所有组件、尺寸、状态矩阵、浮层层级以 [08-UI-
 ### 3.1 通用配置
 ```ts
 new BrowserWindow({
-  width: 352, height: 520, frame: false, transparent: false,
+  // 可见卡片 352×≤520；窗口四周各留 2px 透明边（高 = 内容高 + 4），避免高 DPI 下边缘被裁切
+  width: 356, height: 424, frame: false, transparent: true,
   resizable: false, maximizable: false, minimizable: true,
-  skipTaskbar: true, alwaysOnTop: true, hasShadow: true,
-  roundedCorners: true, backgroundColor: '#FAF8F2',
+  skipTaskbar: true, alwaysOnTop: true, hasShadow: false,
+  roundedCorners: false, backgroundColor: '#00000000',
   webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true,
                     preload: join(__dirname, '../preload/index.js') },
 })

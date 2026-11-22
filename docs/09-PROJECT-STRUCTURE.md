@@ -72,7 +72,7 @@ desktop-todo/
 src/
 ├─ main/
 │  ├─ index.ts          # app 生命周期、单实例锁、--silent 启动
-│  ├─ windows.ts        # widget / manager / capsule / quickadd 窗口
+│  ├─ windows.ts        # widget / manager / capsule / quickadd 窗口（桌面形态含四周 2px 透明留白）
 │  ├─ tray.ts           # 托盘菜单
 │  ├─ shortcuts.ts      # globalShortcut 注册/注销
 │  ├─ login.ts          # app.setLoginItemSettings

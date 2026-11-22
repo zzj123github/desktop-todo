@@ -211,8 +211,22 @@ async function main() {
   await api('window.api.app.showWidget({collapsed:false})')
   await waitHeightSettled()
   check('挂件可见', (await api('document.documentElement.className')) === 'view-widget')
+  const widgetFit = JSON.parse(
+    await api(
+      `(()=>{const r=document.querySelector('.widget').getBoundingClientRect();return JSON.stringify({x:+r.x.toFixed(2),y:+r.y.toFixed(2),w:+r.width.toFixed(2),h:+r.height.toFixed(2),iw:innerWidth,ih:innerHeight})})()`
+    )
+  )
+  check(
+    '挂件卡片完整位于窗口内（窗口四周 2px 透明留白）',
+    widgetFit.x >= 1 &&
+      widgetFit.y >= 1 &&
+      widgetFit.x + widgetFit.w <= widgetFit.iw - 0.5 &&
+      widgetFit.y + widgetFit.h <= widgetFit.ih - 0.5 &&
+      Math.abs(widgetFit.w - 352) < 0.5,
+    JSON.stringify(widgetFit)
+  )
   check('挂件折叠输入按钮存在', await api(`Boolean(document.querySelector('.w-add-btn'))`))
-  await widget.screenshot('01-widget-folded.png', 352, 240)
+  await widget.screenshot('01-widget-folded.png', 356, 244)
 
   const baseH = await waitHeightSettled()
   await widget.clickAt('.w-add-btn')
@@ -222,7 +236,7 @@ async function main() {
   const addBottom = await api(`Math.round(document.querySelector('.w-add').getBoundingClientRect().bottom)`)
   check('展开后输入区完整可见（不被窗口裁切）', addBottom <= openH + 2, `addBottom=${addBottom} innerH=${openH}`)
   check('输入框自动聚焦', (await api('document.activeElement?.tagName')) === 'TEXTAREA')
-  await widget.screenshot('02-widget-composer.png', 352, Math.min(520, openH))
+  await widget.screenshot('02-widget-composer.png', 356, Math.min(524, openH))
   await widget.pressKey('Escape')
   await waitHeightSettled()
   check('Esc 收起输入框', await api(`Boolean(document.querySelector('.w-add-btn'))`), `h=${await api('innerHeight')}`)
@@ -260,7 +274,7 @@ async function main() {
   const afterDone = await api(`window.api.tasks.list({filter:${JSON.stringify(ALL_FILTER)}}).then(l=>l.filter(t=>t.status===1).length)`)
   check('勾选任务完成', afterDone === beforeDone + 1, `${beforeDone} -> ${afterDone}`)
   check('完成 toast 出现', await api(`Boolean(document.querySelector('.toast'))`))
-  await widget.screenshot('03-widget-toast.png', 352, 260)
+  await widget.screenshot('03-widget-toast.png', 356, 264)
   await widget.clickAt('.toast .tact')
   await sleep(500)
   const undone = await api(`window.api.tasks.list({filter:${JSON.stringify(ALL_FILTER)}}).then(l=>l.filter(t=>t.status===1).length)`)
@@ -305,6 +319,21 @@ async function main() {
   await widget.clickAt('[aria-label="收起为胶囊"]')
   await sleep(800)
   check('收起为胶囊', (await api('document.documentElement.className')) === 'view-capsule', `inner=${await api('innerWidth + "x" + innerHeight')}`)
+  const capsuleFit = JSON.parse(
+    await api(
+      `(()=>{const r=document.querySelector('.capsule').getBoundingClientRect();return JSON.stringify({x:+r.x.toFixed(2),y:+r.y.toFixed(2),w:+r.width.toFixed(2),h:+r.height.toFixed(2),iw:innerWidth,ih:innerHeight})})()`
+    )
+  )
+  check(
+    '胶囊卡片完整位于窗口内（窗口四周 2px 透明留白）',
+    capsuleFit.x >= 1 &&
+      capsuleFit.y >= 1 &&
+      capsuleFit.x + capsuleFit.w <= capsuleFit.iw - 0.5 &&
+      capsuleFit.y + capsuleFit.h <= capsuleFit.ih - 0.5 &&
+      Math.abs(capsuleFit.w - 284) < 0.5 &&
+      Math.abs(capsuleFit.h - 54) < 0.5,
+    JSON.stringify(capsuleFit)
+  )
   const capGeom0 = await api(
     `(()=>{const el=document.querySelector('.capsule');const r=el.getBoundingClientRect();return JSON.stringify({y:+r.y.toFixed(2),h:+r.height.toFixed(2),t:getComputedStyle(el).transform})})()`
   )
@@ -313,20 +342,20 @@ async function main() {
     `(()=>{const el=document.querySelector('.capsule');const r=el.getBoundingClientRect();return JSON.stringify({y:+r.y.toFixed(2),h:+r.height.toFixed(2),t:getComputedStyle(el).transform})})()`
   )
   check('胶囊 hover 不位移', capGeom0 === capGeom1, `${capGeom0} -> ${capGeom1}`)
-  await widget.screenshot('04-capsule-hover.png', 284, 54)
+  await widget.screenshot('04-capsule-hover.png', 288, 58)
   const capRect = JSON.parse(await api(`(()=>{const r=document.querySelector('.capsule').getBoundingClientRect();return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2})})()`))
   await widget.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, x: Math.round(capRect.x), y: Math.round(capRect.y) })
   await sleep(60)
   await widget.send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, x: Math.round(capRect.x), y: Math.round(capRect.y) })
   await sleep(900)
   check('单击胶囊展开挂件', (await api('document.documentElement.className')) === 'view-widget', await api('document.documentElement.className'))
-  await widget.screenshot('05-widget-list.png', 352, Math.min(520, await api('innerHeight')))
+  await widget.screenshot('05-widget-list.png', 356, Math.min(524, await api('innerHeight')))
 
   // 桌面视图下拉
   await widget.clickAt('.mtitle-btn')
   await sleep(600)
   check('桌面视图下拉打开', await api(`Boolean(document.querySelector('.pop'))`))
-  await widget.screenshot('06-widget-viewmenu.png', 352, Math.min(520, await api('innerHeight')))
+  await widget.screenshot('06-widget-viewmenu.png', 356, Math.min(524, await api('innerHeight')))
   await widget.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, x: 6, y: 6 })
   await widget.send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, x: 6, y: 6 })
   await sleep(400)

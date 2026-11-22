@@ -136,3 +136,9 @@
 - 决策：把「浮层互斥」收敛为浮层层的不变量，加在共享模块 `src/renderer/src/components/anchoredPosition.ts`：`PopoverCloser` 类型 + `activatePopover(close)` / `closeActivePopover()` / `hasActivePopover()`；`Popover.tsx` 挂载时激活（返回释放函数，仅当仍是当前 token 才清空），卸载时释放；新浮层打开先关闭上一个。嵌套的日期选择器 `.dp-pop` 属于 Popover 内部层级，不参与注册、保持独立。
 - 理由：每个调用方自己管理互斥会继续漏（本问题正是真实鼠标路径掩盖了键盘/程序化路径）；Popover 全部 portal 到 body、互不嵌套，注册器不依赖 DOM 层级与调用方配合。
 - 验证：`anchoredPosition.test.ts` 新增 3 用例（新开关旧、旧释放不误清新、close 单次且幂等重挂载）；`scripts/audit-ui.mjs` 新增断言「打开优先级浮层后点视图菜单仍只有 1 个 `.pop`，且 `.view-form` 在浮层内」；dev 与打包版审计均 63/63 PASS。
+## D20 桌面形态窗口四周保留 2px 透明留白（2026-11-22，用户 m06254）
+
+- 现象：175% 等高 DPI 下挂件/胶囊右/下边缘被裁切。根因：Electron 报告的窗口内容尺寸比 Win32 实际客户区大约 2 物理像素（请求 352 CSS → 客户区 352 CSS，`getContentSize()` 回读 353），卡片铺满视口即被裁。
+- 决策：窗口尺寸 = 可见卡片 + 四周各 2px —— 挂件 356 ×（内容高+4）、胶囊 288×58；卡片仍精确 352 / 284×54。渲染层根容器 `box-sizing:border-box;padding:2px`，卡片固定尺寸。窗口高度上限 520+4=524。
+- 同时规范化落盘尺寸（`normalizeShapeBounds` 在创建/保存/persist 时统一为当前形态窗口尺寸），消除 DPI 取整造成的 ±1 DIP 漂移（曾出现 353 宽）。默认位置边距减 2，保持可见卡片与屏幕边缘的视觉间距不变。
+- 验证：`windows.test.ts` 3 用例、15 文件/188 用例通过；audit 新增「挂件/胶囊卡片完整位于窗口内」2 条断言，dev 与打包版均 64 项 ALL PASS。

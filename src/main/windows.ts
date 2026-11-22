@@ -39,9 +39,27 @@ export const MANAGER_HEIGHT = 720
 export const MANAGER_MIN_WIDTH = 900
 export const MANAGER_MIN_HEIGHT = 600
 
-const WIDGET_DEFAULT_MARGIN_RIGHT = 56
-const WIDGET_DEFAULT_MARGIN_TOP = 88
-const CAPSULE_DEFAULT_MARGIN_RIGHT = 56
+/**
+ * 桌面形态的透明留白（用户 m06254）：
+ * 175% 等非整数 DPI 下，Electron 报告的窗口内容尺寸会比 Win32 实际客户区大约 1~2 物理像素，
+ * 卡片贴满窗口时右/下边缘会被窗口裁掉。窗口四周各留 2px 透明边，渲染层同尺寸 padding，
+ * 可见卡片仍然精确保持 352 / 284×54。
+ */
+export const SHAPE_PADDING = 2
+/** 挂件窗口宽 = 可见 352 + 左右留白 */
+export const WIDGET_WINDOW_WIDTH = WIDGET_WIDTH + SHAPE_PADDING * 2
+/** 胶囊窗口尺寸 = 可见 284×54 + 四周留白 */
+export const CAPSULE_WINDOW_WIDTH = CAPSULE_WIDTH + SHAPE_PADDING * 2
+export const CAPSULE_WINDOW_HEIGHT = CAPSULE_HEIGHT + SHAPE_PADDING * 2
+
+/** 窗口目标尺寸的上下限（含留白），与内容高度的 WIDGET_MIN/MAX_HEIGHT 相差 2×padding */
+export const WIDGET_WINDOW_MIN_HEIGHT = WIDGET_MIN_HEIGHT + SHAPE_PADDING * 2
+export const WIDGET_WINDOW_MAX_HEIGHT = WIDGET_MAX_HEIGHT + SHAPE_PADDING * 2
+
+const WIDGET_DEFAULT_MARGIN_RIGHT = 56 - SHAPE_PADDING
+const WIDGET_DEFAULT_MARGIN_TOP = 88 - SHAPE_PADDING
+const CAPSULE_DEFAULT_MARGIN_RIGHT = 56 - SHAPE_PADDING
+const CAPSULE_DEFAULT_MARGIN_BOTTOM = 70 - SHAPE_PADDING
 
 /** bounds 写库防抖（docs/04 §窗口：move/resize 300ms 防抖） */
 const BOUNDS_SAVE_DEBOUNCE_MS = 300
@@ -147,10 +165,10 @@ function resolveSavedBounds(saved: WindowBoundsRecord | null, fallback: Rectangl
 export function defaultWidgetBounds(): Rectangle {
   const wa = screen.getPrimaryDisplay().workArea
   return {
-    x: wa.x + wa.width - WIDGET_WIDTH - WIDGET_DEFAULT_MARGIN_RIGHT,
+    x: wa.x + wa.width - WIDGET_WINDOW_WIDTH - WIDGET_DEFAULT_MARGIN_RIGHT,
     y: wa.y + WIDGET_DEFAULT_MARGIN_TOP,
-    width: WIDGET_WIDTH,
-    height: Math.min(420, WIDGET_MAX_HEIGHT)
+    width: WIDGET_WINDOW_WIDTH,
+    height: Math.min(420, WIDGET_MAX_HEIGHT) + SHAPE_PADDING * 2
   }
 }
 
@@ -158,10 +176,10 @@ export function defaultWidgetBounds(): Rectangle {
 export function defaultCapsuleBounds(): Rectangle {
   const wa = screen.getPrimaryDisplay().workArea
   return {
-    x: wa.x + wa.width - CAPSULE_WIDTH - CAPSULE_DEFAULT_MARGIN_RIGHT,
+    x: wa.x + wa.width - CAPSULE_WINDOW_WIDTH - CAPSULE_DEFAULT_MARGIN_RIGHT,
     y: wa.y + WIDGET_DEFAULT_MARGIN_TOP,
-    width: CAPSULE_WIDTH,
-    height: CAPSULE_HEIGHT
+    width: CAPSULE_WINDOW_WIDTH,
+    height: CAPSULE_WINDOW_HEIGHT
   }
 }
 
@@ -217,13 +235,30 @@ function boundsFromWidgetAnchor(
   return clampBoundsToWorkArea({ x, y, width, height }, workArea)
 }
 
-function shapeSize(mode: WidgetMode): { width: number; height: number } {  if (mode === 'capsule') return { width: CAPSULE_WIDTH, height: CAPSULE_HEIGHT }
-  const saved = readBounds('widgetBounds')
-  const fallbackHeight = Math.min(widgetHeight || saved?.height || 420, WIDGET_MAX_HEIGHT)
-  return {
-    width: WIDGET_WIDTH,
-    height: Math.max(WIDGET_MIN_HEIGHT, Math.min(fallbackHeight, WIDGET_MAX_HEIGHT))
+/** 把持久化/回读的矩形规范化成当前形态的窗口尺寸（宽 = 窗口宽，高 = 窗口高） */
+export function normalizeShapeBounds(bounds: Rectangle, mode: WidgetMode): Rectangle {
+  if (mode === 'capsule') {
+    return { ...bounds, width: CAPSULE_WINDOW_WIDTH, height: CAPSULE_WINDOW_HEIGHT }
   }
+  return {
+    ...bounds,
+    width: WIDGET_WINDOW_WIDTH,
+    height: Math.max(
+      WIDGET_WINDOW_MIN_HEIGHT,
+      Math.min(bounds.height, WIDGET_WINDOW_MAX_HEIGHT)
+    )
+  }
+}
+
+function shapeSize(mode: WidgetMode): { width: number; height: number } {
+  if (mode === 'capsule') return { width: CAPSULE_WINDOW_WIDTH, height: CAPSULE_WINDOW_HEIGHT }
+  const saved = readBounds('widgetBounds')
+  const fallbackContent = Math.min(
+    widgetHeight || (saved ? saved.height - SHAPE_PADDING * 2 : 420),
+    WIDGET_MAX_HEIGHT
+  )
+  const contentHeight = Math.max(WIDGET_MIN_HEIGHT, Math.min(fallbackContent, WIDGET_MAX_HEIGHT))
+  return { width: WIDGET_WINDOW_WIDTH, height: contentHeight + SHAPE_PADDING * 2 }
 }
 
 /**
@@ -232,9 +267,10 @@ function shapeSize(mode: WidgetMode): { width: number; height: number } {  if (m
  */
 function resolveShapeBounds(mode: WidgetMode): Rectangle {
   const saved = readBounds('widgetBounds') ?? readBounds('capsuleBounds')
-  const base = saved
-    ? resolveSavedBounds(saved, defaultWidgetBounds())
-    : defaultWidgetBounds()
+  const base = normalizeShapeBounds(
+    saved ? resolveSavedBounds(saved, defaultWidgetBounds()) : defaultWidgetBounds(),
+    mode
+  )
   const workArea = screen.getDisplayMatching(base).workArea
   const size = shapeSize(mode)
   widgetAnchor = captureWidgetAnchor(base, workArea)
@@ -244,7 +280,8 @@ function resolveShapeBounds(mode: WidgetMode): Rectangle {
 /** 桌面形态的位置统一持久化到 widgetBounds（挂件/胶囊共用同一位置） */
 function saveShapeBounds(bounds: Rectangle, capture = true): void {
   const wa = screen.getDisplayMatching(bounds).workArea
-  const normalized = clampBoundsToWorkArea(bounds, wa)
+  // 落盘前统一成当前形态的窗口尺寸，避免高 DPI 下回读的 ±1px 误差来回累积
+  const normalized = clampBoundsToWorkArea(normalizeShapeBounds(bounds, widgetMode), wa)
   // 由锚点换算出的程序化矩形不再反向捕获锚点，避免 DPI 取整误差累积
   if (capture) widgetAnchor = captureWidgetAnchor(normalized, wa)
   writeBounds('widgetBounds', {
@@ -283,10 +320,10 @@ function persistBounds(kind: 'widget' | 'capsule' | 'manager'): void {
   // 桌面形态（挂件/胶囊）共用同一位置：高 DPI 下 getBounds 可能回读 ±1px 或中间态，
   // 按当前形态规范化尺寸后再落盘，避免下次启动把窗口撑大。
   const isCapsule = widgetMode === 'capsule'
-  const width = isCapsule ? CAPSULE_WIDTH : WIDGET_WIDTH
+  const width = isCapsule ? CAPSULE_WINDOW_WIDTH : WIDGET_WINDOW_WIDTH
   const height = isCapsule
-    ? CAPSULE_HEIGHT
-    : Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(bounds.height, WIDGET_MAX_HEIGHT)))
+    ? CAPSULE_WINDOW_HEIGHT
+    : Math.round(Math.max(WIDGET_WINDOW_MIN_HEIGHT, Math.min(bounds.height, WIDGET_WINDOW_MAX_HEIGHT)))
   const wa = screen.getDisplayMatching(bounds).workArea
   const next = clampBoundsToWorkArea({ x: bounds.x, y: bounds.y, width, height }, wa)
   // 真实拖动结束后以实际位置重捕获基准角（此后切换形态保持该角）
@@ -416,11 +453,17 @@ export function setWidgetContentHeight(height: number): void {
   if (widgetMode === 'capsule') return
   const bounds = widgetWindow.getBounds()
   const wa = screen.getDisplayMatching(bounds).workArea
-  const maxHeight = Math.min(WIDGET_MAX_HEIGHT, wa.height)
-  const nextHeight = Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(height, maxHeight)))
-  widgetHeight = nextHeight
+  // 窗口高度 = 内容高度 + 四周留白；内容高度上限按工作区扣除留白计算
+  const maxHeight = Math.min(WIDGET_MAX_HEIGHT, wa.height - SHAPE_PADDING * 2)
+  const contentHeight = Math.round(Math.max(WIDGET_MIN_HEIGHT, Math.min(height, maxHeight)))
+  widgetHeight = contentHeight
   const anchor = widgetAnchor ?? captureWidgetAnchor(bounds, wa)
-  const next = boundsFromWidgetAnchor(anchor, WIDGET_WIDTH, nextHeight, wa)
+  const next = boundsFromWidgetAnchor(
+    anchor,
+    WIDGET_WINDOW_WIDTH,
+    contentHeight + SHAPE_PADDING * 2,
+    wa
+  )
   if (
     bounds.height === next.height &&
     bounds.y === next.y &&
@@ -455,8 +498,16 @@ export function moveCapsuleDrag(dx: number, dy: number): void {
   if (widgetMode !== 'capsule') return
   const x = Math.round(capsuleDragOrigin.x + dx)
   const y = Math.round(capsuleDragOrigin.y + dy)
-  const wa = screen.getDisplayMatching({ x, y, width: CAPSULE_WIDTH, height: CAPSULE_HEIGHT }).workArea
-  const bounds = clampBoundsToWorkArea({ x, y, width: CAPSULE_WIDTH, height: CAPSULE_HEIGHT }, wa)
+  const wa = screen.getDisplayMatching({
+    x,
+    y,
+    width: CAPSULE_WINDOW_WIDTH,
+    height: CAPSULE_WINDOW_HEIGHT
+  }).workArea
+  const bounds = clampBoundsToWorkArea(
+    { x, y, width: CAPSULE_WINDOW_WIDTH, height: CAPSULE_WINDOW_HEIGHT },
+    wa
+  )
   capsuleDragLast = { x: bounds.x, y: bounds.y }
   widgetWindow.setBounds(bounds)
 }
@@ -487,9 +538,11 @@ export function setWidgetCollapsed(collapsed: boolean): void {
   const previousMode = widgetMode
   const current = win && !win.isDestroyed() ? win.getBounds() : null
   if (win && !win.isDestroyed() && previousMode === 'widget') {
+    // 窗口高度含四周留白，换算回内容高度保存，展开时再按内容高度恢复
+    const windowHeight = current?.height ?? widgetHeight + SHAPE_PADDING * 2
     widgetHeight = Math.max(
       WIDGET_MIN_HEIGHT,
-      Math.min(current?.height ?? widgetHeight, WIDGET_MAX_HEIGHT)
+      Math.min(windowHeight - SHAPE_PADDING * 2, WIDGET_MAX_HEIGHT)
     )
   }
   widgetMode = nextMode
@@ -556,11 +609,15 @@ export function attachDevToolsShortcut(
 
 function createWidgetWindow(initialMode: WidgetMode): BrowserWindow {
   const bounds = resolveShapeBounds(initialMode)
-  widgetHeight = Math.min(bounds.height, WIDGET_MAX_HEIGHT)
+  widgetHeight = Math.max(
+    WIDGET_MIN_HEIGHT,
+    Math.min(bounds.height - SHAPE_PADDING * 2, WIDGET_MAX_HEIGHT)
+  )
   const win = new BrowserWindow({
     ...bounds,
     title: '桌面待办',
     frame: false,
+    thickFrame: false,
     transparent: true,
     backgroundColor: '#00000000',
     hasShadow: false,

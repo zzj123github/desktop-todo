@@ -6,7 +6,17 @@
 import { EventEmitter } from 'node:events'
 import type { BrowserWindow } from 'electron'
 import { describe, expect, it, vi } from 'vitest'
-import { anchorForBounds, attachDevToolsShortcut, boundsForShape } from './windows'
+import {
+  anchorForBounds,
+  attachDevToolsShortcut,
+  boundsForShape,
+  CAPSULE_WINDOW_HEIGHT,
+  CAPSULE_WINDOW_WIDTH,
+  normalizeShapeBounds,
+  WIDGET_WINDOW_MAX_HEIGHT,
+  WIDGET_WINDOW_MIN_HEIGHT,
+  WIDGET_WINDOW_WIDTH
+} from './windows'
 
 const WORK_AREA = { x: 0, y: 0, width: 1440, height: 900 }
 
@@ -62,6 +72,34 @@ describe('boundsForShape', () => {
     expect(next.y).toBeGreaterThanOrEqual(WORK_AREA.y)
     expect(next.x + next.width).toBeLessThanOrEqual(WORK_AREA.x + WORK_AREA.width)
     expect(next.y + next.height).toBeLessThanOrEqual(WORK_AREA.y + WORK_AREA.height)
+  })
+})
+
+describe('normalizeShapeBounds（窗口 2px 透明留白，用户 m06254）', () => {
+  it('胶囊形态规范为 288×58 窗口尺寸', () => {
+    const next = normalizeShapeBounds({ x: 100, y: 200, width: 352, height: 420 }, 'capsule')
+    expect(next.width).toBe(CAPSULE_WINDOW_WIDTH)
+    expect(next.height).toBe(CAPSULE_WINDOW_HEIGHT)
+    expect(next.x).toBe(100)
+    expect(next.y).toBe(200)
+  })
+
+  it('挂件形态宽度固定为 356，高度夹在窗口上下限内', () => {
+    const normal = normalizeShapeBounds({ x: 0, y: 0, width: 100, height: 300 }, 'widget')
+    expect(normal.width).toBe(WIDGET_WINDOW_WIDTH)
+    expect(normal.height).toBe(300)
+
+    const tooSmall = normalizeShapeBounds({ x: 0, y: 0, width: 100, height: 10 }, 'widget')
+    expect(tooSmall.height).toBe(WIDGET_WINDOW_MIN_HEIGHT)
+
+    const tooTall = normalizeShapeBounds({ x: 0, y: 0, width: 100, height: 9999 }, 'widget')
+    expect(tooTall.height).toBe(WIDGET_WINDOW_MAX_HEIGHT)
+  })
+
+  it('窗口尺寸比可见卡片四周各多 2px', () => {
+    expect(WIDGET_WINDOW_WIDTH - 352).toBe(4)
+    expect(CAPSULE_WINDOW_WIDTH - 284).toBe(4)
+    expect(CAPSULE_WINDOW_HEIGHT - 54).toBe(4)
   })
 })
 

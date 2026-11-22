@@ -724,7 +724,8 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
    Electron 窗口边界＝卡片边界，投影画在卡片外侧会被矩形窗口裁掉，
    只在四个圆角缺口里漏出一块灰边（用户反馈「四角有灰黑色底」）。
    桌面形态因此不用外投影，改用内描边勾勒轮廓；四角完全透明。 */
-.view-widget .widget{width:100%;height:100%;max-height:none;border-radius:var(--radius-2xl);
+.view-widget #root,.view-capsule #root{box-sizing:border-box;padding:2px}
+.view-widget .widget{width:352px;height:100%;max-height:none;border-radius:var(--radius-2xl);
   box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent)}
 .view-widget .widget.unpinned{
   box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent)}
@@ -913,6 +914,8 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 .view-capsule .cap-wrap{position:absolute;inset:0;width:100%;height:100%;transition:none;
   display:flex;align-items:center;justify-content:center}
 .view-capsule .cap-wrap .capsule{cursor:grab;width:100%;height:var(--capsule-h,54px)}
+/* 胶囊窗口四周多 2px 透明留白（m06254）：卡片固定 284×54，居中于窗口，避免 DPI 取整裁切 */
+.view-capsule .cap-wrap .capsule{width:var(--capsule-w,284px);height:var(--capsule-h,54px);flex:none}
 
 /* ── 筛选浮层标题补充（原型 pop-title 内的 faint 提示） ─────────── docs/08 §3.10 */
 .pop-title .pop-title-hint {
