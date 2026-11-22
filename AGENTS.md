@@ -125,6 +125,16 @@ e. 归档旧文件前先报告清单、原因、去向和影响，征得确认�
 
 项目事实：规格主版本在 `docs/`；工程目录与代码边界以 `docs/09-PROJECT-STRUCTURE.md` 为准，新增顶级目录或 `src/` 子目录先改该文件；桌面 `C:\Users\lazasons\Desktop\桌面待办-交付包\` 只是查看副本，可能滞后，不作为实施读取源；冲突以 `docs/` 为准。
 
+### 4.1 代码检索：默认先用 CodeGraph（本机工具）
+
+本机已装 `@colbymchenry/codegraph`（`codegraph` 命令），本项目已生成 `.codegraph/` 索引（本机数据、已 gitignore；换机器或新 clone 先 `codegraph init -y`）。定位代码、理解调用链、评估改动影响时**默认先查索引**，再用 grep/读文件复核，不要一上来就全仓 grep 或逐个读文件：
+
+- 找实现/区域：`codegraph explore "<英文问题>"`（符号源码 + 调用链 + blast radius）；中文问题先转成英文关键词，英文命中更好。
+- 按任务取上下文：`codegraph context "<任务>"`。
+- 单符号：`codegraph node <符号>`；调用关系：`codegraph callers|callees <符号>`；影响面：`codegraph impact <符号>`、`codegraph affected <文件...>`；关键字搜索：`codegraph query <关键字>`。
+- 索引只覆盖代码事实，规格/设计/文档仍按 `docs/` 与 `.agents/` 读取；索引可能落后于最近手工改动，必要时 `codegraph status` 检查或 `codegraph sync` 同步；索引不可用（命令缺失、非本机环境、DB 损坏）时回退 grep/读文件，不阻塞任务。
+- 引用结论时按索引给出的 `文件:行号` 复核，完成前以 `docs/` 与当前产物为准。
+
 ## 5. 沟通与交付
 
 ### 5.1 协作式表达
