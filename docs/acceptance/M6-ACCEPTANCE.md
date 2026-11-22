@@ -420,3 +420,5 @@
 - 重新打包（2026-11-22 14:15）：portable `97,690,524 B` / SHA-256 `7dc7db01fcc8bd0270cabed0ec039c09566b1b824dd28f443e6ff38b52554720`；setup `106,245,286 B` / SHA-256 `b0c33475c3d5419f3d423bf5baf7a97388d88f08debc2f0176582a86595f66bd`。已复制 `release/` 与桌面交付目录，并更新 `使用说明.txt`。
 
 **已知边界**：原生文件选择器（导出/导入/重新选择链接）按规格保持原生；系统级文件拖放、托盘菜单点击仍需人工验证。
+
+**打包版复验（2026-11-22 14:18）**：从桌面交付目录启动新便携版（CDP 9260）→ 提示窗口 `473×299`、标题与 `Alt+H` / `Alt+2` 清单正确、真实点击「知道了」后只剩 `?view=widget`；随后 `CDP_PORT=9260 node scripts/audit-ui.mjs` → **ALL PASS（53 项）**。截图补充：`docs/acceptance/screens/notice-window-packaged.png`。
