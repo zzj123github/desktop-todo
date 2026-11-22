@@ -50,3 +50,7 @@
 2026-11-22 | update | scripts/audit-ui.mjs | 新增真实 UI 交互审计（54 项断言，pnpm audit），纳入交付前固定关卡
 2026-11-22 | fix | src/renderer/src/components/ViewMenu.tsx | 移除 resize 关闭菜单逻辑，修复挂件内桌面视图下拉打开即关闭
 2026-11-22 | update | docs/acceptance/M6-ACCEPTANCE.md | 追加 §8 全量交互审计记录
+2026-11-22 | create | src/main/notices.ts, src/main/notices.test.ts, src/renderer/src/components/NoticeModal.tsx, src/renderer/src/app/NoticeWindowHost.tsx | 新增应用内提示体系：提示队列 + 独立 472 宽透明提示窗口 + 自建 NoticeModal（embedded），快捷键冲突/数据库异常不再用原生 dialog
+2026-11-22 | update | src/main/{windows,shortcuts,index,ipc}.ts, src/preload/index.ts, src/shared/types.ts, src/renderer/src/app/{App.tsx}, i18n/zh.ts, styles/app.css | 接入 notice IPC/事件与提示窗口；修正提示/编辑窗口双内边距；页脚「知道了」右对齐
+2026-11-22 | update | scripts/audit-ui.mjs | 审计脚本增加窗口高度稳定等待与 hover 重试，消除高度动画期间假 FAIL（53 项全 PASS）
+2026-11-22 14:12 | update | design/static-prototype.html, design/README.md, design/app-fullpage.webp, design/app-*.png, design/app-shapes.png, design/app-widget-composer.png, docs/00-README.md, .agents/memory/gotchas.md | 静态原型同步可交互原型 v1.1 → v2.2：新增「形态切换与随手添加」章节（标题行形态按钮 + 挂件添加区收起），重导 13 张状态截图、新增 2 张截图与整页长图，更新 design/README 与 docs/00-README 版本/交互说明 | 用户指出 @design/static-prototype.html 未同步最新动态原型修改（m00001）

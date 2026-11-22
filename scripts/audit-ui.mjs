@@ -147,6 +147,26 @@ async function main() {
   const api = (expr) => widget.evaluate(expr)
   const initialAlwaysOnTop = await api(`window.api.settings.get({key:'alwaysOnTop'})`)
 
+  // 挂件高度是主进程按渲染层上报异步调整的，读数/坐标必须在窗口稳定后再取，
+  // 否则 hover 坐标会落在旧布局上（窗口高度变化中）造成假 FAIL。
+  const waitHeightSettled = async (timeout = 3000) => {
+    let last = -1
+    let stable = 0
+    const started = Date.now()
+    while (Date.now() - started < timeout) {
+      const h = await api('innerHeight')
+      if (h === last) {
+        stable += 1
+        if (stable >= 2) return h
+      } else {
+        stable = 0
+        last = h
+      }
+      await sleep(150)
+    }
+    return last
+  }
+
   // ---------- 0. 复位 & 测试数据 ----------
   await api('window.api.widget.setCollapsed({collapsed:false})')
   await sleep(700)
@@ -186,14 +206,14 @@ async function main() {
 
   // ---------- 1. 挂件基础 ----------
   await api('window.api.app.showWidget({collapsed:false})')
-  await sleep(900)
+  await waitHeightSettled()
   check('挂件可见', (await api('document.documentElement.className')) === 'view-widget')
   check('挂件折叠输入按钮存在', await api(`Boolean(document.querySelector('.w-add-btn'))`))
   await widget.screenshot('01-widget-folded.png', 352, 240)
 
-  const baseH = await api('innerHeight')
+  const baseH = await waitHeightSettled()
   await widget.clickAt('.w-add-btn')
-  await sleep(400)
+  await waitHeightSettled()
   const openH = await api('innerHeight')
   check('点击添加按钮展开输入框', await api(`Boolean(document.querySelector('.w-add textarea'))`), `h ${baseH}->${openH}`)
   const addBottom = await api(`Math.round(document.querySelector('.w-add').getBoundingClientRect().bottom)`)
@@ -201,22 +221,34 @@ async function main() {
   check('输入框自动聚焦', (await api('document.activeElement?.tagName')) === 'TEXTAREA')
   await widget.screenshot('02-widget-composer.png', 352, Math.min(520, openH))
   await widget.pressKey('Escape')
-  await sleep(400)
+  await waitHeightSettled()
   check('Esc 收起输入框', await api(`Boolean(document.querySelector('.w-add-btn'))`), `h=${await api('innerHeight')}`)
 
-  // 行 hover / 删除按钮 hover
-  await widget.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 4, y: 4 })
-  await sleep(260)
-  const rowBg0 = await api(`getComputedStyle(document.querySelector('.task-row')).backgroundColor`)
-  await widget.hover('.task-row')
-  const rowBg1 = await api(`getComputedStyle(document.querySelector('.task-row')).backgroundColor`)
-  check('任务行 hover 有背景反馈', rowBg0 !== rowBg1, `${rowBg0} -> ${rowBg1}`)
-  await widget.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 4, y: 4 })
-  await sleep(260)
-  const delOpacity0 = await api(`getComputedStyle(document.querySelector('.task-row .t-tail')).opacity`)
-  await widget.hover('.task-row')
-  const delOpacity1 = await api(`getComputedStyle(document.querySelector('.task-row .t-tail')).opacity`)
-  check('行尾操作 hover 才显示', Number(delOpacity0) === 0 && Number(delOpacity1) === 1, `${delOpacity0} -> ${delOpacity1}`)
+  // 行 hover / 删除按钮 hover：窗口高度稳定后再取坐标；未命中时移开重试（最多 3 次）
+  const hoverRowUntil = async (probe, ok) => {
+    let before = null
+    let after = null
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await widget.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 4, y: 4 })
+      await sleep(240)
+      before = await api(probe)
+      await widget.hover('.task-row')
+      after = await api(probe)
+      if (ok(before, after)) return { before, after }
+      await sleep(240)
+    }
+    return { before, after }
+  }
+  const rowHover = await hoverRowUntil(
+    `getComputedStyle(document.querySelector('.task-row')).backgroundColor`,
+    (a, b) => a !== b
+  )
+  check('任务行 hover 有背景反馈', rowHover.before !== rowHover.after, `${rowHover.before} -> ${rowHover.after}`)
+  const tailHover = await hoverRowUntil(
+    `getComputedStyle(document.querySelector('.task-row .t-tail')).opacity`,
+    (a, b) => Number(a) === 0 && Number(b) === 1
+  )
+  check('行尾操作 hover 才显示', Number(tailHover.before) === 0 && Number(tailHover.after) === 1, `${tailHover.before} -> ${tailHover.after}`)
 
   // 勾选 + toast 撤销
   const beforeDone = await api(`window.api.tasks.list({filter:${JSON.stringify(ALL_FILTER)}}).then(l=>l.filter(t=>t.status===1).length)`)

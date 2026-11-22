@@ -104,3 +104,14 @@
 
 - 挂件窗口会因浮层临时加高到 520（`.pop`/`.dp-pop` 检测），这会触发 `resize` 事件；任何「resize 即关闭浮层」的逻辑都会被误触发（曾导致挂件内桌面视图下拉打开即关闭）。浮层定位/关闭统一由 `Popover` 处理。
 - 审计脚本必须用真实鼠标事件（`Input.dispatchMouseEvent`）验证 pointer 交互（胶囊单击/拖动、hover），JS `.click()` 不会触发 pointer 处理；`window.api.settings.get({key})` 返回原始值，不是 `{value}`。
+- 应用内模态最小宽度 424（confirm），比胶囊 284 / 挂件 352 都宽：任何可能在桌面形态下弹出的提示，都必须放到独立窗口，不能渲染进挂件/胶囊 BrowserWindow。
+- 独立窗口高度 = 渲染层 host 高度（已含 24px 内边距），主进程不得再叠加 padding；提示/编辑窗口均按 `Math.max(round(height), MIN)` 设 bounds。
+- 提示窗口加载是异步的：主进程需重试投递（120ms 间隔）并设兜底超时（2.5s），否则排队提示会丢失或黑窗。
+
+## 静态原型截图/长图导出（2026-11-22）
+
+- 无头浏览器启动：workspace-write 沙箱下 Chrome/Edge 会因 crashpad/mojo `Access denied (0x5)` 直接退出；需 danger-full-access + `--headless=new --no-sandbox --disable-gpu --disable-breakpad --remote-debugging-port=9333`（复用 `.agents/tmp/cdp.mjs`，端口用 `CDP_PORT=9333`）。
+- 服务器：在项目根执行 `node design/server.mjs` 时 URL 是 `http://127.0.0.1:8765/design/app/index.html`（server root=process.cwd()）；在 design/ 目录启动才是 `/app/index.html`。
+- 截图口径：1280×696 CSS @2x（2560×1392）；先 `Page.addScriptToEvaluateOnNewDocument` 注入 FakeDate=2026-11-21T20:58:00+08:00，每次 `localStorage.clear()` + reload 回 seed，否则文案日期会漂。脚本 `.agents/tmp/shot-design.mjs`。
+- 整页长图：视口 1575 CSS 宽 @2x → 3150 宽；`Page.captureScreenshot` 的 `clip.scale` 会再乘 deviceScaleFactor（scale:2+dpr2=4x，6300×28796 会超读图/纹理限制），用 `clip.scale:1` 得到 3150×14398，再用 Pillow 转 webp（quality 90 约 1.4MB）。
+- 静态页里的截图/长图必须与 `design/app` 同版本同时间重导；`design/app-shapes.png` 是 manager 截图裁剪（标题行+筛选区，2184×352），不是独立页面状态。

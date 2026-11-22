@@ -12,16 +12,21 @@
 import { app, dialog } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { checkpoint, closeDatabase, getDbError, isDbHealthy, openDatabase } from './db'
-import { getIpcParentWindow, registerIpcHandlers } from './ipc'
+import { registerIpcHandlers } from './ipc'
+import { initNotices, postNotice } from './notices'
 import { syncLaunchAtLogin } from './login'
 import { runSeed } from './seed'
 import { disposeShortcuts, setupShortcuts } from './shortcuts'
 import { createTray, destroyTray } from './tray'
 import {
+  closeNoticeWindow,
+  createNoticeWindow,
   createWindows,
   flushWindowBounds,
   getManagerWindow,
   getWidgetWindow,
+  isNoticeWindowLoaded,
+  sendNoticeToWindow,
   setQuitting,
   showWidget
 } from './windows'
@@ -54,19 +59,6 @@ function hasFlag(flag: string): boolean {
 function reportFatal(message: string, error?: unknown): void {
   const detail = error instanceof Error ? error.message : error === undefined ? '' : String(error)
   console.error(`[main] ${message}${detail ? `：${detail}` : ''}`)
-}
-
-function showMessageBoxSafe(options: {
-  type: 'info' | 'warning' | 'error'
-  title: string
-  message: string
-  detail?: string
-}): void {
-  const parent: BrowserWindow | null = getIpcParentWindow() ?? null
-  void (parent && !parent.isDestroyed()
-    ? dialog.showMessageBox(parent, options)
-    : dialog.showMessageBox(options)
-  ).catch((error) => reportFatal('无法弹出提示框', error))
 }
 
 /** --seed：导入演示数据后退出，不创建任何窗口 */
@@ -126,6 +118,28 @@ function bootstrap(): void {
     reportFatal('创建窗口失败', error)
   }
 
+  // 应用内提示：独立提示窗口 + 自建 NoticeModal（原生 dialog 仅作兜底）
+  initNotices({
+    openWindow: createNoticeWindow,
+    closeWindow: closeNoticeWindow,
+    isLoaded: isNoticeWindowLoaded,
+    send: sendNoticeToWindow,
+    showFallback: (options) => {
+      void dialog
+        .showMessageBox({
+          type: options.type,
+          title: options.title,
+          message: options.message,
+          detail: options.detail,
+          buttons: ['知道了'],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true
+        })
+        .catch((error) => reportFatal('无法弹出兜底提示框', error))
+    }
+  })
+
   try {
     createTray()
   } catch (error) {
@@ -140,23 +154,26 @@ function bootstrap(): void {
 
   if (!silent) {
     if (!result.healthy) {
-      // 数据库彻底打不开：提示用户数据无法保存（getInfo 里也会带 dbHealthy/dbError）
+      // 数据库彻底打不开：提示用户本次运行的数据无法保存（getInfo 里也会带 dbHealthy/dbError）
+      const detail = result.error ?? getDbError() ?? undefined
       setTimeout(() => {
-        showMessageBoxSafe({
-          type: 'error',
+        postNotice({
+          kind: 'error',
           title: '数据文件不可用',
           message: '数据库无法打开，本次运行的数据不会保存。',
-          detail: result.error ?? getDbError() ?? undefined
+          hint: detail,
+          acknowledgeLabel: '知道了'
         })
       }, 800)
     } else if (result.error) {
       // 损坏后自动重建成功：告知备份位置，避免用户以为数据凭空消失
       setTimeout(() => {
-        showMessageBoxSafe({
-          type: 'warning',
+        postNotice({
+          kind: 'warning',
           title: '数据文件已重建',
           message: '原数据文件无法打开，已备份为 data.db.bak 并新建空数据库。',
-          detail: result.error
+          hint: result.error,
+          acknowledgeLabel: '知道了'
         })
       }, 800)
     }

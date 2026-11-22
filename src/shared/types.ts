@@ -151,6 +151,30 @@ export interface AppInfo {
   dbError?: string
 }
 
+/** 应用内提示的语义级别（与 Modal 的警示块样式对应） */
+export type AppNoticeKind = 'info' | 'warning' | 'error'
+
+/** 提示中的一条明细（如「Alt+H（显示/隐藏挂件）」） */
+export interface AppNoticeItem {
+  label: string
+  detail?: string
+}
+
+/**
+ * 应用内提示（主进程 → 渲染层 `app:notice` 事件）。
+ * 用于替代启动阶段的系统原生对话框，统一应用内视觉；
+ * 渲染层由 NoticeModal 展示，确认后回到原界面。
+ */
+export interface AppNotice {
+  id: string
+  kind: AppNoticeKind
+  title: string
+  message?: string
+  items?: AppNoticeItem[]
+  hint?: string
+  acknowledgeLabel?: string
+}
+
 export interface DesktopTodoApi {
   tasks: {
     list(input?: { filter?: FilterDTO; viewId?: string }): Promise<TaskDTO[]>
@@ -213,6 +237,13 @@ export interface DesktopTodoApi {
     /** 渲染完成后上报内容高度：主进程按高度调整并居中窗口 */
     ready(input: { height: number }): Promise<{ ok: true }>
   }
+  /** 应用内提示窗口（替代原生 dialog） */
+  notice: {
+    /** 用户确认当前提示：显示下一条或关闭提示窗口 */
+    acknowledge(): Promise<{ ok: true }>
+    /** 提示窗口测量内容高度后上报，主进程据此调整窗口并居中 */
+    ready(input: { height: number }): Promise<{ ok: true }>
+  }
   drop: {
     getPathForFile(file: File): string
   }
@@ -221,5 +252,6 @@ export interface DesktopTodoApi {
     settingsChanged(cb: (payload: { key: SettingsKey; value: unknown }) => void): () => void
     widgetCollapsed(cb: (payload: { collapsed: boolean }) => void): () => void
     navigate(cb: (payload: { viewId: string }) => void): () => void
+    notice(cb: (notice: AppNotice) => void): () => void
   }
 }

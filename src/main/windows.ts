@@ -18,7 +18,8 @@
  */
 import { app, BrowserWindow, screen, type Rectangle } from 'electron'
 import { join } from 'node:path'
-import type { SettingsKey } from '../shared/types'
+import type { AppNotice, SettingsKey } from '../shared/types'
+import { handleNoticeWindowClosed } from './notices'
 import {
   getBooleanSetting,
   getNumberSetting,
@@ -94,7 +95,7 @@ function preloadPath(): string {
 
 function loadView(
   win: BrowserWindow,
-  view: 'widget' | 'manager' | 'quickadd' | 'editor',
+  view: 'widget' | 'manager' | 'quickadd' | 'editor' | 'notice',
   params: Record<string, string> = {}
 ): void {
   const file = view === 'quickadd' ? 'quickadd.html' : 'index.html'
@@ -609,7 +610,6 @@ function createWidgetWindow(initialMode: WidgetMode): BrowserWindow {
 
 /** 编辑弹窗内容宽度（08 §3.8：wide 502）+ 左右内边距 24×2 */
 export const EDITOR_WINDOW_WIDTH = 550
-const EDITOR_WINDOW_PADDING_Y = 48
 const EDITOR_WINDOW_MIN_HEIGHT = 320
 
 let editorWindow: BrowserWindow | null = null
@@ -620,7 +620,7 @@ function editorWindowBounds(height: number): Rectangle {
   const display = reference ? screen.getDisplayMatching(reference) : screen.getPrimaryDisplay()
   const workArea = display.workArea
   const width = Math.min(EDITOR_WINDOW_WIDTH, workArea.width)
-  const wanted = Math.max(Math.round(height) + EDITOR_WINDOW_PADDING_Y, EDITOR_WINDOW_MIN_HEIGHT)
+  const wanted = Math.max(Math.round(height), EDITOR_WINDOW_MIN_HEIGHT)
   const heightPx = Math.min(wanted, workArea.height - 32)
   return {
     x: workArea.x + Math.round((workArea.width - width) / 2),
@@ -689,6 +689,130 @@ export function resizeEditorWindow(height: number): void {
 
 export function getEditorWindow(): BrowserWindow | null {
   return editorWindow
+}
+
+// ---------------------------------------------------------------------------
+// 应用内提示窗口（替代原生 dialog）
+//
+// Contract: docs/08-UI-ENGINEERING-SPEC.md §3.8 · docs/01-PRD.md FR-5
+// - 472 宽 = 424 提示弹窗 + 24×2 内边距；透明无边框、置顶、居中到挂件所在显示器；
+// - 高度由渲染层测量后上报（notice:ready，已含窗口内边距，主进程不再叠加）；
+// - 用户确认（知道了 / Esc / X）后由主进程关闭，挂件/完整窗口保持原样。
+// ---------------------------------------------------------------------------
+
+/** 提示弹窗内容宽度（08 §3.8：confirm 424）+ 左右内边距 24×2 */
+export const NOTICE_WINDOW_WIDTH = 472
+const NOTICE_WINDOW_MIN_HEIGHT = 200
+
+let noticeWindow: BrowserWindow | null = null
+let noticeWindowLoaded = false
+
+function noticeWindowBounds(height: number): Rectangle {
+  const reference =
+    widgetWindow && !widgetWindow.isDestroyed() ? widgetWindow.getBounds() : undefined
+  const display = reference ? screen.getDisplayMatching(reference) : screen.getPrimaryDisplay()
+  const workArea = display.workArea
+  const width = Math.min(NOTICE_WINDOW_WIDTH, workArea.width)
+  const wanted = Math.max(Math.round(height), NOTICE_WINDOW_MIN_HEIGHT)
+  const heightPx = Math.min(wanted, workArea.height - 32)
+  return {
+    x: workArea.x + Math.round((workArea.width - width) / 2),
+    y: workArea.y + Math.round((workArea.height - heightPx) / 2),
+    width,
+    height: heightPx
+  }
+}
+
+/** 打开（或聚焦）应用内提示窗口 */
+export function createNoticeWindow(): void {
+  if (noticeWindow && !noticeWindow.isDestroyed()) {
+    if (!noticeWindow.isVisible()) {
+      noticeWindow.show()
+      noticeWindow.focus()
+    }
+    return
+  }
+  noticeWindowLoaded = false
+  const win = new BrowserWindow({
+    ...noticeWindowBounds(NOTICE_WINDOW_MIN_HEIGHT),
+    title: '桌面待办',
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    roundedCorners: false,
+    show: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: preloadPath(),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  })
+  attachDevToolsShortcut(win)
+  noticeWindow = win
+  win.webContents.on('did-finish-load', () => {
+    if (noticeWindow === win) noticeWindowLoaded = true
+  })
+  win.on('closed', () => {
+    if (noticeWindow !== win) return
+    noticeWindow = null
+    noticeWindowLoaded = false
+    handleNoticeWindowClosed()
+  })
+  win.setAlwaysOnTop(true, 'floating')
+  win.setVisibleOnAllWorkspaces(false)
+  loadView(win, 'notice')
+  win.once('ready-to-show', () => {
+    if (win.isDestroyed()) return
+    win.show()
+    win.focus()
+  })
+}
+
+/** 提示窗口是否已完成首帧（可接收事件） */
+export function isNoticeWindowLoaded(): boolean {
+  return noticeWindowLoaded && !!noticeWindow && !noticeWindow.isDestroyed()
+}
+
+/** 向提示窗口发送一条提示；窗口不可用返回 false */
+export function sendNoticeToWindow(notice: AppNotice): boolean {
+  const win = noticeWindow
+  if (!win || win.isDestroyed() || !noticeWindowLoaded) return false
+  try {
+    win.webContents.send('app:notice', notice)
+    return true
+  } catch (error) {
+    console.warn('[windows] 发送应用内提示失败：', error instanceof Error ? error.message : error)
+    return false
+  }
+}
+
+/** 关闭提示窗口（幂等） */
+export function closeNoticeWindow(): void {
+  const win = noticeWindow
+  noticeWindow = null
+  noticeWindowLoaded = false
+  if (win && !win.isDestroyed()) win.destroy()
+}
+
+/** 渲染层测量内容高度后调用：按内容高度重新居中 */
+export function resizeNoticeWindow(height: number): void {
+  const win = noticeWindow
+  if (!win || win.isDestroyed()) return
+  win.setBounds(noticeWindowBounds(height))
+}
+
+/** 供测试/诊断 */
+export function getNoticeWindow(): BrowserWindow | null {
+  return noticeWindow
 }
 
 function createManagerWindow(): BrowserWindow {

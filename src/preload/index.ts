@@ -123,6 +123,10 @@ const api: DesktopTodoApi = {
     close: () => ipcRenderer.invoke('editor:close'),
     ready: (input: { height: number }) => ipcRenderer.invoke('editor:ready', input)
   },
+  notice: {
+    acknowledge: () => ipcRenderer.invoke('notice:acknowledge'),
+    ready: (input: { height: number }) => ipcRenderer.invoke('notice:ready', input)
+  },
   drop: {
     getPathForFile: (file) => webUtils.getPathForFile(file)
   },
@@ -130,7 +134,8 @@ const api: DesktopTodoApi = {
     tasksChanged: (cb) => subscribe('tasks:changed', cb),
     settingsChanged: (cb) => subscribe('settings:changed', cb),
     widgetCollapsed: (cb) => subscribe('widget:collapsed', cb),
-    navigate: (cb) => subscribe('app:navigate', cb)
+    navigate: (cb) => subscribe('app:navigate', cb),
+    notice: (cb) => subscribe('app:notice', cb)
   }
 }
 

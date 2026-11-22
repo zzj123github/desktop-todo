@@ -23,6 +23,7 @@ import type {
   TaskLinkInput,
   TaskUpdatePatch
 } from '../shared/types'
+import { acknowledgeNotice } from './notices'
 import {
   exportDatabase,
   getDataDir,
@@ -65,7 +66,8 @@ import {
   setWidgetContentHeight,
   showManager,
   showWidgetMode,
-  toggleWidget
+  toggleWidget,
+  resizeNoticeWindow
 } from './windows'
 import { applyLaunchAtLogin } from './login'
 import { applyGlobalShortcutsSetting } from './shortcuts'
@@ -106,7 +108,9 @@ export const IPC_CHANNELS = [
   'widget:endDrag',
   'editor:open',
   'editor:close',
-  'editor:ready'
+  'editor:ready',
+  'notice:acknowledge',
+  'notice:ready'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -557,6 +561,21 @@ export function registerIpcHandlers(): void {
       throw new Error('缺少参数：height')
     }
     resizeEditorWindow(height)
+    return { ok: true as const }
+  })
+
+  handle('notice:acknowledge', () => {
+    acknowledgeNotice()
+    return { ok: true as const }
+  })
+
+  handle('notice:ready', (input) => {
+    const payload = asRecord(input)
+    const height = payload.height
+    if (typeof height !== 'number' || !Number.isFinite(height)) {
+      throw new Error('缺少参数：height')
+    }
+    resizeNoticeWindow(height)
     return { ok: true as const }
   })
 }

@@ -396,3 +396,27 @@
 - 证据：`.agents/reports/audit/`（report.json + 10 张截图）；精选截图 `docs/acceptance/screens/audit-widget-viewmenu.png`、`audit-widget-folded.png`、`audit-manager-editor-modal.png`。
 - 重打包（2026-11-22 12:03，含 ViewMenu 修复）：portable `97,698,316 B` / SHA-256 `c84a31188eca2f1a3fc16d6449acd7ef3a57eb41c68825919ee9264e1b06a84e`；setup `106,243,873 B` / SHA-256 `ae2bbffff560cb3d3aeb124a4ccfecf225585451ba09bc1d6054c61bcd2fe5df`。已复制到 `release/` 与桌面交付目录，并更新 `使用说明.txt`。
 - 打包版复验：从桌面交付目录启动便携版（CDP 9243）执行 `CDP_PORT=9243 node scripts/audit-ui.mjs` → **54 项全部 PASS**。
+
+## 9) 2026-11-22 14:15 原生 dialog 改为应用内提示弹窗（用户 m05077）
+
+**用户反馈**：启动时（dev 重复启动占用全局快捷键）弹出 Windows 原生「快捷键冲突」对话框，与应用风格不统一；希望改为自建 Modal，并沉淀可复用的基础组件风格。
+
+**根因**：快捷键注册失败提示使用 `dialog.showMessageBox`（`src/main/shortcuts.ts`），数据库异常提示使用 `showMessageBoxSafe`（`src/main/index.ts`）；均为系统原生窗口。
+
+**不能直接放进现有窗口**：确认 424 宽的 confirm 模态放不进挂件（352）或胶囊（284）；首版在渲染层挂 `NoticeLayer`，dev 冲突场景下挂件处于胶囊形态，弹窗被裁切。因此提示必须使用独立窗口。
+
+**实现**：
+- `src/main/notices.ts`：与 Electron 解耦的提示队列（注入 `NoticePresenter`），支持排队、确认逐条推进、加载中 120ms 重试、2.5s 无法投递回退原生 dialog。
+- `src/main/windows.ts`：独立 `notice` 透明窗口（472 宽 = 424 弹窗 + 24×2 内边距，居中挂件所在显示器，高度由渲染层上报）；同时修正提示/编辑窗口双内边距（渲染层上报高度已含 padding）。
+- `src/renderer/src/components/NoticeModal.tsx` + `src/renderer/src/app/NoticeWindowHost.tsx`：复用 `Modal embedded` 的可复用提示组件；警示块 + 快捷键 chip 清单 + hint + 右对齐「知道了」；`notice.ready({height})` / `notice.acknowledge()`。
+- `src/main/shortcuts.ts` 快捷键冲突提示、`src/main/index.ts` 数据库异常提示均改为 `postNotice`；原生 dialog 仅保留提示窗口加载失败兜底与原生文件选择器。
+- IPC：`notice:acknowledge` / `notice:ready`；事件 `app:notice` → `window.api.on.notice`；`Modal`/`NoticeModal` 支持 `embedded`。
+
+**验证**：
+- `npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` **14 文件 / 178 用例通过**（新增 `src/main/notices.test.ts` 5 用例：立即投递、排队逐条确认、加载中重试、2.5s 兜底）。
+- 真机闭环（用 RegisterHotKey 占住 Alt+H / Alt+2 后启动 dev + CDP）：提示窗口 `473×299`，`.modal` 24→273.6 与窗口严丝合缝，无 `.overlay`；标题「部分全局快捷键注册失败」，行 `Alt+H 显示/隐藏挂件`、`Alt+2 打开今天`；真实鼠标点「知道了」→ 提示窗口关闭、挂件保留；全程无原生 #32770 对话框。
+- 截图：`docs/acceptance/screens/notice-window-os.png`（应用内提示弹窗居中的 OS 截图）。
+- 全量交互审计：`CDP_PORT=9241 node scripts/audit-ui.mjs` → **ALL PASS（53 项）**；脚本增加窗口高度稳定等待与 hover 重试，消除高度动画期间的假 FAIL。
+- 重新打包（2026-11-22 14:15）：portable `97,690,524 B` / SHA-256 `7dc7db01fcc8bd0270cabed0ec039c09566b1b824dd28f443e6ff38b52554720`；setup `106,245,286 B` / SHA-256 `b0c33475c3d5419f3d423bf5baf7a97388d88f08debc2f0176582a86595f66bd`。已复制 `release/` 与桌面交付目录，并更新 `使用说明.txt`。
+
+**已知边界**：原生文件选择器（导出/导入/重新选择链接）按规格保持原生；系统级文件拖放、托盘菜单点击仍需人工验证。

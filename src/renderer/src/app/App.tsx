@@ -9,13 +9,16 @@ import { Capsule } from './Capsule'
 import { Manager } from './Manager'
 import { QuickAdd } from './QuickAdd'
 import { EditorWindowHost } from './EditorWindowHost'
+import { NoticeWindowHost } from './NoticeWindowHost'
 import { useSettings } from '../hooks'
 
-export type AppView = 'widget' | 'manager' | 'quickadd' | 'editor'
+export type AppView = 'widget' | 'manager' | 'quickadd' | 'editor' | 'notice'
 
 function readView(): AppView {
   const param = new URLSearchParams(window.location.search).get('view')
-  if (param === 'manager' || param === 'quickadd' || param === 'editor') return param
+  if (param === 'manager' || param === 'quickadd' || param === 'editor' || param === 'notice') {
+    return param
+  }
   return 'widget'
 }
 
@@ -57,6 +60,8 @@ export function App(): ReactElement {
         <QuickAdd />
       ) : view === 'editor' ? (
         <EditorWindowHost />
+      ) : view === 'notice' ? (
+        <NoticeWindowHost />
       ) : (
         <DesktopHost />
       )}

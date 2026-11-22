@@ -115,3 +115,10 @@
 - 决策：仓库内置 `scripts/audit-ui.mjs`（`pnpm audit`），通过 CDP 驱动真实窗口跑 54 项交互断言（挂件/胶囊/完整窗口/弹层/键盘/设置/管理/编辑窗口/三态互斥/数据清理），结果写 `.agents/reports/audit/`。每次改 UI 或打包前必须全 PASS；同时跑 `pnpm typecheck` + `pnpm test`。
 - 发现并修复：`ViewMenu` 监听 window resize 关闭菜单，而挂件打开浮层会临时加高窗口触发 resize，导致挂件内桌面视图下拉打开即关闭。规则：浮层定位/关闭交给 `Popover`（其自身处理 resize 重定位），不要在业务组件里用 resize 关闭浮层。
 - 证据：`.agents/reports/audit/report.json`；`docs/acceptance/M6-ACCEPTANCE.md` §8。
+
+## D16 · 原生启动提示改为应用内提示体系（2026-11-22）
+
+- 背景：用户反馈启动时快捷键注册失败弹的是 Windows 原生 dialog（`dialog.showMessageBox`），与应用风格不统一；希望沉淀类似 Element/AntV 的自建基础组件。
+- 决策：新增通用「应用内提示」体系——`src/main/notices.ts` 负责提示队列（注入 presenter，不直接 import electron），窗口为独立透明 472 宽 BrowserWindow（`?view=notice`，424 弹窗 + 24×2 内边距，居中挂件所在显示器，高度由渲染层上报）；渲染层 `NoticeModal` 复用 `Modal`（size confirm / role alertdialog / embedded），`NoticeWindowHost` 订阅 `on.notice`、`notice.ready({height})`、`notice.acknowledge()`；快捷键冲突与数据库异常均走该体系，仅提示窗口加载失败 2.5s 才回退原生 dialog。
+- 理由：胶囊/挂件窗口只有 284/352 宽，424 的应用内模态放不下会被裁切，提示必须与挂件形态解耦；独立窗口也保证应用最小化到托盘时提示可见。
+- 可复用：后续启动/后台类提示统一 `postNotice({kind,title,message,items,hint,acknowledgeLabel})`，不再新增原生 dialog 调用点（文件选择器除外）。

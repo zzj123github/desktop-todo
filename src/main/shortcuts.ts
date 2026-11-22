@@ -8,9 +8,10 @@
  *
  * 要求（验收 F）：注册失败不允许静默；可在设置中整体关闭。
  * - 关闭后 unregisterAll，不保留任何全局热键。
- * - 注册失败弹一次原生提示（--silent 静默启动时只写日志，避免破坏「开机静默进托盘」）。
+ * - 注册失败弹一次应用内提示（NoticeModal；--silent 静默启动时不弹，避免破坏「开机静默进托盘」）。
  */
-import { dialog, globalShortcut } from 'electron'
+import { globalShortcut } from 'electron'
+import { postNotice } from './notices'
 import { getBooleanSetting } from './settings'
 import {
   getManagerWindow,
@@ -121,31 +122,15 @@ export function registerShortcuts(): ShortcutFailure[] {
   return failed
 }
 
-async function notifyShortcutFailures(failed: ShortcutFailure[]): Promise<void> {
-  const lines = failed.map((item) => `${item.accelerator}（${item.label}）`).join('\n')
-  const options = {
-    type: 'warning' as const,
-    title: '快捷键冲突',
-    message: '部分全局快捷键注册失败',
-    detail: `以下快捷键可能被其他程序占用：\n${lines}\n\n可在设置中关闭全局快捷键，或关闭占用程序后重启应用。`,
-    buttons: ['知道了'],
-    defaultId: 0,
-    cancelId: 0,
-    noLink: true
-  }
-  try {
-    const parent = getManagerWindow() ?? getWidgetWindow()
-    if (parent && !parent.isDestroyed()) {
-      await dialog.showMessageBox(parent, options)
-    } else {
-      await dialog.showMessageBox(options)
-    }
-  } catch (error) {
-    console.warn(
-      '[shortcuts] 无法弹出快捷键冲突提示：',
-      error instanceof Error ? error.message : error
-    )
-  }
+function notifyShortcutFailures(failed: ShortcutFailure[]): void {
+  postNotice({
+    kind: 'warning',
+    title: '部分全局快捷键注册失败',
+    message: '以下快捷键可能被其他程序占用：',
+    items: failed.map((item) => ({ label: item.accelerator, detail: item.label })),
+    hint: '可在设置中关闭全局快捷键，或关闭占用程序后重启应用。',
+    acknowledgeLabel: '知道了'
+  })
 }
 
 function scheduleFailureNotification(failed: ShortcutFailure[]): void {
@@ -157,7 +142,7 @@ function scheduleFailureNotification(failed: ShortcutFailure[]): void {
   // 延后弹窗，让主窗口先完成首帧；--silent 时不弹（见 setupShortcuts）
   notifyTimer = setTimeout(() => {
     notifyTimer = null
-    void notifyShortcutFailures(failed)
+    notifyShortcutFailures(failed)
   }, 1200)
   // 测试/退出时不要因此挂住进程
   if (typeof notifyTimer.unref === 'function') notifyTimer.unref()

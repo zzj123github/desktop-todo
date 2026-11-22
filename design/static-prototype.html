@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>桌面待办 · 静态原型 v2.1</title>
+<title>桌面待办 · 静态原型 v2.2</title>
 <style>
 @font-face{font-family:'InterV';src:url('../design/fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-display:swap}
 @font-face{font-family:'NotoSerifV';src:url('../design/fonts/NotoSerifVariable.woff2') format('woff2');font-weight:200 900;font-display:swap}
@@ -91,16 +91,16 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
 
   <header class="hero">
     <div>
-      <p class="eyebrow">DESKTOP TODO · STATIC PROTOTYPE v2.1</p>
+      <p class="eyebrow">DESKTOP TODO · STATIC PROTOTYPE v2.2</p>
       <h1>桌面待办，<br>把任务放在<em>桌面上</em></h1>
-      <p class="lede">纯本地的 Windows 桌面 TODO：完整窗口负责管理与筛选，桌面挂件负责随时看见、随手勾选，收起胶囊只保留今天的进度。每条任务可挂网页、文件夹、UNC 路径和本地文件，点一下就打开对应地址。</p>
+      <p class="lede">纯本地的 Windows 桌面 TODO：桌面挂件常驻手边，完整窗口负责管理与筛选，收起胶囊只保留今天的进度。同一时刻只出现一种形态，可随时互切；每条任务可挂网页、文件夹、UNC 路径和本地文件，点一下就打开对应地址。</p>
     </div>
     <div class="hero-meta">
       <div class="stamp">
-        <b>静态原型 · 已同步可交互原型 v1.0</b>
+        <b>静态原型 · 已同步可交互原型 v1.1</b>
         <span>可交互版：design/app/index.html</span>
         <span>规格：docs/08-UI-ENGINEERING-SPEC.md</span>
-        <span>更新：2026-11-21 · 状态：视觉定稿</span>
+        <span>更新：2026-11-22 · 状态：视觉定稿</span>
       </div>
       <div class="chips">
         <span class="chip"><i class="dot"></i>网页 / 文件夹 / UNC</span>
@@ -111,7 +111,7 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
   </header>
 
   <div class="principles">
-    <div class="principle"><b>先看见，再管理</b><span>桌面挂件常驻，不打开主程序也知道今天还剩什么。</span></div>
+    <div class="principle"><b>先看见，再管理</b><span>桌面挂件常驻，不打开主程序也知道今天还剩什么；完整窗口、挂件、胶囊同一时刻只出现一种。</span></div>
     <div class="principle"><b>任务行不折叠</b><span>标题、链接、标签、优先级、到期时间一眼判断，不在层级里找信息。</span></div>
     <div class="principle"><b>链接挂在任务下</b><span>文件夹进资源管理器，网页进默认浏览器；拖拽即挂载。</span></div>
     <div class="principle"><b>筛选留在桌面上</b><span>状态、标签、日期、优先级、关键词五个维度随时切换。</span></div>
@@ -122,23 +122,23 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
       <span class="sec-no">01</span>
       <h2>同一份数据的三种形态</h2>
       <span class="sec-en">PRODUCT FORMS</span>
-      <p>完整窗口负责管理与筛选；挂件负责桌面常驻；胶囊负责极简提醒。三者共享同一份数据。</p>
+      <p>一个桌面，三种形态：完整窗口负责管理与筛选，挂件负责桌面常驻，胶囊负责极简提醒。三者共享同一份数据，同一时刻只出现一个。</p>
     </div>
 
     <div class="grid-2">
       <figure class="wide">
         <div class="shot"><img src="app-manager.png" alt="完整窗口 · 今天视图"></div>
-        <figcaption><span class="cap-no">01</span><div><b>完整窗口 · 管理视图</b><span>左侧导航（收件箱 / 今天 / 已逾期 / 即将到期 / 已完成 / 项目 / 标签）+ 主区今天视图；顶部状态、进度环与新建；底部常驻输入框。项目与标签分区标题右侧的铅笔管理入口，在数据变多时固定可见。</span></div></figcaption>
+        <figcaption><span class="cap-no">01</span><div><b>完整窗口 · 管理视图</b><span>桌面形态下打开的管理窗口：左侧导航（收件箱 / 今天 / 已逾期 / 即将到期 / 已完成 / 项目 / 标签）+ 主区今天视图；标题行右侧是进度环、收起到挂件 / 收起到胶囊、新建与关闭。打开窗口时挂件与胶囊自动让位，三者同一时刻只出现一个。</span></div></figcaption>
       </figure>
 
       <figure>
         <div class="shot"><img src="app-desktop.png" alt="桌面挂件"></div>
-        <figcaption><span class="cap-no">02</span><div><b>桌面挂件 · 主入口</b><span>浮于壁纸与窗口之上，默认展示今天；可拖动、置顶、调透明度，右下角收起为胶囊。任务行内直接勾选，链接直接打开。</span></div></figcaption>
+        <figcaption><span class="cap-no">02</span><div><b>桌面挂件 · 主入口</b><span>浮于壁纸与窗口之上，默认展示今天；可拖动、置顶、调透明度。任务行内直接勾选，链接直接打开；底部添加区默认收起（见 05）。双击标题打开完整窗口，拖到屏幕四角会记住最近的角。</span></div></figcaption>
       </figure>
 
       <figure>
         <div class="shot"><img src="app-capsule.png" alt="收起胶囊"></div>
-        <figcaption><span class="cap-no">03</span><div><b>收起胶囊 · 只留今天进度</b><span>显示今日任务数、逾期数、最近到期项与完成度；双击展开完整窗口。收起状态会被记住，下次打开保持上次状态。</span></div></figcaption>
+        <figcaption><span class="cap-no">03</span><div><b>收起胶囊 · 只留今天进度</b><span>显示今日任务数、逾期数、最近到期项与完成度；单击展开挂件，双击打开完整窗口。挂件与胶囊共用同一位置基准，切换形态时停在最近的屏幕角。</span></div></figcaption>
       </figure>
     </div>
   </section>
@@ -146,6 +146,27 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
   <section>
     <div class="sec-head">
       <span class="sec-no">02</span>
+      <h2>形态切换与随手添加</h2>
+      <span class="sec-en">FORMS &amp; QUICK ADD</span>
+      <p>三种形态互相切换时不丢当前视图，也不丢屏幕位置；桌面挂件的输入区默认收起，把桌面还给工作。</p>
+    </div>
+
+    <div class="grid-2">
+      <figure class="wide">
+        <div class="shot"><img src="app-shapes.png" alt="完整窗口标题行与形态按钮"></div>
+        <figcaption><span class="cap-no">04</span><div><b>完整窗口 · 标题行形态按钮</b><span>进度环右侧新增两个图标按钮：收起到挂件、收起到胶囊；再右侧是新建与关闭。关闭 X 或 Esc 只回到桌面，不退出应用；标题行按钮把窗口收成挂件或胶囊；双击挂件标题、双击胶囊打开完整窗口。</span></div></figcaption>
+      </figure>
+
+      <figure class="wide">
+        <div class="shot"><img src="app-widget-composer.png" alt="桌面挂件展开添加输入"></div>
+        <figcaption><span class="cap-no">05</span><div><b>桌面挂件 · 添加任务默认收起</b><span>底部平时只有一枚「+ 添加任务」按钮，点开才展开完整输入框（日期 / 标签 / 优先级 / 链接）。回车保存，Esc 或点挂件外收起；展开状态不写进数据，刷新后回到收起态。</span></div></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-no">03</span>
       <h2>任务、链接与时间</h2>
       <span class="sec-en">TASK &amp; LINK</span>
       <p>任务不是一张卡片：勾选框、标题、标签、优先级、到期时间、链接都在同一行里可见、可点。</p>
@@ -154,29 +175,29 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
     <div class="grid-2">
       <figure>
         <div class="shot"><img src="app-editor.png" alt="编辑任务与多链接"></div>
-        <figcaption><span class="cap-no">04</span><div><b>编辑任务 · 多链接挂在任务下</b><span>一条任务可挂多个链接；文件夹用资源管理器打开，网页用默认浏览器打开，UNC 共享路径会先探测可达性。链接保存为绝对路径，移动位置后打开会提示重新定位。</span></div></figcaption>
+        <figcaption><span class="cap-no">06</span><div><b>编辑任务 · 多链接挂在任务下</b><span>一条任务可挂多个链接；文件夹用资源管理器打开，网页用默认浏览器打开，UNC 共享路径会先探测可达性。链接保存为绝对路径，移动位置后打开会提示重新定位。</span></div></figcaption>
       </figure>
 
       <figure>
         <div class="shot"><img src="app-dp-editor.png" alt="自定义日期时间选择器"></div>
-        <figcaption><span class="cap-no">05</span><div><b>自定义日期时间</b><span>不用系统原生控件；今天之前日期置灰，当天已过去时间不可选；只保留 2 个常用快捷时间。到期时间早于当前时刻即视为逾期，同一天已过也显示「已逾期 N 小时」。</span></div></figcaption>
+        <figcaption><span class="cap-no">07</span><div><b>自定义日期时间</b><span>不用系统原生控件；今天之前日期置灰，当天已过去时间不可选；只保留 2 个常用快捷时间。到期时间早于当前时刻即视为逾期，同一天已过也显示「已逾期 N 小时」。</span></div></figcaption>
       </figure>
 
       <figure>
         <div class="shot"><img src="app-filter.png" alt="五维筛选"></div>
-        <figcaption><span class="cap-no">06</span><div><b>五维筛选 · 桌面直接切</b><span>状态 Tab、标签、日期、优先级、关键词搜索；筛选条件常驻窗口内，不跳设置页。项目与标签在同一个下拉内分组展示。</span></div></figcaption>
+        <figcaption><span class="cap-no">08</span><div><b>五维筛选 · 桌面直接切</b><span>状态 Tab、标签、日期、优先级、关键词搜索；筛选条件常驻窗口内，不跳设置页。项目与标签在同一个下拉内分组展示。</span></div></figcaption>
       </figure>
 
       <figure>
         <div class="shot"><img src="app-inbox.png" alt="收件箱口径"></div>
-        <figcaption><span class="cap-no">07</span><div><b>收件箱 · 未安排日期、未归项目</b><span>收件箱只接住「还没有落位」的任务；一旦设置日期或项目就离开。计数只算未完成，避免重复出现在项目视图里。</span></div></figcaption>
+        <figcaption><span class="cap-no">09</span><div><b>收件箱 · 未安排日期、未归项目</b><span>收件箱只接住「还没有落位」的任务；一旦设置日期或项目就离开。计数只算未完成，避免重复出现在项目视图里。</span></div></figcaption>
       </figure>
     </div>
   </section>
 
   <section>
     <div class="sec-head">
-      <span class="sec-no">03</span>
+      <span class="sec-no">04</span>
       <h2>项目、标签与安全删除</h2>
       <span class="sec-en">ORGANIZE &amp; GUARD</span>
       <p>管理入口分两层：设置里整体管理项目与标签，分区标题右侧只管理对应类型；删除有关联数据时必须二次确认。</p>
@@ -185,29 +206,29 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
     <div class="grid-3">
       <figure>
         <div class="shot"><img src="app-settings-manage.png" alt="设置里的项目与标签入口"></div>
-        <figcaption><span class="cap-no">08</span><div><b>设置 · 整体管理入口</b><span>设置 →「项目与标签」→ 管理，打开完整管理弹窗，同时管理项目与标签。</span></div></figcaption>
+        <figcaption><span class="cap-no">10</span><div><b>设置 · 整体管理入口</b><span>设置 →「项目与标签」→ 管理，打开完整管理弹窗，同时管理项目与标签。</span></div></figcaption>
       </figure>
 
       <figure>
         <div class="shot"><img src="app-sidebar-manage-entry.png" alt="侧栏分区铅笔入口"></div>
-        <figcaption><span class="cap-no">09</span><div><b>侧栏 · 单项管理入口</b><span>项目、标签分区标题最右侧的铅笔按钮，只打开对应单项管理；关闭后回到原视图。</span></div></figcaption>
+        <figcaption><span class="cap-no">11</span><div><b>侧栏 · 单项管理入口</b><span>项目、标签分区标题最右侧的铅笔按钮，只打开对应单项管理；关闭后回到原视图。</span></div></figcaption>
       </figure>
 
       <figure>
         <div class="shot"><img src="app-manage.png" alt="管理项目与标签"></div>
-        <figcaption><span class="cap-no">10</span><div><b>管理项目与标签</b><span>新建、重命名、删除；删除项目不会删除任务，只把任务移出项目；删除标签只去掉标签。删除后仍可在底部提示里撤销。</span></div></figcaption>
+        <figcaption><span class="cap-no">12</span><div><b>管理项目与标签</b><span>新建、重命名、删除；删除项目不会删除任务，只把任务移出项目；删除标签只去掉标签。删除后仍可在底部提示里撤销。</span></div></figcaption>
       </figure>
 
       <figure class="wide">
         <div class="shot"><img src="app-delete-confirm.png" alt="删除二次确认"></div>
-        <figcaption><span class="cap-no">11</span><div><b>删除二次确认 · 仅有关联数据时出现</b><span>先显示关联任务总数（待办 / 已完成），明确告知任务不会被删除；取消 / Esc / X 返回原管理弹窗；没有关联数据时直接删除，不做多余拦截。</span></div></figcaption>
+        <figcaption><span class="cap-no">13</span><div><b>删除二次确认 · 仅有关联数据时出现</b><span>先显示关联任务总数（待办 / 已完成），明确告知任务不会被删除；取消 / Esc / X 返回原视图（从管理弹窗进入时回到管理弹窗）；没有关联数据时直接删除，不做多余拦截。</span></div></figcaption>
       </figure>
     </div>
   </section>
 
   <section>
     <div class="sec-head">
-      <span class="sec-no">04</span>
+      <span class="sec-no">05</span>
       <h2>边界状态也保持可用</h2>
       <span class="sec-en">EDGE STATES</span>
       <p>数据变多时侧栏导航区滚动、footer 固定；项目 / 标签管理范围切换时标题与说明跟着变。</p>
@@ -216,19 +237,19 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
     <div class="grid-2">
       <figure>
         <div class="shot"><img src="app-sidebar-overflow.png" alt="侧栏溢出滚动"></div>
-        <figcaption><span class="cap-no">12</span><div><b>侧栏溢出 · 导航滚动，设置固定</b><span>项目与标签再多，导航区内部滚动，品牌与底部设置始终可见、可点。</span></div></figcaption>
+        <figcaption><span class="cap-no">14</span><div><b>侧栏溢出 · 导航滚动，设置固定</b><span>项目与标签再多，导航区内部滚动，品牌与底部设置始终可见、可点。</span></div></figcaption>
       </figure>
 
       <figure>
         <div class="shot"><img src="app-manage-project.png" alt="单项管理项目"></div>
-        <figcaption><span class="cap-no">13</span><div><b>单项管理 · 只出现对应段</b><span>从侧栏项目铅笔进入时，标题、说明、帮助文案都只讲项目；标签入口同理。不把两类对象混在一个弹窗里操作。</span></div></figcaption>
+        <figcaption><span class="cap-no">15</span><div><b>单项管理 · 只出现对应段</b><span>从侧栏项目铅笔进入时，标题、说明、帮助文案都只讲项目；标签入口同理。不把两类对象混在一个弹窗里操作。</span></div></figcaption>
       </figure>
     </div>
   </section>
 
   <section>
     <div class="sec-head">
-      <span class="sec-no">05</span>
+      <span class="sec-no">06</span>
       <h2>实现边界与交互约定</h2>
       <span class="sec-en">CONTRACT</span>
       <p>静态原型只用于视觉验收；真正的打开链接、拖拽文件、托盘与全局快捷键由 Electron 正式版实现。</p>
@@ -246,7 +267,11 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
       <div class="note">
         <p><span class="tag">CONFIRMED</span><b>已确认的交互决策</b></p>
         <ul class="mini-list">
-          <li><span class="k">收起态</span><span>下次打开保持上次收起状态</span></li>
+          <li><span class="k">形态</span><span>完整窗口 / 挂件 / 胶囊互斥，同一时刻只出现一个</span></li>
+          <li><span class="k">位置</span><span>挂件与胶囊共用一个最近的屏幕角，切换形态不跳角</span></li>
+          <li><span class="k">挂件输入</span><span>默认收起为「+ 添加任务」，点开才展开</span></li>
+          <li><span class="k">胶囊</span><span>单击展开挂件，双击打开完整窗口</span></li>
+          <li><span class="k">投影</span><span>桌面形态无外投影，用 1px 内描边收边</span></li>
           <li><span class="k">快捷时间</span><span>只显示 2 个，按当前时间动态计算</span></li>
           <li><span class="k">逾期</span><span>到期时间早于当前即逾期，同日已过也显示</span></li>
           <li><span class="k">过去时间</span><span>选择器置灰，键入过去值会被拦截</span></li>
@@ -257,13 +282,13 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
 
   <footer class="foot">
     <div>
-      <b>桌面待办 · 静态原型 v2.1</b><br>
+      <b>桌面待办 · 静态原型 v2.2</b><br>
       可交互原型：design/app/index.html · 视觉规格：docs/08-UI-ENGINEERING-SPEC.md<br>
       实现说明：docs/06-IMPLEMENTATION-BRIEF.md · 目录规范：docs/09-PROJECT-STRUCTURE.md
     </div>
     <div class="right">
       DESKTOP TODO / WINDOWS<br>
-      2026-11-21 · LOCAL ONLY
+      2026-11-22 · LOCAL ONLY
     </div>
   </footer>
 

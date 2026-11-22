@@ -303,6 +303,10 @@ export const zh = {
     viewActions: '更多'
   },
 
+  notice: {
+    ack: '知道了'
+  },
+
   common: {
     save: '保存',
     cancel: '取消',
