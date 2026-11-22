@@ -17,7 +17,6 @@ import { Icon } from '../components/Icons'
 import { ProgressRing } from '../components/ProgressRing'
 import { TaskRow } from '../components/TaskRow'
 import { Composer, type ComposerSubmit } from '../components/Composer'
-import { EditorModal } from '../components/EditorModal'
 import { ViewMenu } from '../components/ViewMenu'
 import { EmptyState } from '../components/EmptyState'
 import { useToast } from '../components/Toast'
@@ -51,7 +50,6 @@ export function Widget(): ReactElement {
 
   const [filter, setFilter] = useState<FilterDTO>(emptyFilter())
   const [activeViewId, setActiveViewId] = useState<string | null>(null)
-  const [editor, setEditor] = useState<TaskDTO | null>(null)
   const [doneOpen, setDoneOpen] = useState(false)
   /** 挂件输入区：常驻紧凑按钮，点击后展开 Composer（m03793 确认） */
   const [composerOpen, setComposerOpen] = useState(false)
@@ -173,13 +171,12 @@ export function Widget(): ReactElement {
         setComposerOpen(false)
         return
       }
-      if (editor) return
       event.preventDefault()
       collapse()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [collapse, composerOpen, editor])
+  }, [collapse, composerOpen])
 
   const toggleTask = useCallback(
     async (task: TaskDTO) => {
@@ -309,7 +306,6 @@ export function Widget(): ReactElement {
   const onBodyDoubleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
     if (target.closest('.task-row') || target.closest('button')) return
-    setEditor(null)
     void window.api.app.showManager()
   }, [])
 
@@ -322,7 +318,7 @@ export function Widget(): ReactElement {
       tags={tags}
       now={now}
       onToggle={() => void toggleTask(task)}
-      onEdit={() => setEditor(task)}
+      onEdit={() => void window.api.editor.open({ taskId: task.id })}
       onOpenLink={(link) => void openLink(link)}
       onDelete={() => void deleteTask(task)}
     />
@@ -455,27 +451,6 @@ export function Widget(): ReactElement {
         <span>{zh.widget.doneSummary(progress.done, progress.total)}</span>
         <span className="hint">双击标题展开完整窗口</span>
       </div>
-
-      {editor ? (
-        <EditorModal
-          task={editor}
-          projects={projects}
-          tags={tags}
-          timeUsage={timeUsage.usage}
-          onPickTime={(value) => timeUsage.note(value)}
-          onClose={() => setEditor(null)}
-          onSaved={() => {
-            setEditor(null)
-            refreshTasks()
-            refreshTags()
-          }}
-          onDeleted={() => {
-            setEditor(null)
-            refreshTasks()
-          }}
-          onTagsChanged={refreshTags}
-        />
-      ) : null}
     </div>
   )
 }

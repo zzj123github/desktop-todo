@@ -94,7 +94,7 @@ function preloadPath(): string {
 
 function loadView(
   win: BrowserWindow,
-  view: 'widget' | 'manager' | 'quickadd',
+  view: 'widget' | 'manager' | 'quickadd' | 'editor',
   params: Record<string, string> = {}
 ): void {
   const file = view === 'quickadd' ? 'quickadd.html' : 'index.html'
@@ -576,6 +576,100 @@ function createWidgetWindow(initialMode: WidgetMode): BrowserWindow {
   return win
 }
 
+
+// ---------------------------------------------------------------------------
+// 任务编辑弹窗（桌面级独立窗口）
+//
+// 挂件只有 352 宽，编辑面板 502 wide 塞进挂件会被裁切（原型是桌面级弹窗）。
+// 因此挂件内点击任务时，主进程创建一个独立的透明弹窗承载同一个 EditorModal：
+// - 宽 550 = 502 弹窗 + 24×2 内边距，让 08 的 modal 阴影有空间；
+// - 高度由渲染层测量后上报（editor:ready），整体居中到挂件所在显示器；
+// - 透明无边框、置顶、跳过任务栏，Esc/X/保存/删除后销毁，挂件保持原样。
+// ---------------------------------------------------------------------------
+
+/** 编辑弹窗内容宽度（08 §3.8：wide 502）+ 左右内边距 24×2 */
+export const EDITOR_WINDOW_WIDTH = 550
+const EDITOR_WINDOW_PADDING_Y = 48
+const EDITOR_WINDOW_MIN_HEIGHT = 320
+
+let editorWindow: BrowserWindow | null = null
+
+function editorWindowBounds(height: number): Rectangle {
+  const reference =
+    widgetWindow && !widgetWindow.isDestroyed() ? widgetWindow.getBounds() : undefined
+  const display = reference ? screen.getDisplayMatching(reference) : screen.getPrimaryDisplay()
+  const workArea = display.workArea
+  const width = Math.min(EDITOR_WINDOW_WIDTH, workArea.width)
+  const wanted = Math.max(Math.round(height) + EDITOR_WINDOW_PADDING_Y, EDITOR_WINDOW_MIN_HEIGHT)
+  const heightPx = Math.min(wanted, workArea.height - 32)
+  return {
+    x: workArea.x + Math.round((workArea.width - width) / 2),
+    y: workArea.y + Math.round((workArea.height - heightPx) / 2),
+    width,
+    height: heightPx
+  }
+}
+
+/** 打开任务编辑弹窗；taskId 为空表示新建任务 */
+export function openEditorWindow(taskId: string | null): void {
+  if (editorWindow && !editorWindow.isDestroyed()) {
+    editorWindow.destroy()
+    editorWindow = null
+  }
+  const win = new BrowserWindow({
+    ...editorWindowBounds(EDITOR_WINDOW_MIN_HEIGHT),
+    title: '桌面待办',
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    roundedCorners: false,
+    show: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: preloadPath(),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  })
+  editorWindow = win
+  win.on('closed', () => {
+    if (editorWindow === win) editorWindow = null
+  })
+  win.setAlwaysOnTop(true, 'floating')
+  win.setVisibleOnAllWorkspaces(false)
+  loadView(win, 'editor', taskId ? { task: taskId } : {})
+  win.once('ready-to-show', () => {
+    win.show()
+    win.focus()
+  })
+}
+
+/** 关闭任务编辑弹窗（幂等） */
+export function closeEditorWindow(): void {
+  const win = editorWindow
+  editorWindow = null
+  if (win && !win.isDestroyed()) win.destroy()
+}
+
+/** 渲染层测量内容高度后调用：按内容高度重新居中 */
+export function resizeEditorWindow(height: number): void {
+  const win = editorWindow
+  if (!win || win.isDestroyed()) return
+  win.setBounds(editorWindowBounds(height))
+}
+
+export function getEditorWindow(): BrowserWindow | null {
+  return editorWindow
+}
+
 function createManagerWindow(): BrowserWindow {
   const saved = readBounds('managerBounds')
   const bounds = saved
@@ -717,6 +811,8 @@ export function toggleWidget(): void {
 function revealManager(): void {
   const win = managerWindow
   if (!win || win.isDestroyed()) return
+  // 切换场景时收起编辑弹窗，避免两个桌面级窗口叠在一起
+  closeEditorWindow()
   // 三态互斥：打开完整窗口时隐藏桌面形态
   if (widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible()) {
     widgetWindow.hide()

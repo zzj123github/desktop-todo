@@ -965,3 +965,19 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
   width: 30px;
   height: 30px;
 }
+
+/* ===== 任务编辑弹窗独立窗口（?view=editor，Lead m04418） =====
+   窗口是 550×auto 的透明普通窗口：内容 = EditorModal（embedded）+ 24px 内边距，
+   给 08 §3.8 的 modal 阴影留出空间；高度由渲染层测量后上报主进程居中。 */
+.view-editor{background:transparent}
+.view-editor #root{height:auto;min-height:100%}
+.editor-window-host{
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  width:100%;
+  padding:24px;
+  -webkit-app-region:no-drag;
+}
+.editor-window-host .modal{width:100%;max-height:none;margin:0}
+.editor-window-host .modal-body{max-height:none}

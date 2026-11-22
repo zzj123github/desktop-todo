@@ -36,6 +36,8 @@ export interface EditorModalProps {
   onSaved: (task: TaskDTO, isNew: boolean) => void
   onDeleted: (task: TaskDTO) => void
   onTagsChanged: () => void
+  /** 独立编辑窗口内渲染时使用：不画遮罩、原地渲染（见 app/EditorWindowHost.tsx） */
+  embedded?: boolean
 }
 
 const PRIORITIES: { value: TaskPriority; label: string }[] = [
@@ -60,7 +62,8 @@ export function EditorModal({
   onClose,
   onSaved,
   onDeleted,
-  onTagsChanged
+  onTagsChanged,
+  embedded
 }: EditorModalProps): ReactElement {
   const { showToast } = useToast()
   const isNew = task === null
@@ -270,6 +273,7 @@ export function EditorModal({
       size="wide"
       onClose={onClose}
       footer={footer}
+      embedded={embedded}
     >
       <div className="form-field">
         <div className="field-label">{zh.editor.titleLabel}</div>

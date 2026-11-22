@@ -44,3 +44,5 @@
 2026-11-22 02:10 | update | src/renderer/src/app/{Widget,Manager,Capsule}.tsx, src/renderer/src/styles/app.css, src/renderer/src/i18n/zh.ts, src/shared/types.ts, src/preload/index.ts, src/main/ipc.ts | 三态互斥入口（app:showWidget）、挂件折叠输入、胶囊单击/双击判定、完整窗口标题行两个收起按钮 | 用户 m03793 四项确认
 2026-11-22 02:12 | update | design/app/{index.html,css/adjust.css,js/*.js} | 临时原型 v1.1 同步回正式原型；删除 design/prototype-adjust；docs/08 §2.8、docs/01、docs/02 同步确认后的交互规范 | 用户确认原型实施
 2026-11-22 02:25 | verify | .agents/tmp/verify-shapes.mjs | 三态互斥 6 项 + 折叠输入 4 项 + 四角 8 项全部 PASS（修复漂移后 Δ0）；13 文件 171 用例通过 | m03793 验收
+2026-11-22 | update | src/main/windows.ts, src/main/ipc.ts, src/preload/index.ts, src/shared/types.ts, src/renderer/src/app/{EditorWindowHost.tsx,App.tsx,Widget.tsx}, src/renderer/src/components/{Modal.tsx,EditorModal.tsx,anchoredPosition.ts}, src/renderer/src/styles/app.css | 挂件内点击任务改为独立桌面级编辑窗口（550 宽、内容高度居中、embedded 模态），修复日期面板在编辑窗口内被裁切
+2026-11-22 | update | docs/01-PRD.md, docs/08-UI-ENGINEERING-SPEC.md, docs/acceptance/M6-ACCEPTANCE.md, README.md | 记录挂件内编辑窗口契约与验收（§2.1 窗口矩阵、§3.8 Modal、FR-1.11、补充验收第 5 节）

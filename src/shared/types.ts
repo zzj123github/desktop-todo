@@ -205,6 +205,14 @@ export interface DesktopTodoApi {
     /** 胶囊拖动结束：落盘位置 */
     endDrag(): Promise<{ ok: true }>
   }
+  editor: {
+    /** 打开任务编辑弹窗（挂件内点击任务时使用；taskId 为空表示新建） */
+    open(input?: { taskId?: string | null }): Promise<void>
+    /** 关闭任务编辑弹窗 */
+    close(): Promise<void>
+    /** 渲染完成后上报内容高度：主进程按高度调整并居中窗口 */
+    ready(input: { height: number }): Promise<{ ok: true }>
+  }
   drop: {
     getPathForFile(file: File): string
   }

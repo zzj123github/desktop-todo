@@ -31,6 +31,11 @@ export interface ModalProps {
   /** 关闭按钮的 aria-label，默认「关闭」 */
   closeLabel?: string
   className?: string
+  /**
+   * 嵌入式渲染：不画遮罩、不锁背景滚动、原地渲染。
+   * 供独立编辑弹窗使用（窗口本身就是 550×auto，不需要 1100 宽的遮罩层）。
+   */
+  embedded?: boolean
 }
 
 export function Modal({
@@ -42,7 +47,8 @@ export function Modal({
   footer,
   role = 'dialog',
   closeLabel = '关闭',
-  className
+  className,
+  embedded = false
 }: ModalProps): ReactElement {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -58,27 +64,55 @@ export function Modal({
     else dialog?.focus()
 
     const bodyOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    if (!embedded) document.body.style.overflow = 'hidden'
 
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
       // Esc 逐层关闭：日期选择器/浮层打开时由它们自己处理
       if (document.querySelector('.dp-pop, .pop')) return
-      // 仅最顶层模态响应 Esc（管理弹窗内再开删除确认时只关确认框）
-      const overlays = document.querySelectorAll('.overlay')
-      if (overlays[overlays.length - 1] !== overlayRef.current) return
+      // 仅最顶层模态响应 Esc（管理弹窗内再开删除确认时只关确认框）。
+      // 嵌入模式下窗口里只有一个模态，直接响应。
+      if (!embedded) {
+        const overlays = document.querySelectorAll('.overlay')
+        if (overlays[overlays.length - 1] !== overlayRef.current) return
+      }
       event.stopPropagation()
       onCloseRef.current()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = bodyOverflow
+      if (!embedded) document.body.style.overflow = bodyOverflow
       previous?.focus?.()
     }
-  }, [])
+  }, [embedded])
 
   const classes = ['modal', SIZE_CLASS[size], className ?? ''].filter(Boolean).join(' ')
+
+  const dialog = (
+    <div
+      ref={dialogRef}
+      className={classes}
+      role={role}
+      aria-modal="true"
+      aria-labelledby={titleId}
+      tabIndex={-1}
+    >
+      <div className="modal-head">
+        <div className="modal-title" id={titleId}>
+          {title}
+        </div>
+        {subtitle ? <div className="modal-sub">{subtitle}</div> : null}
+        <button type="button" className="modal-x" aria-label={closeLabel} onClick={onClose}>
+          <Icon name="x" size={14} />
+        </button>
+      </div>
+      <div className="modal-body">{children}</div>
+      {footer ? <div className="modal-foot">{footer}</div> : null}
+    </div>
+  )
+
+  if (embedded) return dialog
 
   return createPortal(
     <div
@@ -88,26 +122,7 @@ export function Modal({
       onDoubleClick={(event) => event.stopPropagation()}
       // 点击遮罩不关闭：这里刻意不处理 onClick
     >
-      <div
-        ref={dialogRef}
-        className={classes}
-        role={role}
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-      >
-        <div className="modal-head">
-          <div className="modal-title" id={titleId}>
-            {title}
-          </div>
-          {subtitle ? <div className="modal-sub">{subtitle}</div> : null}
-          <button type="button" className="modal-x" aria-label={closeLabel} onClick={onClose}>
-            <Icon name="x" size={14} />
-          </button>
-        </div>
-        <div className="modal-body">{children}</div>
-        {footer ? <div className="modal-foot">{footer}</div> : null}
-      </div>
+      {dialog}
     </div>,
     document.body
   )

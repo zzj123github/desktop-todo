@@ -93,3 +93,8 @@
 ## 打包时 VS Code 占用工作区构建文件
 
 - `electron-builder` 清理 `release/win-unpacked` 时可能被 VS Code 短暂锁定（Restart Manager 查出 pid 为 VS Code），报 `EBUSY ... app.asar / default_app.asar`。规避：输出到工作区外 `-c.directories.output=C:/Users/lazasons/AppData/Local/desktop-todo-dev/release-build`，再复制产物回 `release/` 与桌面交付目录。
+
+## 编辑弹窗窗口尺寸与浮层裁切（2026-11-22）
+
+- 独立编辑窗口高度必须先由渲染层测量 `editor-window-host` 再上报；主进程按 `height + 48` 居中，超过工作区 `-32` 时会被夹小，弹层打开时依赖 `anchoredPosition` 上翻而不是加高窗口。
+- `anchoredPosition` 的翻转判断必须用真实 `popHeight`；用上限估算（320）会让 351 高的日期面板在中小窗口里既不翻转也不被夹，底部直接越界。

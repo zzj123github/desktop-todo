@@ -65,7 +65,9 @@ export function anchoredPosition(
   )
   const below = viewportHeight - anchor.bottom - gap - VIEWPORT_MARGIN
   const above = anchor.top - gap - VIEWPORT_MARGIN
-  const needed = Math.min(popHeight, 320)
+  // 08 §3.9：完整放不下时翻到上方（此前用 min(popHeight,320) 估算，
+  // 351 高的日期面板在小窗口里会「差一点」而不翻转，底部被窗口裁掉）
+  const needed = popHeight
   let top = anchor.bottom + gap
   let maxHeight = Math.max(120, Math.min(popHeight, below))
   if (below < needed && above > below) {

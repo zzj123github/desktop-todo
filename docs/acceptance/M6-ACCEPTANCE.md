@@ -305,10 +305,37 @@
 - `npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` **13 文件 / 171 用例全部通过**（新增 `src/main/windows.test.ts` 6 例：四角基准与 clamp）。
 - 证据截图（`docs/acceptance/screens/`）：`m6-widget-folded.png`（折叠按钮）、`m6-widget-composer.png`（展开输入）、`m6-widget-datepicker.png`（挂件内日历完整）、`m6-manager-shapes.png`（标题行两个收起按钮）、`m6-capsule-final.png`。
 
-**F. 交付物（2026-11-22 02:32 重打包）**
+**F. 交付物（2026-11-22 11:04 重打包）**
 
 - 打包命令（工作区外输出规避 VS Code 文件锁）：`ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ pnpm exec electron-builder --win -c.directories.output=C:/Users/lazasons/AppData/Local/desktop-todo-dev/release-build`
 - 产物并已复制到 `release/` 与桌面交付目录 `C:\Users\lazasons\Desktop\桌面待办-交付物\`：
-  - `DesktopTodo-1.0.0-portable.exe` 97,692,520 B / SHA-256 `f771ca46de0c4c351773760034f02f37a6bb8780ca32c3e80a19bb44f9ec8644`
-  - `DesktopTodo-1.0.0-setup.exe` 106,242,726 B / SHA-256 `8052112795253791822318043737c2e162b0d0bc85dbd6ab496c7a88fa6ed57d`
+  - `DesktopTodo-1.0.0-portable.exe` 97,695,011 B / SHA-256 `bc3c6383e5dbd7f8342b03b2c20f93c7f3a460150a385a27f5aa8f40a23f46ba`
+  - `DesktopTodo-1.0.0-setup.exe` 106,243,797 B / SHA-256 `ba0a1c199f64bf0e4e14c082b67495df24db6ece171970baeb575a2ed553b6b6`
+- 本包相对 02:32 包新增：挂件内编辑改为独立桌面级编辑窗口（见 §5）；打包版复验：`window.api.editor` 打开 `?view=editor`、551×829、日期面板 `top 99 / bottom 451` 完整、Esc 关闭后只剩 `?view=widget`。
+- 启动打包版注意：从本仓库 shell 用 `Start-Process` 会继承 `ELECTRON_RUN_AS_NODE=1` 而被当作 Node 静默退出；应先用 `$env:ELECTRON_RUN_AS_NODE=$null`，或 `env -u ELECTRON_RUN_AS_NODE ./DesktopTodo-1.0.0-portable.exe`。
 - `使用说明.txt` 与 README 校验表、修复清单已同步更新。
+
+
+## 5) 2026-11-22 11:0x 挂件内编辑弹窗独立窗口（m04418）
+
+**现象**：挂件内点击任务时，编辑面板被塞进 352 宽挂件窗口内裁切，与原型（桌面级 502 wide 弹窗）不一致。
+
+**根因**：`EditorModal` 直接渲染在挂件页面的 `.overlay` 上，受 352×auto 窗口边界限制；弹窗并没有独立窗口。
+
+**修复**：
+
+- 主进程新增独立编辑窗口：`src/main/windows.ts` 的 `openEditorWindow/closeEditorWindow/resizeEditorWindow`（透明、无边框、跳过任务栏、置顶，宽 550 = 502 + 24×2，按内容高度居中到挂件所在显示器；`revealManager()` 切换场景时自动关闭）。
+- IPC：`editor:open` / `editor:close` / `editor:ready`；`src/shared/types.ts`、`src/preload/index.ts` 同步 `window.api.editor`。
+- 渲染层：新增 `src/renderer/src/app/EditorWindowHost.tsx`（`?view=editor&task=…`，`ResizeObserver` 上报内容高度）；`Modal` 增加 `embedded` 模式（不画遮罩、不锁滚动、原地渲染，Esc 仍响应）；`EditorModal` 透传 `embedded`；挂件任务行改为 `window.api.editor.open({ taskId })`，移除挂件内编辑弹窗。
+- `anchoredPosition`：`needed` 改为 `popHeight`（原 `min(popHeight,320)` 会让 351 高的日期面板「差一点」不翻转而在独立窗口底部被裁）。
+
+**验证**（dev + CDP，打包版复验见下）：
+
+- 点击挂件任务 → 新 target `index.html?view=editor&task=…`，窗口 551×829（175% DPI），`.modal.wide` 存在、无 `.overlay`、标题「编辑任务」。
+- 日期选择器：`.dp-pop` 288×351 翻到字段上方，`top 99 / bottom 451`，完整位于 551×829 窗口内。
+- Esc 依次关闭日期面板、编辑窗口；编辑窗口关闭后挂件 target 仍在（挂件保持原样）。
+- 保存流程：改标题 → 保存 → 窗口关闭、任务标题与挂件行同步更新。
+- 删除流程：删除任务 → 窗口内出现 424 确认框（嵌入式模态正常）。
+- 完整窗口内点击任务仍为原地模态（`.overlay` + `.modal.wide`、无 embedded），Esc 只关模态，回归通过。
+- 回归：`npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` 13 文件 / 171 用例全部通过。
+- 证据截图（`docs/acceptance/screens/`）：`m6-editor-window.png`、`m6-editor-window-datepicker.png`、`m6-editor-window-delete.png`。

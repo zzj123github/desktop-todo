@@ -53,10 +53,13 @@ import {
   applySettingsChange,
   beginCapsuleDrag,
   broadcast,
+  closeEditorWindow,
   endCapsuleDrag,
   getManagerWindow,
   getWidgetWindow,
   moveCapsuleDrag,
+  openEditorWindow,
+  resizeEditorWindow,
   saveCapsulePosition,
   setWidgetCollapsed,
   setWidgetContentHeight,
@@ -100,7 +103,10 @@ export const IPC_CHANNELS = [
   'widget:saveCapsulePosition',
   'widget:beginDrag',
   'widget:dragMove',
-  'widget:endDrag'
+  'widget:endDrag',
+  'editor:open',
+  'editor:close',
+  'editor:ready'
 ] as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[number]
@@ -527,6 +533,30 @@ export function registerIpcHandlers(): void {
 
   handle('widget:endDrag', () => {
     endCapsuleDrag()
+    return { ok: true as const }
+  })
+
+  // --- 任务编辑弹窗（挂件内点击任务 → 桌面级独立弹窗） -------------------
+  handle('editor:open', (input) => {
+    const payload = input === undefined ? {} : asRecord(input)
+    const taskId = payload.taskId
+    if (taskId !== undefined && taskId !== null && typeof taskId !== 'string') {
+      throw new Error('参数格式不正确：taskId')
+    }
+    openEditorWindow(typeof taskId === 'string' && taskId !== '' ? taskId : null)
+  })
+
+  handle('editor:close', () => {
+    closeEditorWindow()
+  })
+
+  handle('editor:ready', (input) => {
+    const payload = asRecord(input)
+    const height = payload.height
+    if (typeof height !== 'number' || !Number.isFinite(height)) {
+      throw new Error('缺少参数：height')
+    }
+    resizeEditorWindow(height)
     return { ok: true as const }
   })
 }

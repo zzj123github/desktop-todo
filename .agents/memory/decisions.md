@@ -94,3 +94,10 @@
 - 决策：挂件底部默认折叠按钮（`.w-add-btn`，高 28），点击展开 Composer 并聚焦；Esc/点外部/提交后收起。胶囊单击改为 250ms 延迟展开以区分双击打开完整窗口（`scheduleExpand` + `onDoubleClick`）。
 - 决策：临时原型 v1.1 经用户确认后同步回 `design/app/`（新增 `css/adjust.css`，覆盖 `js/{core,render,interactions}.js` 与 `index.html`），删除 `design/prototype-adjust/`；规范同步到 docs/08 §2.8、docs/01 FR-2.7/2.8 等。
 - 证据：`.agents/tmp/verify-shapes.mjs` 全部 PASS（三态互斥 6 项、折叠输入 4 项、四角各 Δ0）；`node scripts/run-tests.cjs` 13 文件 171 用例通过；`npx tsc --noEmit` 0 错误。
+
+## D14 · 挂件内编辑任务改为独立桌面级窗口（2026-11-22，m04418）
+
+- 现象：挂件内点击任务，编辑面板被 352 宽挂件窗口裁切；原型的编辑面板是桌面级 502 wide 弹窗。
+- 决策：主进程新建独立透明窗口（`openEditorWindow` / `closeEditorWindow` / `resizeEditorWindow`），窗口宽 550（502 + 24×2 内边距），高度由渲染层 `editor:ready` 上报后居中到挂件所在显示器；渲染层用同一 `EditorModal` + `Modal embedded` 模式（不画遮罩、不锁滚动）。挂件/完整窗口的既有编辑路径不变。
+- 理由：同一 bundle 多视图（docs/09）、不复制表单实现；窗口级隔离避免 352/1100 两种窗口尺寸的裁切问题；三态互斥不受影响（编辑窗口是瞬态覆盖层，挂件保持可见）。
+- 配套修正：`anchoredPosition` 的翻转阈值 `needed` 从 `min(popHeight,320)` 改为 `popHeight`——351 高的日期面板在 829 高窗口里「差一点」不翻转会被裁 11px。

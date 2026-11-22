@@ -118,6 +118,11 @@ const api: DesktopTodoApi = {
     dragMove: (input: { dx: number; dy: number }) => ipcRenderer.invoke('widget:dragMove', input),
     endDrag: () => ipcRenderer.invoke('widget:endDrag')
   },
+  editor: {
+    open: (input?: { taskId?: string | null }) => ipcRenderer.invoke('editor:open', input ?? {}),
+    close: () => ipcRenderer.invoke('editor:close'),
+    ready: (input: { height: number }) => ipcRenderer.invoke('editor:ready', input)
+  },
   drop: {
     getPathForFile: (file) => webUtils.getPathForFile(file)
   },

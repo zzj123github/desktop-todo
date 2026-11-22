@@ -8,13 +8,14 @@ import { Widget } from './Widget'
 import { Capsule } from './Capsule'
 import { Manager } from './Manager'
 import { QuickAdd } from './QuickAdd'
+import { EditorWindowHost } from './EditorWindowHost'
 import { useSettings } from '../hooks'
 
-export type AppView = 'widget' | 'manager' | 'quickadd'
+export type AppView = 'widget' | 'manager' | 'quickadd' | 'editor'
 
 function readView(): AppView {
   const param = new URLSearchParams(window.location.search).get('view')
-  if (param === 'manager' || param === 'quickadd') return param
+  if (param === 'manager' || param === 'quickadd' || param === 'editor') return param
   return 'widget'
 }
 
@@ -50,7 +51,15 @@ export function App(): ReactElement {
 
   return (
     <ToastProvider>
-      {view === 'manager' ? <Manager /> : view === 'quickadd' ? <QuickAdd /> : <DesktopHost />}
+      {view === 'manager' ? (
+        <Manager />
+      ) : view === 'quickadd' ? (
+        <QuickAdd />
+      ) : view === 'editor' ? (
+        <EditorWindowHost />
+      ) : (
+        <DesktopHost />
+      )}
     </ToastProvider>
   )
 }
