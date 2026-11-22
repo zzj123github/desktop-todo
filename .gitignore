@@ -17,3 +17,6 @@ release2/
 
 # 本地临时文件
 nohup.out
+
+# 本地代码索引（codegraph init 生成，每台机器各自重建）
+.codegraph/

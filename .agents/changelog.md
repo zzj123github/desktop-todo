@@ -90,3 +90,4 @@
 2026-11-22 | update | docs/acceptance/M6-ACCEPTANCE.md | 追加 §15：便携版退出偶发主进程异常弹窗的根因、修复、验证与交付物哈希
 2026-11-22 | update | docs/04-TECH-PLAN.md, docs/09-PROJECT-STRUCTURE.md, README.md | 同步退出生命周期、logger 文件、构建产物表与修复清单（m07685）
 2026-11-22 | update | release/, C:\\Users\\lazasons\\Desktop\\桌面待办-交付物\\ | 2026-11-22 20:37 重新打包并更新校验值（portable 97,708,366 B / setup 106,249,746 B）
+2026-11-22 | update | .gitignore, .agents/memory/project-overview.md | 接入本机 CodeGraph 代码索引：`codegraph init` 生成 `.codegraph/`（已 gitignore，本机重建）；记录 agent 查询命令（explore/context/node/callers/impact）与自动同步说明 | 用户要求给项目添加 codegraph（m01396）
