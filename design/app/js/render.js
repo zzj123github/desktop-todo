@@ -100,7 +100,7 @@ R.sidebar = function(){
     return '<div class="nav-sec"><span>'+label+'</span>'
       + '<button type="button" class="nav-sec-mgr" data-act="manage-scope" data-scope="'+scope+'" title="管理'+label+'" aria-label="管理'+label+'">'+R.icon('pencil')+'</button></div>';
   }
-  var html = '<div class="brand"><span class="brand-icon">'+R.icon('check')+'</span><span class="brand-name">桌面待办</span><span class="brand-ver">v1.0</span></div>';
+  var html = '<div class="brand"><span class="brand-icon">'+R.icon('check')+'</span><span class="brand-name">桌面待办</span></div>';
   html += '<div class="sb-scroll">';
   html += '<div class="nav">'
     + item('inbox',null,'inbox','收件箱',c.inbox)

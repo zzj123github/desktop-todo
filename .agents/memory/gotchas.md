@@ -115,3 +115,5 @@
 - 截图口径：1280×696 CSS @2x（2560×1392）；先 `Page.addScriptToEvaluateOnNewDocument` 注入 FakeDate=2026-11-21T20:58:00+08:00，每次 `localStorage.clear()` + reload 回 seed，否则文案日期会漂。脚本 `.agents/tmp/shot-design.mjs`。
 - 整页长图：视口 1575 CSS 宽 @2x → 3150 宽；`Page.captureScreenshot` 的 `clip.scale` 会再乘 deviceScaleFactor（scale:2+dpr2=4x，6300×28796 会超读图/纹理限制），用 `clip.scale:1` 得到 3150×14398，再用 Pillow 转 webp（quality 90 约 1.4MB）。
 - 静态页里的截图/长图必须与 `design/app` 同版本同时间重导；`design/app-shapes.png` 是 manager 截图裁剪（标题行+筛选区，2184×352），不是独立页面状态。
+- 无头截图必须用干净 profile + `--disable-extensions --disable-component-extensions-with-background-pages`；否则 Edge 会加载 Adblock/ChatGPT 等扩展，扩展悬浮图标和注入页面会进截图，页面布局尺寸也会偏移（mhead rect 从 304,84,862 变成 306,100,855）。
+- 公开可见页面不能只靠截图隐藏版本号：demo bar 的「交互原型 v1.1」、侧栏 brand 的 `v1.0`、静态原型页 title/eyebrow/stamp/footer 都在源码文本里，必须直接改 `design/app/index.html`、`design/app/js/render.js`、`design/static-prototype.html`，再重导截图与整页长图。
