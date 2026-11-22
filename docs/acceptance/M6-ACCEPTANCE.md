@@ -441,6 +441,7 @@
   - 编辑窗口（`?view=editor`，551×828）：`.modal` computed box-shadow = `rgba(40,30,15,0.18) 0px 5px 16px 0px, rgba(60,50,30,0.06) 0px 0px 0px 1px`；窗口内日期面板 `.dp-pop` computed = `rgba(60,50,30,0.16) 0px 4px 14px 0px, rgba(60,50,30,0.06) 0px 2px 6px 0px`，面板 rect (196.9, 99.4, 288×351.3) 完全落在 551×828 窗口内。
   - 应用窗口（`view=manager`）：computed `--shadow-modal` 仍为 `0 34px 90px …`、`--shadow-pop` 仍为 `0 18px 40px …`。
   - 编辑窗口页面截图（`docs/acceptance/screens/editor-window-compact-shadow.png`，965×1449 @1.75x）窗口四边 alpha=0（旧实现左边界 alpha 26/255、底边界 18/255），阴影在 24px 内边距内自然衰减到 0。
-- 说明：本次改动尚未重新打包，14:15 的 portable/setup 交付物不含此修复。
+- 说明：14:15 的 portable/setup 不含此修复；2026-11-22 15:07 已按当前 HEAD 重新打包并更新交付物（见下方「打包版复验」）。
+- 打包版复验（2026-11-22 15:07）：从 `C:\Users\lazasons\Desktop\桌面待办-交付物\` 启动便携版（`--remote-debugging-port=9270`），在挂件内点击任务打开编辑窗口：`inner 551×781`、无 `.overlay`、`.modal` computed shadow = `rgba(40,30,15,0.18) 0px 5px 16px 0px, rgba(60,50,30,0.06) 0px 0px 0px 1px`（即 `--shadow-modal-window`），与 dev 一致 → 交付物已包含紧凑阴影修复。
 
 **截图**：`docs/acceptance/screens/editor-window-compact-shadow.png`。
