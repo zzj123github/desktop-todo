@@ -208,7 +208,7 @@ desktop-todo/
 
 - `src/renderer/src/lib/`：渲染层共享模块目录，按领域聚合（`date.ts` 时间与逾期文案、`parseQuick.ts` 输入解析、`filters.ts` 筛选状态与 chips、`format.ts` 文本/链接格式化、`links.ts` 链接打开结果判定）。不为单个函数拆文件。
 - `src/renderer/src/styles/`：`tokens.css`（从 `design/ui/tokens.css` 原样复制）、`app.css`（全局基础样式、`@font-face`、滚动条）、`inter-variable.woff2`、`noto-serif-variable.woff2`（从 `design/fonts/` 复制，随渲染层打包）。
-- `scripts/`：`make-icons.py`（生成 `build/icon.ico` / `tray.ico`）、`fetch-native-assets.py`（离线放置 Electron 与 better-sqlite3 预编译二进制）、`screenshot.ps1`（DPI 感知验收截图）、`run-tests.cjs`（用 Electron 自带 Node 运行 Vitest，解决 better-sqlite3 ABI 与浏览器同版本）、`dev-launch.cjs`（从工作区外副本启动 Electron，规避本机 workspace 路径下 GUI 进程限制）。
+- `scripts/`：`make-icons.py`（生成 `build/icon.ico` / `tray.ico`）、`fetch-native-assets.py`（离线放置 Electron 与 better-sqlite3 预编译二进制）、`screenshot.ps1`（DPI 感知验收截图）、`run-tests.cjs`（用 Electron 自带 Node 运行 Vitest，解决 better-sqlite3 ABI 与浏览器同版本）、`dev-launch.cjs`（从工作区外副本启动 Electron，规避本机 workspace 路径下 GUI 进程限制）、`audit-ui.mjs`（真实 UI 交互审计：经 CDP 驱动挂件/胶囊/完整窗口/弹层/键盘全链路，54 项断言，`pnpm audit`）。
 - `vitest.config.ts`：M1 增加的 Vitest 根配置（node 环境、`src/**/*.test.ts`）。
 - `src/shared/types.ts`（M2 登记）：跨层 DTO / API 类型（`TaskDTO`、`FilterDTO`、`DesktopTodoApi` 等），只放类型；preload 从这里 `import type` 并 `export type { ... } from '../shared/types'` 对外转出，renderer 用 `import type` 引用，避免 renderer 直接 import preload 源码。
 - `src/renderer/src/app/`（M2/M3 登记）：页面与页面级组合，M0 只有 `main.tsx`，现按视图拆为 `App.tsx`（按 `?view=` 路由 + ToastProvider + 挂件/胶囊形态切换）、`Widget.tsx`、`Manager.tsx`、`Capsule.tsx`、`QuickAdd.tsx`、`FilterBar.tsx`（筛选行与四个浮层）、`SettingsModal.tsx`、`ViewMenu.tsx`（桌面视图下拉）。页面层只做组合与数据接线，不复制组件样式。

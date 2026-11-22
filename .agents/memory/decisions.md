@@ -107,3 +107,11 @@
 - 决策：`design/ui/tokens.css` 与 `src/renderer/src/styles/tokens.css` 的 4 个桌面形态 shadow token 改为 `inset 0 0 0 1px` 内描边（8% / 未置顶 6% / hover 12% ink）；`design/app/css/app.css` 的 `.widget` / `.widget.unpinned` / `.capsule` / `.capsule:hover` / `.cap-wrap.dragging .capsule` 改用这些 token，原型不再画外投影；`docs/02` §3、`docs/08` §1.4/§2.2/§2.4、`README.md`、`design/README.md` 同步。
 - 理由：Electron 透明窗口边界＝卡片边界，任何绘制在卡片外的效果（外投影/外发光/位移）都会被矩形窗口裁切，只在圆角缺口露灰边；原型作为像素基准必须表达「窗口内可落地」的形态，否则实现只能二次偏离。
 - 验证：更新后的原型用无头 Chrome 重新导出 `design/app-desktop.png` / `design/app-capsule.png`；卡片四周无外投影、只剩 1px 内描边；`node scripts/run-tests.cjs` 全绿。
+
+
+## D15 · 交付前固定执行全量交互审计（2026-11-22）
+
+- 背景：胶囊 hover 位移/亚像素裁切、挂件桌面视图下拉打不开等问题由用户逐条发现，用户要求「交付前自己测一遍」。
+- 决策：仓库内置 `scripts/audit-ui.mjs`（`pnpm audit`），通过 CDP 驱动真实窗口跑 54 项交互断言（挂件/胶囊/完整窗口/弹层/键盘/设置/管理/编辑窗口/三态互斥/数据清理），结果写 `.agents/reports/audit/`。每次改 UI 或打包前必须全 PASS；同时跑 `pnpm typecheck` + `pnpm test`。
+- 发现并修复：`ViewMenu` 监听 window resize 关闭菜单，而挂件打开浮层会临时加高窗口触发 resize，导致挂件内桌面视图下拉打开即关闭。规则：浮层定位/关闭交给 `Popover`（其自身处理 resize 重定位），不要在业务组件里用 resize 关闭浮层。
+- 证据：`.agents/reports/audit/report.json`；`docs/acceptance/M6-ACCEPTANCE.md` §8。

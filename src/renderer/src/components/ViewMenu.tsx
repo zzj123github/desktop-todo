@@ -3,7 +3,7 @@
  * Contract: docs/01-PRD.md FR-4.3（可保存的桌面视图，挂件与完整窗口共享）· docs/08 §3.5
  * 标题旁下拉；筛选行「保存为桌面视图」复用同一弹层。
  */
-import { useEffect, useRef, useState, type ReactElement } from 'react'
+import { useRef, useState, type ReactElement } from 'react'
 import type { FilterDTO, SavedViewDTO } from '../../../shared/types'
 import { Popover } from './Popover'
 import { Icon } from './Icons'
@@ -39,12 +39,9 @@ export function ViewMenu({
   const [name, setName] = useState('')
   const [renaming, setRenaming] = useState<SavedViewDTO | null>(null)
 
-  useEffect(() => {
-    if (!anchor) return
-    const close = (): void => setAnchor(null)
-    window.addEventListener('resize', close)
-    return () => window.removeEventListener('resize', close)
-  }, [anchor])
+  // 浮层定位交给 Popover（它自身监听 resize 重算位置）。
+  // 注意：不要在这里监听 resize 关闭菜单——挂件打开浮层时窗口会临时加高到 520，
+  // resize 会导致菜单刚打开就被关闭（审计发现）。
 
   const toggle = (): void => {
     if (anchor) {

@@ -47,3 +47,6 @@
 2026-11-22 | update | src/main/windows.ts, src/main/ipc.ts, src/preload/index.ts, src/shared/types.ts, src/renderer/src/app/{EditorWindowHost.tsx,App.tsx,Widget.tsx}, src/renderer/src/components/{Modal.tsx,EditorModal.tsx,anchoredPosition.ts}, src/renderer/src/styles/app.css | 挂件内点击任务改为独立桌面级编辑窗口（550 宽、内容高度居中、embedded 模态），修复日期面板在编辑窗口内被裁切
 2026-11-22 | update | docs/01-PRD.md, docs/08-UI-ENGINEERING-SPEC.md, docs/acceptance/M6-ACCEPTANCE.md, README.md | 记录挂件内编辑窗口契约与验收（§2.1 窗口矩阵、§3.8 Modal、FR-1.11、补充验收第 5 节）
 2026-11-22 11:37 | update | design/ui/tokens.css, src/renderer/src/styles/tokens.css, design/app/css/app.css, src/renderer/src/styles/app.css, docs/02-DESIGN-SPEC.md, docs/08-UI-ENGINEERING-SPEC.md, docs/acceptance/M6-ACCEPTANCE.md, README.md, design/README.md, design/app-desktop.png, design/app-capsule.png | 原型与实现统一去掉桌面形态外投影：4 个 shadow token 改 1px 内描边，原型挂件/胶囊改用 token，文档与参考截图同步 | 用户指示「不需要浮在桌面上带大外投影，原型及相关说明同步调整」（m00565）
+2026-11-22 | update | scripts/audit-ui.mjs | 新增真实 UI 交互审计（54 项断言，pnpm audit），纳入交付前固定关卡
+2026-11-22 | fix | src/renderer/src/components/ViewMenu.tsx | 移除 resize 关闭菜单逻辑，修复挂件内桌面视图下拉打开即关闭
+2026-11-22 | update | docs/acceptance/M6-ACCEPTANCE.md | 追加 §8 全量交互审计记录

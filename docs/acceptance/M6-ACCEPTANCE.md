@@ -376,3 +376,23 @@
 - 像素复核（重导图）：卡片四边外 3px 取样与同方向远处壁纸的差值 ≤5/255（属于壁纸渐变本身的量级），无外投影造成的暗带；旧图同一位置为明显的外投影暗带。
 - 实现：桌面形态规则仍为 `inset 0 0 0 1px ...`（8% / 未置顶 6% / hover 12%）；tokens 的 4 个 shadow token 同步改为内描边（base 规则与拖拽态使用），未引入新的外投影绘制。
 - 回归：`node scripts/run-tests.cjs` 13 文件 171 用例全部通过；`npx tsc --noEmit` 0 错误；`pnpm build` 通过并更新 `out/`（renderer CSS 66.95 kB）。
+
+
+## 8) 2026-11-22 12:05 全量交互审计（用户 2026-11-22 11:33 要求「交付前自己测一遍」）
+
+**背景**：用户指出胶囊 hover 等交互细节不应由用户逐条发现。本轮建立可重复的真实 UI 交互审计，并把它作为后续交付前的固定关卡。
+
+**审计方式**：
+- 新增 `scripts/audit-ui.mjs`（`pnpm audit`）：通过 CDP 驱动真实窗口，覆盖挂件折叠输入、行 hover、勾选与撤销 toast、独立编辑窗口、图钉、胶囊 hover 与单击、桌面视图下拉、双击标题、三态互斥、九视图导航、tab、标签筛选与清除、搜索、分组折叠、窗口内编辑模态、设置（8 行/置顶开关/透明度）、管理弹窗（新建/删除/撤销）、新建任务、关闭完整窗口回桌面形态、数据清理与设置恢复。
+- 审计临时创建「审计*」任务/项目/标签，结束自动清理；切换过的设置（置顶/透明度）自动恢复；结果写 `.agents/reports/audit/report.json`（目录已 gitignore）。
+
+**发现并修复的缺陷**：
+- 挂件标题旁「桌面视图」下拉点了不打开（完整窗口内正常）。根因：`ViewMenu` 监听 `window resize` 关闭菜单；挂件打开任意浮层时窗口会临时加高到 520，resize 立即触发 → 菜单刚打开就被关闭。修复：移除 `ViewMenu` 的 resize 关闭逻辑，定位交给 `Popover`（其自身监听 resize 重算位置）。
+- 文件：`src/renderer/src/components/ViewMenu.tsx`。
+
+**验证**：
+- `node scripts/audit-ui.mjs` → **54 项断言全部 PASS**（`ALL PASS`）。
+- `npx tsc --noEmit` 0 错误；`node scripts/run-tests.cjs` 13 文件 / 171 用例通过。
+- 证据：`.agents/reports/audit/`（report.json + 10 张截图）；精选截图 `docs/acceptance/screens/audit-widget-viewmenu.png`、`audit-widget-folded.png`、`audit-manager-editor-modal.png`。
+- 重打包（2026-11-22 12:03，含 ViewMenu 修复）：portable `97,698,316 B` / SHA-256 `c84a31188eca2f1a3fc16d6449acd7ef3a57eb41c68825919ee9264e1b06a84e`；setup `106,243,873 B` / SHA-256 `ae2bbffff560cb3d3aeb124a4ccfecf225585451ba09bc1d6054c61bcd2fe5df`。已复制到 `release/` 与桌面交付目录，并更新 `使用说明.txt`。
+- 打包版复验：从桌面交付目录启动便携版（CDP 9243）执行 `CDP_PORT=9243 node scripts/audit-ui.mjs` → **54 项全部 PASS**。

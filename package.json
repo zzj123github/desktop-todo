@@ -18,7 +18,8 @@
     "icons": "python scripts/make-icons.py",
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:portable": "electron-vite build && electron-builder --win portable",
-    "dist:nsis": "electron-vite build && electron-builder --win nsis"
+    "dist:nsis": "electron-vite build && electron-builder --win nsis",
+    "audit": "node scripts/audit-ui.mjs"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1"

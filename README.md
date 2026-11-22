@@ -69,9 +69,15 @@ pnpm dev                    # 开发模式（构建后启动 Electron）
 pnpm build                  # 编译主进程 / preload / 渲染层到 out/
 pnpm typecheck              # TypeScript 检查
 pnpm test                   # Vitest（在 Electron 运行时内执行，见 scripts/run-tests.cjs）
+pnpm audit                  # 真实 UI 交互审计（需先用 CDP 端口启动应用，见下方说明）
 pnpm dist:win               # 打包 portable + NSIS 到 release/
 pnpm dist:portable          # 只打便携版
 pnpm dist:nsis              # 只打安装包
+
+# 真实 UI 交互审计（挂件/胶囊/完整窗口/弹层/键盘，54 项断言）：
+# 1) 先带 CDP 端口启动：node scripts/dev-launch.cjs -- --remote-debugging-port=9241
+# 2) 另一个终端执行：pnpm audit（可用 CDP_PORT=9242 指定端口）
+#    审计会临时创建「审计*」任务/项目/标签并在结束时清理，同时恢复被切换的设置。
 ```
 
 技术栈：Electron 40 + React 18 + TypeScript + better-sqlite3 + electron-vite + electron-builder + Vitest。
@@ -80,8 +86,8 @@ pnpm dist:nsis              # 只打安装包
 
 | 文件 | 说明 |
 | --- | --- |
-| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,675,053 B），双击运行 |
-| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,243,771 B） |
+| `release/DesktopTodo-1.0.0-portable.exe` | 便携版，约 93.2 MiB（97,698,316 B），双击运行 |
+| `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,243,873 B） |
 | `release/win-unpacked/` | 解包目录（调试用） |
 
 本机无 MSVC 环境时，better-sqlite3 使用与 Electron ABI 匹配的预编译产物：`python scripts/fetch-native-assets.py`（脚本从 npmmirror 镜像取 Electron 与预编译 `.node`）。打包配置已设 `npmRebuild: false`，直接用预编译产物。
@@ -131,12 +137,12 @@ design/        UI 契约（tokens.css）与交互原型
 - 胶囊单击需 250ms 判定窗口（用于区分双击打开完整窗口），属交互设计而非延迟缺陷。
 - 默认使用软件合成（见「性能与内存」）：若显式设置 `DESKTOP_TODO_GPU=1`，内存会回升到表中原有水平。
 
-## 交付物校验（2026-11-22 11:30 重新打包）
+## 交付物校验（2026-11-22 12:03 重新打包）
 
 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- |
-| `DesktopTodo-1.0.0-portable.exe` | 97,675,053 B（93.2 MiB） | `2a381d47a36061265adf44de9909d54d375176dde02014b292464e0cdf4cee82` |
-| `DesktopTodo-1.0.0-setup.exe` | 106,243,771 B（101.3 MiB） | `b2d475435fcdabe1e791b02a71b41cfafee5aa71d222f7ec0867b48a7e458aa7` |
+| `DesktopTodo-1.0.0-portable.exe` | 97,698,316 B（93.2 MiB） | `c84a31188eca2f1a3fc16d6449acd7ef3a57eb41c68825919ee9264e1b06a84e` |
+| `DesktopTodo-1.0.0-setup.exe` | 106,243,873 B（101.3 MiB） | `ae2bbffff560cb3d3aeb124a4ccfecf225585451ba09bc1d6054c61bcd2fe5df` |
 
 本次重打包包含桌面形态的以下缺陷修复：
 
@@ -152,6 +158,8 @@ design/        UI 契约（tokens.css）与交互原型
 - 挂件/胶囊/完整窗口三态互斥：完整窗口打开时隐藏桌面形态，关闭后回到桌面形态；完整窗口标题行新增「收起到挂件」「收起到胶囊」。
 - 挂件与胶囊共用同一位置：切换形态/高度变化时按就近角保持基准角不动（默认右上，高 DPI 下 ≤1 DIP 物理取整误差）。
 - 挂件底部默认显示「+ 添加任务」折叠按钮，点击才展开输入框。
+- 挂件标题旁「桌面视图」下拉现在可正常打开（修复打开即被窗口 resize 关闭的问题）。
+- 新增交付前全量交互审计 `pnpm audit`（54 项真实 UI 断言），详见 `docs/acceptance/M6-ACCEPTANCE.md` §8。
 - 设置失焦透明度（90%/80%）后拖动挂件或胶囊，释放后立即恢复设定透明度（不再需要点一下别处）。
 
 桌面交付目录 `C:\Users\lazasons\Desktop\桌面待办-交付物\` 内即为本次校验的两个文件与 `使用说明.txt`。
