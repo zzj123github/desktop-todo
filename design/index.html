@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23D97757'/%3E%3Cpath d='M9 16.5l5 5L23 11' stroke='%23fff' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<title>桌面待办 · 原型预览</title>
+<style>
+@font-face{font-family:'InterV';src:url('fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-display:swap}
+@font-face{font-family:'NotoSerifV';src:url('fonts/NotoSerifVariable.woff2') format('woff2');font-weight:200 900;font-display:swap}
+:root{
+  --canvas:#F9F6EE;--paper:#FAF8F2;--card:#FFFDFA;--ink:#1F1E1D;--ink-2:#54514A;
+  --muted:#8B8474;--hairline:#E6E0D2;--accent:#D97757;--accent-deep:#C4553B;--accent-soft:#FBEAE2;
+  --sans:'InterV','Inter','Microsoft YaHei UI','Microsoft YaHei',system-ui,sans-serif;
+  --serif:'NotoSerifV','Noto Serif SC','Source Han Serif SC','SimSun',serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:
+    radial-gradient(1100px 520px at 18% -10%,rgba(217,119,87,.10),transparent 62%),
+    radial-gradient(900px 480px at 92% 0%,rgba(24,79,149,.06),transparent 58%),
+    var(--canvas);
+  color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+.page{width:min(1080px,100%);margin:0 auto;padding:34px 30px 46px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:30px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:15px;letter-spacing:.01em}
+.logo{width:30px;height:30px;border-radius:9px;background:var(--accent);display:grid;place-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.logo svg{width:17px;height:17px}
+.ver{font:500 10.5px/1 var(--sans);color:var(--muted);border:1px solid var(--hairline);background:rgba(255,253,250,.6);border-radius:999px;padding:5px 8px;letter-spacing:.06em}
+.top-right{font-size:11.5px;color:var(--muted);letter-spacing:.03em}
+
+.hero{padding:16px 0 30px;max-width:760px}
+.eyebrow{font:600 10.5px/1 var(--sans);letter-spacing:.22em;color:var(--accent-deep);text-transform:uppercase;margin:0 0 16px}
+h1{font-family:var(--serif);font-weight:650;font-size:clamp(32px,4.6vw,52px);line-height:1.14;letter-spacing:-.02em;margin:0 0 18px}
+h1 .hl{color:var(--accent-deep)}
+.lede{margin:0;font-size:14.5px;line-height:1.75;color:var(--ink-2);max-width:620px}
+.lede b{color:var(--ink);font-weight:600}
+
+.actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:26px}
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 15px;border-radius:9px;border:1px solid var(--hairline);background:var(--card);font:550 12.5px/1 var(--sans);color:var(--ink);transition:border-color .15s,background .15s,transform .15s}
+.btn:hover{border-color:#D6CDBA;background:#FFFEFB;transform:translateY(-1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#FFFDFA}
+.btn.primary:hover{background:#D26A48;border-color:#D26A48}
+.btn .arrow{font-size:13px;opacity:.8}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:0 8px}
+.btn.ghost:hover{color:var(--ink);background:rgba(31,30,29,.045);transform:none}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.chip{font:500 10.5px/1 var(--sans);color:#6B6557;background:#F1EEE5;border:1px solid var(--hairline);border-radius:999px;padding:6px 9px;letter-spacing:.02em}
+
+.showcase{margin-top:8px;border:1px solid var(--hairline);border-radius:16px;background:var(--card);padding:10px;box-shadow:0 20px 50px rgba(60,50,30,.10)}
+.showcase a{display:block;position:relative;border-radius:10px;overflow:hidden;background:var(--sidebar)}
+.showcase img{display:block;width:100%;height:auto}
+.showcase .tag{position:absolute;left:12px;top:12px;background:rgba(31,30,29,.72);color:#FFFDFA;font:500 10.5px/1 var(--sans);letter-spacing:.04em;padding:6px 9px;border-radius:999px;backdrop-filter:blur(4px)}
+.hint{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 4px 2px;font-size:11px;color:var(--muted)}
+.hint b{color:var(--ink-2);font-weight:550}
+
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--hairline);border-radius:14px;overflow:hidden;transition:border-color .16s,transform .16s,box-shadow .16s}
+.card:hover{border-color:#D6CDBA;transform:translateY(-2px);box-shadow:0 16px 36px rgba(60,50,30,.10)}
+.card .thumb{aspect-ratio:16/9;background:var(--sidebar);overflow:hidden}
+.card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.card .body{padding:15px 16px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.card h2{font-size:14px;font-weight:650;margin:0 0 5px;letter-spacing:.01em}
+.card p{font-size:11.5px;line-height:1.6;color:var(--muted);margin:0;max-width:360px}
+.card .go{flex:none;width:26px;height:26px;border:1px solid var(--hairline);border-radius:8px;display:grid;place-items:center;color:var(--muted);font-size:13px;margin-top:1px}
+
+.note{margin-top:26px;border:1px solid var(--hairline);background:rgba(255,253,250,.55);border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start;font-size:11.5px;line-height:1.65;color:var(--muted)}
+.note b{color:var(--ink-2);font-weight:600}
+.note .dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:6px}
+
+.foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:30px;padding-top:16px;border-top:1px solid var(--hairline);font-size:10.5px;color:var(--muted);letter-spacing:.02em}
+
+@media (max-width:720px){
+  .page{padding:24px 20px 34px}
+  .top-right{display:none}
+  .cards{grid-template-columns:1fr}
+  .hero{padding-top:8px}
+  .hint{flex-direction:column;align-items:flex-start;gap:4px}
+  .foot{flex-direction:column;align-items:flex-start;gap:6px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 6.6"/></svg></span>
+      <span>桌面待办</span>
+      <span class="ver">PROTOTYPE v1.1</span>
+    </div>
+    <div class="top-right">静态视觉 + 可交互原型 · 2026-11-22</div>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">DESKTOP TODO · WINDOWS</p>
+    <h1>把任务放在<span class="hl">桌面</span>上，<br>随时看见，随手勾掉。</h1>
+    <p class="lede">纯本地 Windows 桌面 TODO：<b>完整窗口</b>负责管理与筛选，<b>桌面挂件</b>常驻桌面、任务行内直接勾选，<b>收起胶囊</b>只留今天的进度。三者共享同一份数据，同一时刻只出现一种形态。</p>
+    <div class="actions">
+      <a class="btn primary" href="app/index.html">打开可交互原型 <span class="arrow">→</span></a>
+      <a class="btn" href="static-prototype.html">静态原型 · 视觉基准</a>
+      <a class="btn ghost" href="app-fullpage.webp">整页长图</a>
+    </div>
+    <div class="meta">
+      <span class="chip">Electron + React + SQLite</span>
+      <span class="chip">纯本地 · 无网络</span>
+      <span class="chip">多链接 / 五维筛选</span>
+      <span class="chip">dsh-claude-style</span>
+    </div>
+  </section>
+
+  <section class="showcase">
+    <a href="app/index.html" aria-label="打开可交互原型">
+      <img src="app-manager.png" alt="桌面待办完整窗口 · 今天视图">
+      <span class="tag">可交互原型 ↑ 点开体验</span>
+    </a>
+    <div class="hint">
+      <span>建议先从<b>可交互原型</b>开始：标题行按钮切换挂件/胶囊，双击标题回到完整窗口。</span>
+      <span>12 个界面状态 · 真实交互</span>
+    </div>
+  </section>
+
+  <section class="cards">
+    <a class="card" href="app/index.html">
+      <div class="thumb"><img src="app-desktop.png" alt="桌面挂件形态"></div>
+      <div class="body">
+        <div>
+          <h2>可交互原型 v1.1</h2>
+          <p>三种形态互切、任务勾选与编辑、五维筛选、链接打开、自绘日期时间选择器，都可以直接点。</p>
+        </div>
+        <span class="go">→</span>
+      </div>
+    </a>
+    <a class="card" href="static-prototype.html">
+      <div class="thumb"><img src="app-manager.png" alt="静态原型页面"></div>
+      <div class="body">
+        <div>
+          <h2>静态原型 v2.2</h2>
+          <p>完整界面截图与交互说明，作为视觉验收基准；页脚可下载整页长图。</p>
+        </div>
+        <span class="go">→</span>
+      </div>
+    </a>
+  </section>
+
+  <div class="note">
+    <span class="dot"></span>
+    <span><b>提示：</b>原型数据存在浏览器 localStorage，不上传服务器；点「重置演示」随时恢复初始 15 条任务。真实桌面版使用本地 SQLite，开机自启、窗口置顶与全局快捷键由 Electron 实现。</span>
+  </div>
+
+  <footer class="foot">
+    <span>桌面待办 · 原型预览</span>
+    <span>静态 v2.2 / 可交互 v1.1 · 2026-11-22 · LOCAL ONLY</span>
+  </footer>
+
+</div>
+</body>
+</html>

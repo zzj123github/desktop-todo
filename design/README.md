@@ -63,6 +63,7 @@ node server.mjs
 | 文件 | 内容 |
 |------|------|
 | app/ | **可交互原型 v1.1（交互与行为基准）**，以实时页面为准 |
+| index.html | 原型预览首页：一个入口指向可交互原型 / 静态原型 / 整页长图；`design/` 整目录可直接作为静态站根目录发布（GitHub Pages、Cloudflare Pages 等） |
 | static-prototype.html | **静态原型 v2.2**，同步当前界面：三形态与切换按钮、挂件添加收起、任务与链接、五维筛选、管理入口、删除确认、侧栏边界 |
 | app-fullpage.webp | **唯一整页长图（视觉验收基准）**，由 static-prototype.html 整页导出 |
 | app-manager.png | 完整窗口 · 今天视图（含标题行形态按钮与关闭） |

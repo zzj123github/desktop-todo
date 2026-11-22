@@ -9,6 +9,16 @@
 
 规格来源：`docs/`（PRD、数据模型、技术方案、UI 契约、验收清单）。设计与交互原型：`design/`。
 
+## 在线预览
+
+仓库公开并启用 GitHub Pages 后，以下页面可直接在线查看原型（无需安装）：
+
+- 原型预览首页：https://kkk-kppi.github.io/desktop-todo/
+- 可交互原型：https://kkk-kppi.github.io/desktop-todo/design/app/index.html
+- 静态原型：https://kkk-kppi.github.io/desktop-todo/design/static-prototype.html
+
+全部界面截图与整页长图在 `design/`。
+
 ## 安装
 
 系统要求：Windows 10 1903+ / Windows 11（x64）。
