@@ -20,4 +20,5 @@
 
 ## 长期纠正 / Standing corrections
 
-（暂无）
+- 新功能开发（含 UI 交互调整、UI 调整、UX 调整；**Bug 修复除外**）必须先做原型、再开发；原型不得直接修改已定稿原型：从 `design/app/`（版本见 `design/README.md`）完整复制到独立提案目录 `design/proto-v<版本>/`，写 `PROPOSAL-v<版本>.md`，经用户确认后才同步 `docs/` 规格与实施代码（用户 2026-11-22 明确要求，规范见 AGENTS.md §4.2）。
+- 原型基线：`design/app/` 当前 v1.4；提案 `design/proto-v1.5/`（悬浮球 + 固定到桌面）为「待确认」状态，确认后才提升为新基线并同步静态原型/截图与规格。

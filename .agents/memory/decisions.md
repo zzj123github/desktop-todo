@@ -164,3 +164,11 @@
 - 决策：退出顺序只依赖「退出标志」——`before-quit` 置 `setQuitting(true)`、flush 窗口位置、清提示队列与启动定时器；窗口全部关闭后的 `will-quit` 再 checkpoint、关库、注销快捷键、销毁托盘。退出期间所有窗口/浮层/对话框/定时器/广播入口提前返回或静默失败。未捕获异常与未处理拒绝统一走 `installProcessGuards()`：写 `userData/logs/main.log`（512KB 轮转 `main.old.log`）；退出阶段只记录不弹框，非退出阶段保留错误框，避免静默吞错。
 - 理由：退出问题的根因是生命周期竞态而非单一调用点；把「退出中不做副作用、异常有落点」变成全局不变量，比逐个补 `if (quitting)` 更可维护；日志同时为后续用户复现提供取证。
 - 验证：17 文件 208 用例（logger 5 例、notices.dispose 2 例）；dev 退出矩阵（启动即退/完整窗口/编辑窗口）940–957ms clean、提示窗待确认 595ms clean；打包版 518–6237ms clean 且无异常日志；dev 与打包版 74 项审计 ALL PASS。
+
+## D24 新功能/UI·UX 调整必须先做提案原型且不改定稿基线（2026-11-22，用户 m01500）
+
+- 背景：项目已有可交互原型与静态原型作为像素/交互基准，但此前缺少「新功能先提案、确认后再实施」的固定闸门；容易出现直接在定稿原型或实现上试探 UI/UX 改动，使基准漂移、验收失去对照。
+- 决策：新增项目规范 AGENTS.md §4.2：新功能开发（含 UI 交互调整、UI 调整、UX 调整，Bug 修复除外）先做原型；原型必须从定稿原型 `design/app/` 完整复制到独立提案目录 `design/proto-v<版本>/` 后独立修改，定稿原型与配套产物（`static-prototype.html`、`app-fullpage.webp`、`app-*.png`）保持不动；在 `design/` 写 `PROPOSAL-v<版本>.md` 记录方案与待确认问题；经用户确认后才同步 `docs/02`、`docs/08`、tokens 等规格并实施代码。判断不准是否属于 Bug 修复时按「先原型」执行并说明依据。
+- 理由：定稿原型是可对比、可回滚的基准；把提案与基线物理隔离，确认前不污染实现与规格，避免「改着改着基线变了」导致验收与文档失真。该规范也把 2026-11-22 proto-v1.5 的既有实践（用户 m00393「新原型不要改已定型原型」）固化为默认流程。
+- 现状对照：`design/app/` v1.4 为当前定稿基线；`design/proto-v1.5/` + `PROPOSAL-v1.5.md` + `static-new-features.html` 是现行提案（待确认），符合本规范。
+- 验证：规范为流程约束、无代码行为变化；AGENTS.md §4.2、`docs/06-IMPLEMENTATION-BRIEF.md` §3、`project-overview.md` 长期纠正与 `design/README.md` 的提案状态表述一致。
