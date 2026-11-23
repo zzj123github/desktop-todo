@@ -4,7 +4,7 @@
 (function(){
 'use strict';
 var DT = window.DT = {};
-var STORE_KEY = 'desktopTodo.proto.v1';
+var STORE_KEY = 'desktopTodo.proto.v2';
 DT.STORE_KEY = STORE_KEY;
 DT.VERSION = '1.0';
 
@@ -152,56 +152,56 @@ function task(o){
 DT.seed = function(){
   var now = new Date();
   var projects = [
-    {id:'pA', name:'项目A', color:'#C98F79'},
-    {id:'buy', name:'采购', color:'#9DB49A'},
-    {id:'routine', name:'例行事务', color:'#C3AE8A'}
+    {id:'pA', name:'产品迭代', color:'#C98F79'},
+    {id:'buy', name:'市场活动', color:'#9DB49A'},
+    {id:'routine', name:'个人事务', color:'#C3AE8A'}
   ];
   var tags = [
-    {id:'mould', name:'模具'},
-    {id:'supplier', name:'供应商'},
+    {id:'mould', name:'设计'},
+    {id:'supplier', name:'文档'},
     {id:'equip', name:'设备'}
   ];
   var tasks = [
-    task({title:'审核 IEOP 模具图纸 v3', note:'重点看 3.2 节的型腔尺寸与公差表；确认后同步给工艺组。',
+    task({title:'审核新版落地页视觉稿 v3', note:'重点看移动端断点与按钮间距；确认后同步给前端。',
       projectId:'pA', tagIds:['mould'], priority:'high', due:DT.at(0,10,0), createdAt:DT.at(-2,9,10),
-      links:[link('folder','IEOP-模具图纸','\\\\fileserver\\项目A\\IEOP-模具图纸'), link('url','评审说明 · wiki','https://wiki.company.com/ieop/review')]}),
-    task({title:'准备项目A 周会材料', note:'上次会议遗留的 3 个问题要带上。',
+      links:[link('folder','落地页视觉稿','\\\\demo-nas\\共享\\产品迭代\\落地页视觉稿'), link('url','评审说明 · 文档','https://example.com/docs/landing-review')]}),
+    task({title:'准备产品双周会材料', note:'上次会议遗留的 3 个问题要带上。',
       projectId:'pA', tagIds:[], priority:'high', due:DT.at(0,15,0), createdAt:DT.at(-1,16,20),
-      links:[link('folder','周会材料','\\\\fileserver\\项目A\\周会材料')]}),
-    task({title:'回复张工关于模具变更的邮件', note:'确认变更单编号后再回复。',
+      links:[link('folder','双周会材料','\\\\demo-nas\\共享\\产品迭代\\双周会材料')]}),
+    task({title:'回复合作方关于排期的邮件', note:'确认里程碑编号后再回复。',
       projectId:null, tagIds:['mould','supplier'], priority:'med', due:DT.at(0,11,30), createdAt:DT.at(-1,8,45),
-      links:[link('url','邮件原文','https://mail.company.com/thread/8842')]}),
-    task({title:'更新部门周报', note:'数据从项目看板导出，周五下班前发出。',
+      links:[link('url','邮件原文','https://example.com/mail/thread/8842')]}),
+    task({title:'更新项目进度看板', note:'数据从任务列表导出，周五下班前发出。',
       projectId:'routine', tagIds:[], priority:'low', due:DT.at(0,17,0), createdAt:DT.at(-3,10,0),
-      links:[link('folder','周报模板','\\\\fileserver\\部门\\周报模板'), link('url','部门看板','https://wiki.company.com/dept/board')]}),
-    task({title:'与供应商确认交期', note:'订单 PO-20261118，等对方回复模具钢交期。',
+      links:[link('folder','进度看板','\\\\demo-nas\\共享\\个人事务\\进度看板'), link('url','看板快照','https://example.com/boards/sprint-24')]}),
+    task({title:'与外包团队确认交付时间', note:'订单 DEMO-20261118，等对方回复排期。',
       projectId:'buy', tagIds:['supplier'], priority:'high', due:DT.at(-1,16,0), createdAt:DT.at(-4,14,0),
-      links:[link('url','供应商门户','https://supplier.company.com/orders/PO-20261118')]}),
-    task({title:'整理 Q4 采购需求清单', note:'按项目归并，补齐预算列。',
+      links:[link('url','排期确认','https://example.com/orders/DEMO-20261118')]}),
+    task({title:'整理 Q4 活动需求清单', note:'按项目归并，补齐预算列。',
       projectId:'buy', tagIds:[], priority:'med', due:DT.at(1,10,0), createdAt:DT.at(-2,11,0),
-      links:[link('folder','采购共享盘','\\\\fileserver\\采购\\Q4')]}),
-    task({title:'盘点仓库备件库存', note:'重点盘 3 号库低价易耗件。',
+      links:[link('folder','活动共享盘','\\\\demo-nas\\共享\\市场活动\\Q4')]}),
+    task({title:'盘点活动物料库存', note:'重点盘 3 号库低价易耗件。',
       projectId:'buy', tagIds:['equip'], priority:'low', due:DT.at(2,14,0), createdAt:DT.at(-2,15,30),
-      links:[link('folder','库存台账','\\\\fileserver\\采购\\库存')]}),
-    task({title:'输出模具评审结论', note:'评审会纪要 + 待办分派。',
+      links:[link('folder','物料台账','\\\\demo-nas\\共享\\市场活动\\物料')]}),
+    task({title:'输出设计评审结论', note:'评审会纪要 + 待办分派。',
       projectId:'pA', tagIds:['mould'], priority:'med', due:DT.at(4,10,0), createdAt:DT.at(-1,9,0),
-      links:[link('url','评审说明 · wiki','https://wiki.company.com/ieop/review'), link('folder','会议纪要','\\\\fileserver\\项目A\\会议纪要')]}),
+      links:[link('url','评审说明 · 文档','https://example.com/docs/design-review'), link('folder','会议纪要','\\\\demo-nas\\共享\\产品迭代\\会议纪要')]}),
     task({title:'确认下月排班表', note:'', projectId:'routine', tagIds:[], priority:'none',
       due:DT.at(6,18,0), createdAt:DT.at(-1,17,0), links:[]}),
-    task({title:'研究新的供应商评估模板', note:'找 2 个同行模板对照一下。',
+    task({title:'研究新的竞品调研模板', note:'找 2 个同行模板对照一下。',
       priority:'low', due:null, tagIds:['supplier'], createdAt:DT.at(-5,10,0), links:[]}),
-    task({title:'整理 IEOP 图纸命名规范', note:'顺便把历史图纸批量重命名清单列出来。',
+    task({title:'整理落地页素材命名规范', note:'顺便把历史素材批量重命名清单列出来。',
       projectId:'pA', priority:'none', due:null, createdAt:DT.at(-6,14,0),
-      links:[link('folder','IEOP 目录','\\\\fileserver\\项目A\\IEOP')]}),
+      links:[link('folder','素材库','\\\\demo-nas\\共享\\产品迭代\\素材')]}),
     task({title:'归档项目会议纪要', note:'', projectId:'pA', tagIds:[], priority:'med',
       due:DT.at(0,9,0), done:true, doneAt:DT.at(0,10,20), createdAt:DT.at(-4,9,0),
-      links:[link('folder','会议纪要','\\\\fileserver\\项目A\\会议纪要')]}),
+      links:[link('folder','会议纪要','\\\\demo-nas\\共享\\产品迭代\\会议纪要')]}),
     task({title:'回复设计评审意见', note:'', projectId:'pA', tagIds:['mould'], priority:'med',
       due:DT.at(0,14,0), done:true, doneAt:DT.at(0,14,40), createdAt:DT.at(-3,10,0),
-      links:[link('url','评审说明 · wiki','https://wiki.company.com/ieop/review')]}),
-    task({title:'下单采购模具钢材', note:'', projectId:'buy', tagIds:['mould','supplier'], priority:'high',
+      links:[link('url','评审说明 · 文档','https://example.com/docs/design-review')]}),
+    task({title:'下单采购活动印刷物', note:'', projectId:'buy', tagIds:['mould','supplier'], priority:'high',
       due:DT.at(-2,11,0), done:true, doneAt:DT.at(-2,12,10), createdAt:DT.at(-5,9,0),
-      links:[link('folder','采购合同','\\\\fileserver\\采购\\合同')]}),
+      links:[link('folder','采购合同','\\\\demo-nas\\共享\\市场活动\\合同')]}),
     task({title:'提交上周工时', note:'', projectId:'routine', tagIds:[], priority:'none',
       due:DT.at(-1,18,0), done:true, doneAt:DT.at(-1,18,30), createdAt:DT.at(-6,9,0), links:[]})
   ];

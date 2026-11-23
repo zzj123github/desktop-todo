@@ -582,7 +582,7 @@ function linksFromDrop(dataTransfer){
       var name = (entry && entry.name) || (file && file.name) || '文件';
       var isDir = !!(entry && entry.isDirectory);
       out.push({id:DT.uid('lk'), type:isDir?'folder':'file', name:name,
-        path:'[原型演示] \\\\fileserver\\\\共享\\\\' + name});
+        path:'[原型演示] \\\\demo-nas\\\\共享\\\\' + name});
     }
   }
   if(!out.length){
