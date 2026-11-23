@@ -31,7 +31,7 @@ desktop-todo/
 │        ├─ i18n/            # 中文文案
 │        ├─ lib/             # 日期/解析/筛选/格式化等共享模块（按模块聚合）
 │        └─ styles/          # tokens.css / app.css / 字体
-├─ build/                    # 构建资产（icon.ico / tray.ico），不是产物目录
+├─ build/                    # 构建资产（icon.ico / icon.png / tray.ico / trayTemplate*.png），不是产物目录
 ├─ resources/                # 运行时静态资源（seed.json）
 ├─ scripts/                  # 维护脚本（seed.ts 等）
 ├─ release/                  # electron-builder 产物，生成，不提交
@@ -43,7 +43,7 @@ desktop-todo/
 | 路径 | 入库 | 首次创建 | 职责 |
 |------|------|----------|------|
 | `AGENTS.md` | 是 | 已有 | 工程纪律与协作规则 |
-| `README.md` | 是 | M6 | 安装、SmartScreen、数据目录、构建命令 |
+| `README.md` | 是 | M6 | 安装（Windows SmartScreen / macOS Gatekeeper）、数据目录、构建命令（含 `dist:mac`） |
 | `package.json` / `pnpm-lock.yaml` | 是 | M0 | 依赖与脚本 |
 | `electron.vite.config.ts` / `tsconfig.json` | 是 | M0 | 构建与类型配置 |
 | `electron-builder.yml` | 是 | M0 | 打包配置 |
@@ -73,12 +73,15 @@ src/
 ├─ main/
 │  ├─ index.ts          # app 生命周期、单实例锁、--silent 启动
 │  ├─ windows.ts        # widget / manager / capsule / quickadd 窗口（桌面形态含四周 2px 透明留白）
-│  ├─ tray.ts           # 托盘菜单
+│  ├─ app-menu.ts       # macOS 应用菜单（桌面待办/编辑/窗口），非 darwin no-op
+│  ├─ macos.ts          # macOS Dock / 激活封装，非 darwin no-op
+│  ├─ tray.ts           # 托盘 / 菜单栏图标
+│  ├─ tray-menu.ts      # 托盘菜单模板（纯函数，平台文案）
 │  ├─ shortcuts.ts      # globalShortcut 注册/注销
 │  ├─ login.ts          # app.setLoginItemSettings
 │  ├─ db.ts             # SQLite 连接、迁移、事务
 │  ├─ logger.ts         # 主进程异常日志（userData/logs/main.log，512KB 轮转）
-│  ├─ opener.ts         # 安全打开网页/路径、存在性校验（UNC 超时）
+│  ├─ opener.ts         # 安全打开网页/路径、存在性校验（win32 UNC 超时 / darwin POSIX 路径）
 │  ├─ settings.ts       # settings 表 + 窗口 bounds 记忆
 │  ├─ ipc.ts            # 注册所有 ipcMain.handle
 │  ├─ filterSql.ts      # filter JSON → WHERE 子句
@@ -115,7 +118,7 @@ renderer (浏览器)  →  window.api (preload)  →  IPC  →  main (Node/Elect
 - `preload/` 只做 `contextBridge` 白名单和类型声明，不放业务逻辑、不发 SQL、不读文件。
 - `main/` 不 import `renderer/`；窗口只加载构建后的 HTML/JS。
 - `repo/` 只被 `main/` 调用；SQL 集中在 `repo/` 与 `db.ts`，不写进 `ipc.ts` 或组件。
-- `resources/` 在运行时只读；数据库写入 `%APPDATA%\DesktopTodo\data.db`，不写入安装目录。
+- `resources/` 在运行时只读；数据库写入用户数据目录（Windows `%APPDATA%\DesktopTodo\data.db`、macOS `~/Library/Application Support/DesktopTodo/data.db`），不写入安装目录。
 - 如果确实需要跨层类型，先在本文件增加 `src/shared/` 的说明并评审，不直接新增第三套类型目录。
 
 ### 2.3 入口与页面
@@ -155,7 +158,7 @@ dist/
 ```
 
 - `release/` 只在 M6 打包时由 electron-builder 创建；`out/` 在 M0 首次构建时创建。
-- 数据文件在 `%APPDATA%\DesktopTodo\`，不在项目目录。
+- 数据文件在用户数据目录（Windows `%APPDATA%\DesktopTodo\`、macOS `~/Library/Application Support/DesktopTodo/`），不在项目目录。
 - `resources/seed.json` 入库，仅供开发首屏对照；正式版首次启动不导入它。
 
 ## 5. 当前目录接口（实施前）
@@ -209,7 +212,7 @@ desktop-todo/
 
 - `src/renderer/src/lib/`：渲染层共享模块目录，按领域聚合（`date.ts` 时间与逾期文案、`parseQuick.ts` 输入解析、`filters.ts` 筛选状态与 chips、`format.ts` 文本/链接格式化、`links.ts` 链接打开结果判定）。不为单个函数拆文件。
 - `src/renderer/src/styles/`：`tokens.css`（从 `design/ui/tokens.css` 原样复制）、`app.css`（全局基础样式、`@font-face`、滚动条）、`inter-variable.woff2`、`noto-serif-variable.woff2`（从 `design/fonts/` 复制，随渲染层打包）。
-- `scripts/`：`make-icons.py`（生成 `build/icon.ico` / `tray.ico`）、`fetch-native-assets.py`（离线放置 Electron 与 better-sqlite3 预编译二进制）、`screenshot.ps1`（DPI 感知验收截图）、`run-tests.cjs`（用 Electron 自带 Node 运行 Vitest，解决 better-sqlite3 ABI 与浏览器同版本）、`dev-launch.cjs`（从工作区外副本启动 Electron，规避本机 workspace 路径下 GUI 进程限制）、`audit-ui.mjs`（真实 UI 交互审计：经 CDP 驱动挂件/胶囊/完整窗口/弹层/键盘全链路，50+ 项断言，`pnpm audit`）。
+- `scripts/`：`make-icons.py`（生成 Windows `build/icon.ico` / `tray.ico`，以及 macOS `build/icon.png`（1024 应用图标源）与 `build/trayTemplate.png` / `trayTemplate@2x.png` 菜单栏模板图）、`fetch-native-assets.py`（离线放置 Electron 与 better-sqlite3 预编译二进制；macOS 使用 `--arch arm64`（仅 Apple 芯片；Intel/x64 不在支持范围）、`Electron.app` 符号链接解包、curl 回退与 `--local` 离线安装）、`electron-runtime.cjs`（dev/测试/打包脚本共用的 Electron 运行时定位：Windows 复制到工作区外执行以规避本机 GUI 限制，macOS 直接使用 `node_modules` 内 `Electron.app`）、`dist-mac.cjs`（macOS 安装包入口：取 arm64 原生模块再打 dmg，`--dir` 只出解包目录不生成 dmg，见 §6.1 末）、`screenshot.ps1`（DPI 感知验收截图）、`run-tests.cjs`（用 Electron 自带 Node 运行 Vitest，解决 better-sqlite3 ABI 与浏览器同版本）、`dev-launch.cjs`（从工作区外副本启动 Electron，规避本机 workspace 路径下 GUI 进程限制）、`audit-ui.mjs`（真实 UI 交互审计：经 CDP 驱动挂件/胶囊/完整窗口/弹层/键盘全链路，74 项断言，`pnpm audit`）。
 - `vitest.config.ts`：M1 增加的 Vitest 根配置（node 环境、`src/**/*.test.ts`）。
 - `src/shared/types.ts`（M2 登记）：跨层 DTO / API 类型（`TaskDTO`、`FilterDTO`、`DesktopTodoApi` 等），只放类型；preload 从这里 `import type` 并 `export type { ... } from '../shared/types'` 对外转出，renderer 用 `import type` 引用，避免 renderer 直接 import preload 源码。
 - `src/renderer/src/app/`（M2/M3 登记）：页面与页面级组合，M0 只有 `main.tsx`，现按视图拆为 `App.tsx`（按 `?view=` 路由 + ToastProvider + 挂件/胶囊形态切换）、`Widget.tsx`、`Manager.tsx`、`Capsule.tsx`、`QuickAdd.tsx`、`FilterBar.tsx`（筛选行与四个浮层）、`SettingsModal.tsx`、`ViewMenu.tsx`（桌面视图下拉）。页面层只做组合与数据接线，不复制组件样式。
@@ -225,6 +228,12 @@ desktop-todo/
 - `src/renderer/src/hooks/useFilter.ts`、`useTimeUsage.ts`（M2 登记）：筛选状态与快捷时间使用统计（读 settings `timeUsage`，写入用 `settings.set`）。
 - `src/renderer/quickadd.html`（M5 登记）：快速添加独立窗口入口，与 `index.html` 共用同一 renderer bundle（`main.tsx?view=quickadd`）。
 - `docs/acceptance/`（M6）：验收截图与记录，只读证据，不参与运行时。
+- `src/main/app-menu.ts`、`src/main/app-menu.test.ts`、`src/main/macos.ts`（2026-11-23 macOS 版本登记）：`app-menu.ts` 构建/安装 macOS 应用菜单（桌面待办 / 编辑 / 窗口；「编辑」菜单的 role 是 ⌘C/⌘V/⌘A/⌘Z 生效的前提），`installApplicationMenu` 非 darwin 平台直接 return，Windows 行为不变；`app-menu.test.ts` 覆盖菜单结构（顶层菜单、编辑 role、窗口入口与点击回调）；`macos.ts` 封装 `app.dock.show/hide` 与 `app.focus({ steal: true })`，非 darwin 平台全部 no-op。
+- `src/main/tray-menu.ts`（既有文件，2026-11-23 补充）：托盘/菜单栏菜单模板保持纯函数，新增 `platform` 注入与 macOS 文案（「登录时启动」「退出桌面待办」）；`tray.ts` 在 darwin 使用模板图标并改为左键单击弹菜单。
+- `src/renderer/src/lib/platform.ts`（2026-11-23 macOS 版本登记）：渲染层平台快照 `platform` / `isMacOS()`，由 preload 注入的 `window.api.platform` 读取；无 Electron 环境回退 `'win32'`，保证 Windows 文案与既有单测行为不变。
+- `build/trayTemplate.png` / `build/trayTemplate@2x.png`、`build/icon.png`（2026-11-23 登记）：`icon.png` 由 `make-icons.py` 重新生成为 1024 macOS 应用图标源（四周留白 + 大圆角，`electron-builder.yml` 的 `mac.icon` 使用）；`trayTemplate*.png` 为菜单栏模板图标（18 / 36，黑 + alpha，系统自动适配深浅色），打包经 `extraResources` 放到 `process.resourcesPath`。
+- `.github/workflows/release.yml` 的 `build-mac`、`release-notes`（2026-11-23 登记）：`build-mac` 在 `macos-latest` 上跑类型检查 + 单测 + `node scripts/dist-mac.cjs` 打 arm64 dmg 并上传 Release，Release 说明只提 Apple 芯片；`release-notes` 汇总两个平台后统一写 Release 说明，避免两个发布作业互相覆盖 body。原 `build-win` 作业保持不变。
+- macOS 打包链路（2026-11-23 登记）：`electron-builder.yml` 的 `mac` / `dmg` 段（`icon: build/icon.png`、`target: dmg`、`artifactName: DesktopTodo-${version}-${arch}.dmg`、`dmg.sign: false`、Applications 快捷方式）配合 `scripts/dist-mac.cjs`：打包前先 `fetch-native-assets.py --skip-electron --arch arm64` 覆盖 better-sqlite3 预编译 `.node`，再 `electron-builder --mac --arm64 --publish never`；入口脚本为 `pnpm dist:mac`（只出 Apple 芯片 arm64 包）。
 - 依赖版本补充：`electron` 固定 `40.10.2`（满足 docs/04「Electron 32+」；33.x 在本机 Windows 11 build 26200 的 GUI 进程启动即崩溃，且 better-sqlite3 `12.11.1` 有对应 `electron-v143` 预编译包）。`electron-builder.yml` 的 `npmRebuild: false` 与此配套。
 
 
@@ -236,7 +245,7 @@ desktop-todo/
 4. 结构核对命令：
 
 ```bash
-cd C:/Users/lazasons/Workspace/desktop-todo
+cd "$(git rev-parse --show-toplevel)"   # 进入项目根（Windows Git Bash / macOS / Linux 通用）
 find . -maxdepth 4 -type d | sort
 find docs -maxdepth 1 -type f | sort
 ```

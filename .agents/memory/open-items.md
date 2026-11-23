@@ -50,3 +50,50 @@
 
 - 用户 m03793 四项确认已实施并验收：单桌面原型（已同步回 design/app 并删除临时目录）、位置基准自适应（就近角、默认右上，四角互切 Δ0）、三态互斥（主进程保证 + 标题行两个收起按钮）、挂件折叠输入（默认「+ 添加任务」按钮，展开/收起/提交验证通过）。证据见 `docs/acceptance/M6-ACCEPTANCE.md` 第 4 节与 `docs/acceptance/screens/m6-widget-folded.png` 等。`docs/08 §2.8`、`docs/01`、`docs/02` 已同步。
 - 已无待确认交互项。
+
+## macOS 版本（2026-11-23 验收完成·通过（仅 Apple 芯片 arm64）；下方保留 09:54 暂停快照与历史记录，关闭记录见本节末尾）
+
+### 已完成（有证据）
+- 代码：`src/main/app-menu.ts`（macOS 应用菜单）、`src/main/macos.ts`（Dock 显隐/应用激活）、`index.ts`（菜单安装、登录启动静默判断、macOS 保留 GPU）、`windows.ts`（唤起时激活应用、完整窗口显示 Dock）、`tray.ts`/`tray-menu.ts`（菜单栏模板图标、左键弹菜单、mac 文案）、`login.ts`（mac 登录项 + wasOpenedAtLogin 静默）、`db.ts`（mac 数据目录 `~/Library/Application Support/DesktopTodo`）、`opener.ts`（POSIX 路径）、`preload`/`shared/types`/`i18n`/`EditorModal`/`lib/parseQuick`/`lib/links`（⌘/⌥ 文案 + macOS 链接识别）；`electron-builder.yml` mac/dmg、`package.json` dist:mac、`scripts/{dist-mac.cjs,fetch-native-assets.py,electron-runtime.cjs,make-icons.py}`、`.github/workflows/release.yml`（build-mac + release-notes）、`build/{icon.png,trayTemplate*.png}`。
+- 测试/类型：`pnpm typecheck` 0 错误；`node scripts/run-tests.cjs run` **18 文件 247 用例全过**（macOS arm64）。
+- 安装包：`release/DesktopTodo-1.0.0-arm64.dmg`（120,670,172 B，sha256 ea668f6de62d6603066a0cdb0a6559579d0059bbd09487d53ab6097475bcf616）；`hdiutil verify` VALID；dmg 内 app + Applications 符号链接；包内主程序与 better_sqlite3.node 均为 arm64。**2026-11-23 更新：按用户要求 macOS 仅支持 Apple 芯片（arm64），原 x64 dmg 与 x64 解包目录已删除。**
+- 运行时：dmg 内 arm64 app 已复制安装到 `/Applications/桌面待办.app`，经 `open` 启动正常（launcher 拉起，写真实数据目录、渲染进程在跑）；CDP 审计脚本对**安装后 app** 74 项断言 **ALL PASS**（含挂件/胶囊/编辑窗口/完整窗口/日期选择器/设置/使用说明/链接编辑）。
+- 审计脚本加固（本次改动，已跑通）：CDP 连接 `close` 事件结束挂起 send、单条命令 15s 超时、链接行内编辑重试，修复窗口关闭时审计偶发卡死。
+
+### 待办（恢复后按序做）
+1. x64 运行时冒烟：`arch -x86_64 "release/mac/桌面待办.app/Contents/MacOS/桌面待办"`（本机 Rosetta 可用）+ `--no-sandbox --disable-gpu --user-data-dir=<workspace> --remote-debugging-port=9246`，`DESKTOP_TODO_DATA_DIR=<workspace>`，查 CDP target 或跑一遍审计。
+2. 卸载验证：删除 `/Applications/桌面待办.app` → 确认 `~/Library/Application Support/DesktopTodo` 数据保留（卸载不丢数据）。
+3. 清理：`hdiutil detach` 两个测试挂载点（`.tools/mnt-arm64`、`.tools/mnt-x64`，需 full-access）；`.tools/` 为本次构建缓存/工具目录，可整体删除。
+4. 文档同步（未动）：README（下载/安装/Gatekeeper/构建/已知限制/产物表）、docs/00、docs/03 §5（双平台路径规则）、docs/04 §3/§5.3/§5.5/§5.6/§6/§7、docs/07（macOS 验收条目）、docs/09 §6.1（新增文件登记）、新验收记录 `docs/acceptance/M7-MACOS-ACCEPTANCE.md`。
+5. `.agents/memory`：decisions（macOS 方案决策）、gotchas（未签名/adhoc、extract-zip 在受限环境损坏 .app、electron-builder 缓存/HOME、多架构 native 不能同批打、`open --args` 不透传、沙箱 hdiutil/GUI 限制）、changelog 条目。
+6. 未验证项：GitHub Actions mac job 未实际运行；下载后 Gatekeeper 拦截（未签名/未公证）未真机验证；登录项注册在受限环境报 `Operation not permitted`，真实安装场景待人工验证；菜单栏图标视觉/系统深浅色适配、Spaces/多显示器、真实 Finder 拖拽均未人工验证。
+
+### 2026-11-23 16:xx 验收后更新（关闭 / 部分 / 保留）
+
+**已关闭（有证据）**
+
+1. **x64 启动冒烟**（原待办 1）：✅ 完成（历史记录；2026-11-23 起 macOS 仅 arm64、x64 不在支持范围，该项不再适用）。`arch -x86_64 .../release/mac/桌面待办.app/Contents/MacOS/桌面待办 --no-sandbox --disable-gpu --user-data-dir=<workspace> --remote-debugging-port=9246` + `DESKTOP_TODO_DATA_DIR=<workspace>`：约 5s 后 CDP 出现 `view=widget` 页面，`data.db` + WAL 正常创建，说明 x64 `better_sqlite3.node` 可加载。证据：`release/mac` 包内主程序与 `.node` 均 x86_64（`file` 只读复核）。
+2. **审计脚本加固**：✅ CDP `close` 事件结束挂起中的 send + 单条命令 15s 超时已跑通（安装后 app 74 项审计未再卡死，`report.json` failures=0）。
+3. **清理**（原待办 3）：✅ `hdiutil detach` 已完成，`.tools/mnt-arm64`、`.tools/mnt-x64` 为空目录；`.tools/` 为本次验收的构建缓存/日志目录（工作区外层、不入库），是否整体删除待用户决定（其中含可复用的 Electron 缓存）。
+4. **文档同步**（原待办 4）：✅ 完成。macOS 验收记录 `docs/acceptance/M7-MACOS-ACCEPTANCE.md`（新建）、`docs/07-ACCEPTANCE.md` §M（追加）；README 的 macOS 安装/Gatekeeper/构建/产物表/已知限制与 `docs/00/01/03/04/09` 的 macOS 内容由并行代理更新（本轮只读核对存在性与一致性）。
+5. **`.agents` 记忆**（原待办 5）：✅ 完成。`decisions.md` D27（原 D24，合并远端后重编号）、`gotchas.md`「macOS 版本构建/运行坑」、`project-overview.md` 2026-11-23 状态、本文件与 `changelog.md`。
+
+**部分完成 / 仍未完成**
+
+- **x64 全量 74 项 UI 审计**（原待办 6 内新增关注项）：**不适用（Intel 芯片 Mac 不在支持范围）**，不再作为待办项。历史：两次尝试分别 36/74、18/74 中断（Rosetta 慢速环境时序不足），未形成产品结论；macOS 仅 arm64 后无需复验。
+- **卸载后数据保留**（原待办 2）：⚠ 未实测。macOS 无 NSIS，删除 `/Applications/桌面待办.app` 后 `~/Library/Application Support/DesktopTodo/` 是否保留需实测（M7 §H7）。
+
+**仍未验证（保留，人工待办）**
+
+| 项 | 原因 | 建议验证方式 |
+| --- | --- | --- |
+| 登录项真实安装 + 重启 | 受限环境注册报 `Operation not permitted`，真实登录场景未验证 | 装到 `/Applications` → 开启「登录时启动」→ 系统设置登录项确认出现 → 重启后只留菜单栏、不弹挂件（M7 §H2） |
+| 下载后 Gatekeeper 放行 | 未从真实下载流程人工走一遍 | Release 下载 dmg → 拖入「应用程序」→ 首次双击被拦 → 右键「打开」放行（M7 §H3） |
+| 菜单栏图标视觉 / 深浅色 / 多屏 / Spaces | 需真实桌面观察 | 切深浅色外观、拖到副屏、切 Spaces / 全屏 app 观察图标与左键菜单（M7 §H4） |
+| 应用菜单原生交互 / Dock 视觉 | 原生菜单与 Dock 无法用 CDP 验证 | 完整窗口下观察 Dock、⌘W/⌘Q/⌘M、输入框 ⌘C/⌘V/⌘A/⌘Z（M7 §H8） |
+| 真实 Finder 拖拽 | 需 OS 拖拽（`webUtils.getPathForFile` 分支） | 从 Finder 拖文件/文件夹/网址到编辑面板与主区（M7 §H5） |
+| GitHub Actions `build-mac` 实跑 | 配置就绪，未运行 | 推 `v*` tag（与 `package.json` 版本一致）→ 校验 build-mac 产物与 Release 上传（M7 §H6） |
+| 卸载后数据保留 | 未实测 | 删除 `/Applications/桌面待办.app` → 重装 → 数据仍在（M7 §H7） |
+| macOS 内存 / 性能 | 未测量（Windows 软件合成结论不迁移） | Activity Monitor 三场景基线与 docs/07 §H 300 MB 指标对照（M7 §H9） |
+| 深色模式视觉 | 未人工验证 | 系统外观切深色，检查三形态与独立编辑/提示窗口（M7 §H10） |
+| 本地链接限制（记录，非缺陷） | Composer 行内混排 POSIX 路径不自动识别；旧 Windows 数据里的 `C:\` 链接在 macOS 提示不支持 | 按 `docs/03` §5 口径使用（整行粘贴或走编辑弹窗） |
