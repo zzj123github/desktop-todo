@@ -4,6 +4,14 @@
  * 所有面向用户的界面文案都在这里；日期/时长等动态格式化在 lib/date.ts。
  */
 
+import { isMacOS } from '../lib/platform'
+
+/**
+ * 平台快照：macOS 用 ⌘/⌥/⇧ 与「菜单栏 / 登录时启动」表述；
+ * 其余平台（Windows 等）沿用原有文案，与改动前逐字一致。
+ */
+const isMac = isMacOS()
+
 export const zh = {
   app: {
     name: '桌面待办',
@@ -107,7 +115,7 @@ export const zh = {
     noTags: '还没有项目或标签',
     clear: '清除',
     searchAria: '搜索任务',
-    searchTitle: '搜索 (Ctrl+F)',
+    searchTitle: isMac ? '搜索 (⌘F)' : '搜索 (Ctrl+F)',
     closeSearch: '关闭搜索',
     keywordChip: (keyword: string) => `关键词「${keyword}」`
   },
@@ -166,6 +174,7 @@ export const zh = {
     priorityLabel: '优先级',
     dueLabel: '日期',
     linksLabel: '链接',
+    linksTypes: isMac ? '网页 / 文件夹 / 文件' : '网页 / 文件夹 / UNC / 文件',
     linkPlaceholder: '粘贴链接、文件夹路径或拖入文件',
     addLink: '添加',
     emptyLinks: '还没有链接',
@@ -198,10 +207,12 @@ export const zh = {
     alwaysOnTopDesc: '其他窗口之上保持可见',
     opacity: '失焦透明度',
     opacityDesc: '挂件失去焦点时的显示透明度',
-    launchAtLogin: '开机自动启动',
-    launchAtLoginDesc: '登录 Windows 后自动在托盘运行',
+    launchAtLogin: isMac ? '登录时自动启动' : '开机自动启动',
+    launchAtLoginDesc: isMac ? '登录 macOS 后自动在菜单栏运行' : '登录 Windows 后自动在托盘运行',
     shortcuts: '全局快捷键',
-    shortcutsDesc: 'Alt+H 显隐挂件 · Alt+1–5 切换视图 · Ctrl+Shift+Space 快速添加',
+    shortcutsDesc: isMac
+      ? '⌥H 显隐挂件 · ⌥1–5 切换视图 · ⌘⇧Space 快速添加'
+      : 'Alt+H 显隐挂件 · Alt+1–5 切换视图 · Ctrl+Shift+Space 快速添加',
     data: '数据',
     dataDir: '数据目录',
     openDataDir: '打开所在文件夹',
@@ -247,7 +258,9 @@ export const zh = {
       {
         title: '链接',
         items: [
-          '支持网页 / 文件夹 / UNC 共享路径 / 本地文件，粘贴或拖入即可添加。',
+          isMac
+            ? '支持网页 / 文件夹 / 本地文件，粘贴或拖入即可添加。'
+            : '支持网页 / 文件夹 / UNC 共享路径 / 本地文件，粘贴或拖入即可添加。',
           '链接标题默认自动生成，点击标题可修改；留空则恢复自动标题。',
           '找不到位置时点「重新选择」定位，或删除该链接。'
         ]
@@ -262,15 +275,23 @@ export const zh = {
       {
         title: '快捷键',
         items: [
-          'Ctrl+Shift+Space：快速添加（需开启全局快捷键）。',
-          'Alt+H：显示 / 隐藏挂件；Alt+1…5：切换到收件箱 / 今天 / 已逾期 / 即将到期 / 已完成。',
-          'Ctrl+N：新建任务；Ctrl+F：搜索；Esc：关闭浮层或收起挂件。'
+          isMac
+            ? '⌘⇧Space：快速添加（需开启全局快捷键）。'
+            : 'Ctrl+Shift+Space：快速添加（需开启全局快捷键）。',
+          isMac
+            ? '⌥H：显示 / 隐藏挂件；⌥1…5：切换到收件箱 / 今天 / 已逾期 / 即将到期 / 已完成。'
+            : 'Alt+H：显示 / 隐藏挂件；Alt+1…5：切换到收件箱 / 今天 / 已逾期 / 即将到期 / 已完成。',
+          isMac
+            ? '⌘N：新建任务；⌘F：搜索；Esc：关闭浮层或收起挂件。'
+            : 'Ctrl+N：新建任务；Ctrl+F：搜索；Esc：关闭浮层或收起挂件。'
         ]
       },
       {
         title: '数据与设置',
         items: [
-          '设置里可调整置顶、失焦透明度、开机自启与全局快捷键。',
+          isMac
+            ? '设置里可调整置顶、失焦透明度、登录时自启与全局快捷键。'
+            : '设置里可调整置顶、失焦透明度、开机自启与全局快捷键。',
           '可查看数据目录、导出备份，或用导入恢复。'
         ]
       }
@@ -356,7 +377,9 @@ export const zh = {
     linkAdded: '已添加链接',
     linkRemoved: '已删除链接',
     linkMissing: '找不到该位置',
-    linkInvalid: '不支持的链接格式，请粘贴网址、文件夹路径或 UNC 共享路径',
+    linkInvalid: isMac
+      ? '不支持的链接格式，请粘贴网址、文件夹路径或本地文件路径'
+      : '不支持的链接格式，请粘贴网址、文件夹路径或 UNC 共享路径',
     openFailed: '打不开这个位置',
     duplicate: '名称已存在',
     emptyName: '名称不能为空',

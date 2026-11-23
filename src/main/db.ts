@@ -4,7 +4,8 @@
  *
  * 约定：
  * - 只有本文件与 repo/ 允许出现 SQL；
- * - 默认库位 %APPDATA%\DesktopTodo\data.db；env DESKTOP_TODO_DATA_DIR / DESKTOP_TODO_DB 覆盖；
+ * - 默认库位 %APPDATA%\DesktopTodo\data.db（macOS 为 ~/Library/Application Support/DesktopTodo/data.db）；
+ *   env DESKTOP_TODO_DATA_DIR / DESKTOP_TODO_DB 覆盖；
  * - 打开失败时把损坏文件重命名 data.db.bak 后重建，并暴露 dbHealthy / dbError；
  * - 不依赖 electron，可在 Electron-as-node 下被单测直接使用。
  */
@@ -97,7 +98,7 @@ export interface OpenDatabaseResult {
 export interface OpenDatabaseOptions {
   /** 完整 DB 路径；传 ':memory:' 用于单测 */
   dbPath?: string
-  /** 数据目录；默认 %APPDATA%\DesktopTodo */
+  /** 数据目录；默认按平台约定（Windows %APPDATA%\DesktopTodo / macOS ~/Library/Application Support/DesktopTodo） */
   dataDir?: string
 }
 
@@ -110,10 +111,18 @@ function isMemoryPath(dbPath: string): boolean {
   return dbPath === ':memory:'
 }
 
-/** 数据目录：env DESKTOP_TODO_DATA_DIR 优先，否则 %APPDATA%\DesktopTodo */
+/**
+ * 数据目录：env DESKTOP_TODO_DATA_DIR 优先，否则按平台约定：
+ * - Windows：%APPDATA%\DesktopTodo
+ * - macOS：~/Library/Application Support/DesktopTodo
+ * - 其他：~/.config/DesktopTodo
+ */
 export function resolveDataDir(): string {
   const override = process.env['DESKTOP_TODO_DATA_DIR']
   if (override && override.trim()) return path.resolve(override.trim())
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', 'DesktopTodo')
+  }
   const appData =
     process.env['APPDATA'] ||
     (process.platform === 'win32'

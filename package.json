@@ -19,6 +19,7 @@
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:portable": "electron-vite build && electron-builder --win portable",
     "dist:nsis": "electron-vite build && electron-builder --win nsis",
+    "dist:mac": "node scripts/dist-mac.cjs",
     "audit": "node scripts/audit-ui.mjs"
   },
   "dependencies": {

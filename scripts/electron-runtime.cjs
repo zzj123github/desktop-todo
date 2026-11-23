@@ -2,11 +2,15 @@
 /**
  * 共享的 Electron 运行时定位/复制模块（dev、测试、验收脚本共用）。
  *
- * 为什么复制：本机 DSH 会话对 workspace 路径下执行的 GUI/桌面进程有额外沙箱限制，
+ * Windows（本机 DSH 会话）对 workspace 路径下执行 GUI/桌面进程有额外沙箱限制，
  * 直接从 `node_modules/.../electron.exe` 启动时：
  *   - GUI 模式会以 0x80000003 (STATUS_BREAKPOINT) 静默崩溃；
  *   - ELECTRON_RUN_AS_NODE 模式下只能在 workspace 内写文件，写 %TEMP% 会 EPERM。
- * 复制到 workspace 之外再执行即可正常工作。打包后的应用由用户从任意目录启动，不受此限制。
+ * 因此 Windows 下把 dist 复制到 workspace 之外再执行。
+ *
+ * macOS：Electron 的 GUI 入口是 `dist/Electron.app/Contents/MacOS/Electron`，
+ * 直接从 node_modules 启动即可，无需复制（也不该复制 275MB 的 .app）。
+ * 打包后的应用由用户从任意目录启动，不受上述限制。
  */
 const fs = require('node:fs')
 const os = require('node:os')
@@ -33,13 +37,25 @@ function runtimeRoot() {
   return { pkg, version, dir: path.join(baseDir, `electron-${version}`) }
 }
 
-/** 确保 workspace 外的 Electron 运行时副本存在，返回 electron.exe 路径（失败返回 null）。 */
+/** electron 包内可执行文件相对路径（macOS 为 .app 内的可执行文件） */
+function platformBinaryRelativePath() {
+  if (process.platform === 'darwin') {
+    return path.join('dist', 'Electron.app', 'Contents', 'MacOS', 'Electron')
+  }
+  if (process.platform === 'win32') return path.join('dist', 'electron.exe')
+  return path.join('dist', 'electron')
+}
+
+/** 定位可用的 Electron 可执行文件，返回路径（失败返回 null）。 */
 function ensureElectronRuntime({ quiet = false } = {}) {
   const info = runtimeRoot()
   if (!info) return null
+  const sourceBinary = path.join(info.pkg, platformBinaryRelativePath())
+  if (!fs.existsSync(sourceBinary)) return null
+  // macOS/Linux：直接使用 node_modules 内的运行时
+  if (process.platform !== 'win32') return sourceBinary
+  // Windows：复制到 workspace 之外再执行（见文件头说明）
   const exe = path.join(info.dir, 'electron.exe')
-  const sourceExe = path.join(info.pkg, 'dist', 'electron.exe')
-  if (!fs.existsSync(sourceExe)) return null
   if (fs.existsSync(exe)) return exe
   fs.rmSync(info.dir, { recursive: true, force: true })
   fs.mkdirSync(info.dir, { recursive: true })

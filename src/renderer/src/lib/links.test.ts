@@ -62,3 +62,59 @@ describe('parseLinkInput（添加/编辑链接的地址+标题解析）', () => 
     })
   })
 })
+
+/** 平台字面量：显式注入，两条平台用例同跑（Node 测试环境默认回退 win32） */
+const DARWIN = 'darwin' as const
+
+describe('parseLinkInput · darwin（macOS 本地文件/文件夹）', () => {
+  it('接受 /Users/... 绝对 POSIX 路径，标题留空回退 basename', () => {
+    expect(parseLinkInput('/Users/me/报告 2024.pdf', '', DARWIN)).toEqual({
+      kind: 'file',
+      target: '/Users/me/报告 2024.pdf',
+      display: '报告 2024.pdf'
+    })
+    expect(parseLinkInput('/Users/me/Documents/', '', DARWIN)).toEqual({
+      kind: 'folder',
+      target: '/Users/me/Documents/',
+      display: 'Documents'
+    })
+    expect(parseLinkInput('  "/Users/me/项目 A/"  ', '', DARWIN)).toMatchObject({
+      kind: 'folder',
+      target: '/Users/me/项目 A/',
+      display: '项目 A'
+    })
+  })
+
+  it('接受 file:/// 本机 URL（解码）并支持自定义标题', () => {
+    expect(parseLinkInput('file:///Users/me/%E4%B8%AD%E6%96%87.pdf', '需求文档', DARWIN)).toEqual({
+      kind: 'file',
+      target: '/Users/me/中文.pdf',
+      display: '需求文档'
+    })
+  })
+
+  it('危险协议与 Windows 语义在 darwin 下拒绝', () => {
+    expect(parseLinkInput('javascript:alert(1)', '标题', DARWIN)).toBeNull()
+    expect(parseLinkInput('data:text/html,<b>x</b>', '', DARWIN)).toBeNull()
+    expect(parseLinkInput('C:\\Users\\me\\a.txt', '', DARWIN)).toBeNull()
+    expect(parseLinkInput('//server/share/dir', '', DARWIN)).toBeNull()
+  })
+
+  it('默认（win32）下 macOS 路径仍拒绝：原有 Windows 行为零回归', () => {
+    expect(parseLinkInput('/Users/me/a.txt')).toBeNull()
+    expect(parseLinkInput('/Users/me/a.txt', '标题')).toBeNull()
+  })
+})
+
+describe('autoLinkTitle · darwin', () => {
+  it('macOS 路径取最后一段（含空格/中文），不存在结尾斜杠时也正确', () => {
+    expect(autoLinkTitle('/Users/me/报告 2024.pdf', DARWIN)).toBe('报告 2024.pdf')
+    expect(autoLinkTitle('/Users/me/项目 资料/', DARWIN)).toBe('项目 资料')
+    expect(autoLinkTitle('file:///Users/me/%E6%96%87.docx', DARWIN)).toBe('文.docx')
+  })
+
+  it('无法识别的输入退回原始文本（darwin 下 Windows 路径同样退回）', () => {
+    expect(autoLinkTitle('javascript:alert(1)', DARWIN)).toBe('javascript:alert(1)')
+    expect(autoLinkTitle('C:\\Users\\me\\a.txt', DARWIN)).toBe('C:\\Users\\me\\a.txt')
+  })
+})

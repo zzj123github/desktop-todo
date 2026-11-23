@@ -1,10 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { detectLink, fmtDateTime, isLinkOnly, parseQuick } from './parseQuick'
 
 /** 固定基准：2026-11-21（周六）13:05 本地时间 */
 const NOW = new Date(2026, 10, 21, 13, 5, 0, 0).getTime()
 const at = (y: number, mo: number, d: number, h = 0, mi = 0): number =>
   new Date(y, mo - 1, d, h, mi, 0, 0).getTime()
+
+/** 平台字面量：显式注入，避免用例结果依赖宿主系统（项目同时在 Windows 与 macOS 上跑） */
+const WIN32 = 'win32' as const
+const DARWIN = 'darwin' as const
 
 describe('parseQuick · 标题与默认到期时间', () => {
   it('空输入返回「新任务」+ 今天 18:00（默认时间已过则下一个未来半点）', () => {
@@ -264,5 +268,160 @@ describe('isLinkOnly / fmtDateTime', () => {
     const ts = at(2026, 11, 25, 9, 0)
     expect(fmtDateTime(ts)).toBe('11月25日 周三 09:00')
     expect(fmtDateTime(ts, false)).toBe('11月25日 周三')
+  })
+})
+
+describe('detectLink · darwin/posix（macOS 本地链接识别）', () => {
+  it('绝对 POSIX 路径：文件按扩展名、文件夹按结尾分隔符，中文与空格原样保留', () => {
+    expect(detectLink('/Users/me/报告 2024.pdf', DARWIN)).toEqual({
+      kind: 'file',
+      target: '/Users/me/报告 2024.pdf',
+      display: '报告 2024.pdf'
+    })
+    expect(detectLink('/Users/me/项目 资料/周报 2024.xlsx', DARWIN)).toEqual({
+      kind: 'file',
+      target: '/Users/me/项目 资料/周报 2024.xlsx',
+      display: '周报 2024.xlsx'
+    })
+    expect(detectLink('/Users/me/Documents/', DARWIN)).toEqual({
+      kind: 'folder',
+      target: '/Users/me/Documents/',
+      display: 'Documents'
+    })
+    expect(detectLink('/Users/me/项目 资料', DARWIN)).toMatchObject({
+      kind: 'folder',
+      display: '项目 资料'
+    })
+  })
+
+  it('file:/// 本机 URL 解码为 POSIX 路径；file://localhost 与大小写同样接受', () => {
+    expect(detectLink('file:///Users/me/%E6%8A%A5%E5%91%8A%202024.pdf', DARWIN)).toEqual({
+      kind: 'file',
+      target: '/Users/me/报告 2024.pdf',
+      display: '报告 2024.pdf'
+    })
+    expect(detectLink('FILE:///Users/me/A.PDF', DARWIN)).toMatchObject({
+      kind: 'file',
+      target: '/Users/me/A.PDF'
+    })
+    expect(detectLink('file://localhost/Users/me/a.txt', DARWIN)).toMatchObject({
+      kind: 'file',
+      target: '/Users/me/a.txt'
+    })
+    expect(detectLink('file:///Users/me/项目 A/', DARWIN)).toMatchObject({
+      kind: 'folder',
+      target: '/Users/me/项目 A/'
+    })
+  })
+
+  it('成对引号（中英文）会被去掉，引号内路径照常识别', () => {
+    expect(detectLink('"/Users/me/报告 2024.pdf"', DARWIN)).toEqual({
+      kind: 'file',
+      target: '/Users/me/报告 2024.pdf',
+      display: '报告 2024.pdf'
+    })
+    expect(detectLink('  ‘/Users/me/文档’  ', DARWIN)).toEqual({
+      kind: 'folder',
+      target: '/Users/me/文档',
+      display: '文档'
+    })
+  })
+
+  it('Windows 路径语义在 darwin 下不识别（与主进程 opener 一致，不误判）', () => {
+    expect(detectLink('//server/share/dir', DARWIN)).toBeNull()
+    expect(detectLink('\\\\server\\share\\dir', DARWIN)).toBeNull()
+    expect(detectLink('/cygdrive/c/Users/me', DARWIN)).toBeNull()
+    expect(detectLink('C:\\Users\\a.txt', DARWIN)).toBeNull()
+    expect(detectLink('C:/Users/a.txt', DARWIN)).toBeNull()
+    expect(detectLink('file:///C:/Users/a.txt', DARWIN)).toBeNull()
+    expect(detectLink('file://server/share/x', DARWIN)).toBeNull()
+  })
+
+  it('危险协议与相对路径在 darwin 下仍返回 null', () => {
+    for (const raw of [
+      'javascript:alert(1)',
+      'JaVaScRiPt:alert(1)',
+      'data:text/html,<b>x</b>',
+      'vbscript:msgbox(1)',
+      'cmd:/c calc',
+      'powershell:Start-Process calc',
+      'mailto:a@b.com',
+      'ftp://example.com/x',
+      'docs/readme.txt',
+      '~/Documents',
+      'report.docx'
+    ]) {
+      expect(detectLink(raw, DARWIN)).toBeNull()
+    }
+  })
+
+  it('win32 下 /Users/... 仍不识别（原有 Windows 语义零回归）', () => {
+    expect(detectLink('/Users/me/a.txt', WIN32)).toBeNull()
+    expect(detectLink('/Users/me/a.txt')).toBeNull()
+  })
+})
+
+describe('isLinkOnly · darwin', () => {
+  it('darwin 下 POSIX 路径算「只有一个链接」，win32 默认不算', () => {
+    expect(isLinkOnly('/Users/me/a.txt', DARWIN)).toBe(true)
+    expect(isLinkOnly('/Users/me/Documents/', DARWIN)).toBe(true)
+    expect(isLinkOnly('file:///Users/me/a.txt', DARWIN)).toBe(true)
+    expect(isLinkOnly('随便的文字', DARWIN)).toBe(false)
+    expect(isLinkOnly('', DARWIN)).toBe(false)
+    expect(isLinkOnly('/Users/me/a.txt')).toBe(false)
+    expect(isLinkOnly('/Users/me/a.txt', WIN32)).toBe(false)
+  })
+})
+
+describe('默认平台回退（window.api.platform → win32）', () => {
+  it('运行环境注入 darwin 时默认按 macOS 识别；无 window 时回退 win32', () => {
+    expect(detectLink('/Users/me/a.txt')).toBeNull()
+    vi.stubGlobal('window', { api: { platform: DARWIN } })
+    try {
+      expect(detectLink('/Users/me/a.txt')).toEqual({
+        kind: 'file',
+        target: '/Users/me/a.txt',
+        display: 'a.txt'
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+    expect(detectLink('/Users/me/a.txt')).toBeNull()
+  })
+})
+
+describe('parseQuick · darwin 整行本地路径（Composer 粘贴路径场景）', () => {
+  const darwinOpts = { platform: DARWIN, defaultDue: null as number | null }
+
+  it('整行单个 POSIX 文件/文件夹路径摘成链接，标题回落「新任务」', () => {
+    expect(parseQuick('/Users/me/报告 2024.pdf', NOW, darwinOpts)).toMatchObject({
+      title: '新任务',
+      links: [{ kind: 'file', target: '/Users/me/报告 2024.pdf', display: '报告 2024.pdf' }]
+    })
+    expect(parseQuick('/Users/me/Documents/', NOW, darwinOpts).links).toEqual([
+      { kind: 'folder', target: '/Users/me/Documents/', display: 'Documents' }
+    ])
+  })
+
+  it('整行 file URL 先解码为 POSIX 路径；引号包裹同样可用', () => {
+    expect(parseQuick('file:///Users/me/%E4%B8%AD%E6%96%87.txt', NOW, darwinOpts).links).toEqual([
+      { kind: 'file', target: '/Users/me/中文.txt', display: '中文.txt' }
+    ])
+    expect(parseQuick('"/Users/me/我的 文件.pdf"', NOW, darwinOpts).links).toEqual([
+      { kind: 'file', target: '/Users/me/我的 文件.pdf', display: '我的 文件.pdf' }
+    ])
+  })
+
+  it('win32 语义在 darwin 下不产生链接；行内混排的 POSIX 路径也不识别（文档化取舍）', () => {
+    expect(parseQuick('C:\\Users\\a.txt', NOW, darwinOpts).links).toEqual([])
+    expect(parseQuick('\\\\server\\share\\dir', NOW, darwinOpts).links).toEqual([])
+    const mixed = parseQuick('打开 /Users/me/a.txt', NOW, darwinOpts)
+    expect(mixed.links).toEqual([])
+    expect(mixed.title).toBe('打开 /Users/me/a.txt')
+  })
+
+  it('win32 下整行 /Users 路径仍不识别（默认平台零回归）', () => {
+    expect(parseQuick('/Users/me/a.txt', NOW, { defaultDue: null }).links).toEqual([])
+    expect(parseQuick('/Users/me/a.txt', NOW, { defaultDue: null, platform: WIN32 }).links).toEqual([])
   })
 })

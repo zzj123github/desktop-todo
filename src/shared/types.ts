@@ -175,7 +175,26 @@ export interface AppNotice {
   acknowledgeLabel?: string
 }
 
+/**
+ * 运行平台快照。preload 同步暴露 `process.platform`；shared 层只做类型，
+ * 不 import electron / node，因此在这里列出与 NodeJS.Platform 一致的字面量联合供各层复用。
+ */
+export type DesktopPlatform =
+  | 'aix'
+  | 'android'
+  | 'darwin'
+  | 'freebsd'
+  | 'haiku'
+  | 'linux'
+  | 'openbsd'
+  | 'sunos'
+  | 'win32'
+  | 'cygwin'
+  | 'netbsd'
+
 export interface DesktopTodoApi {
+  /** 当前运行平台（preload 启动时确定的只读快照，用于渲染层文案/快捷键适配） */
+  platform: DesktopPlatform
   tasks: {
     list(input?: { filter?: FilterDTO; viewId?: string }): Promise<TaskDTO[]>
     create(input: TaskCreateInput): Promise<TaskDTO>

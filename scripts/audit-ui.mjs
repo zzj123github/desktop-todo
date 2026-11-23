@@ -53,10 +53,26 @@ async function connect(match) {
       waiting.delete(m.id)
     }
   })
+  // 目标窗口在 evaluate 期间被 window.close() 关掉时，CDP 不会再回包：
+  // 必须用空响应结束挂起的 send，否则审计脚本会永久等待（关闭完整窗口步骤偶发卡住）。
+  ws.addEventListener('close', () => {
+    for (const resolve of waiting.values()) resolve({})
+    waiting.clear()
+  })
+  // 单条 CDP 命令超时兜底：窗口被销毁/卡顿时不让整个审计无限等待（超时返回空响应）
+  const SEND_TIMEOUT_MS = 15000
   const send = (method, params) =>
     new Promise((resolve) => {
       const id = ++seq
-      waiting.set(id, resolve)
+      const timer = setTimeout(() => {
+        waiting.delete(id)
+        resolve({})
+      }, SEND_TIMEOUT_MS)
+      if (typeof timer.unref === 'function') timer.unref()
+      waiting.set(id, (message) => {
+        clearTimeout(timer)
+        resolve(message)
+      })
       ws.send(JSON.stringify({ id, method, params }))
     })
   const evaluate = async (expression) => {
@@ -295,6 +311,18 @@ async function main() {
       `JSON.stringify({inner:innerWidth+'x'+innerHeight,wide:Boolean(document.querySelector('.modal.wide')),overlay:Boolean(document.querySelector('.overlay')),title:document.querySelector('.modal-title')?.textContent})`
     )
     check('编辑窗口为 wide 嵌入模态、无遮罩', info.includes('"wide":true') && info.includes('"overlay":false'), info)
+    // 进入链接行内编辑：点击路径/标题按钮后等输入框出现，最多重试 8 次
+    // （保存/重渲染瞬间点击会丢失，审计脚本需容忍这个时序）
+    const openLinkEdit = async () => {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        if (await editor.evaluate(`Boolean(document.querySelector('.link-row .lr-target-input'))`)) {
+          return true
+        }
+        await editor.clickAt('.link-row .lr-path-btn')
+        await sleep(250)
+      }
+      return false
+    }
     // 链接标题：点击名称进入内联编辑，Enter 保存；清空后回退自动名称
     const autoTitle = await editor.evaluate(`document.querySelector('.link-row .lr-name')?.textContent?.trim()`)
     await editor.clickAt('.link-row .lr-name-btn')
@@ -308,8 +336,7 @@ async function main() {
     const fallbackTitle = await editor.evaluate(`document.querySelector('.link-row .lr-name')?.textContent?.trim()`)
     check('清空链接标题回退自动名称', Boolean(autoTitle) && fallbackTitle === autoTitle, `${editedTitle} -> ${fallbackTitle}`)
     // 地址与标题可同时修改（用户 m06711）：点击路径进入同一编辑态，改地址后重识别
-    await editor.clickAt('.link-row .lr-path-btn')
-    await sleep(200)
+    await openLinkEdit()
     const twoFields = await editor.evaluate(
       `JSON.stringify({target:Boolean(document.querySelector('.link-row .lr-target-input')),title:Boolean(document.querySelector('.link-row .lr-title-input'))})`
     )
@@ -329,8 +356,7 @@ async function main() {
       editedTarget
     )
     // 无效地址：拒绝并保持编辑，Esc 取消后保留原地址
-    await editor.clickAt('.link-row .lr-path-btn')
-    await sleep(150)
+    await openLinkEdit()
     await editor.typeInto('.link-row .lr-target-input', 'javascript:alert(1)', 'Enter')
     const invalidEdit = await editor.evaluate(
       `JSON.stringify({editing:Boolean(document.querySelector('.link-row .lr-edit')),toast:Boolean(document.querySelector('.toast'))})`
