@@ -105,3 +105,50 @@
 - [ ] portable exe + NSIS 安装包各一份
 - [ ] README：安装、使用、SmartScreen、数据目录、备份、构建命令
 - [ ] 验收结果记录（通过/未通过/已知限制）
+
+## M. macOS 平台验收（2026-11-23）
+
+> 本节对应 `docs/acceptance/M7-MACOS-ACCEPTANCE.md`。A–J 的 Windows 条目保持 M6 验收时的状态，本轮未重新勾选；下列条目按平台映射替换为 macOS 语义。
+
+### M1. 构建与产物
+- [x] 在 macOS 上按 README 构建：`pnpm dist:mac` 产出 Apple 芯片（arm64）dmg（`scripts/dist-mac.cjs` 打包前按 arm64 取 better-sqlite3 预编译 `.node`，`npmRebuild: false`）
+- [x] arm64 dmg `hdiutil verify` VALID；挂载内容为「桌面待办.app + Applications 快捷方式」
+- [x] 包内架构正确：主程序与 `better_sqlite3.node` 均为 arm64
+- **Intel 芯片 Mac / x64 包 / Rosetta 2 不在支持范围**：未构建、未验证 x64（不再提供 x64 dmg 与 Rosetta 运行说明）
+- [x] Info.plist：`CFBundleIdentifier=com.lazasons.desktoptodo`、版本 1.0.0、`CFBundleIconFile=icon.icns`、`LSMinimumSystemVersion=12.0`、分类 productivity
+- [x] 未签名状态已确认（`Signature=adhoc`、`TeamIdentifier=not set`、`spctl` 拒绝）；首次打开需 Gatekeeper 放行，README 有步骤
+- [ ] 下载后 Gatekeeper 放行人工走一遍（右键「打开」或「系统设置 → 隐私与安全性 → 仍要打开」）
+- [ ] GitHub Actions 的 `build-mac` 作业实际运行（配置就绪，未跑过）
+
+### M2. 安装与启动
+- [x] 从 dmg 复制安装到 `/Applications/桌面待办.app` 后 `open` 可启动（launchd 拉起，主进程/GPU/网络/渲染进程均在）
+- [x] 真实数据目录写入：`~/Library/Application Support/DesktopTodo/data.db`（WAL）；设置 → 数据目录可打开
+- [x] 冷启动/常驻形态可用；三态互斥（挂件/胶囊/完整窗口）正常
+- [ ] 卸载（删除 `/Applications/桌面待办.app`）后重装，数据保留实测
+
+### M3. 功能验收
+- [x] 类型检查 0 错误（`tsc --noEmit`）
+- [x] 单元测试全通过：18 个测试文件 / 247 用例（Electron 40.10.2 运行时）
+- [x] 安装后的 arm64 app 全量 UI 审计 74 项 **ALL PASS**（挂件折叠输入/勾选撤销/编辑窗口与链接双字段/图钉/胶囊/桌面视图/三态互斥/导航/tab/筛选/搜索/分组折叠/日期时间选择器滚轮/设置/管理/使用说明/新建任务/数据清理）
+
+### M4. 平台行为
+- [x] 应用菜单（桌面待办 / 编辑 / 窗口）：代码 + 单测覆盖（编辑 role 是 ⌘C/⌘V/⌘A/⌘Z 生效前提），仅 darwin 安装、Windows 行为不变
+- [ ] 应用菜单原生展开与 ⌘Q/⌘W/⌘M/⌘C/⌘V 人工验证
+- [x] Dock 显隐策略：默认隐藏，打开完整窗口时显示（可 Cmd+Tab），收起后隐藏——代码路径 + 三态互斥审计通过
+- [ ] Dock 图标实际显隐视觉人工确认
+- [x] 菜单栏使用模板图标（`trayTemplate.png`/`@2x` 已进包，`setTemplateImage(true)` 由系统适配深浅色），左键单击直接弹菜单；菜单模板/文案/勾选态由单测覆盖
+- [ ] 菜单栏图标视觉、深浅色、多显示器、Spaces、左键菜单逐项人工验证
+- [x] ⌘/⌥ 文案：安装后 app 审计截图可见「⌘⇧Space / ⌥H / ⌥1…5」「⌘N / ⌘F」；`i18n/zh.ts` 按平台切换
+- [ ] 登录项真实生效（本机受限环境注册报 `Operation not permitted`；需真实安装 + 重启验证）
+- [x] POSIX 本地链接口径：只接受绝对 POSIX 路径与 `file:///` 本机 URL，盘符/UNC/cygdrive 判不支持，危险协议拒绝；两平台单测同跑
+- [ ] 真实 Finder 拖拽生成链接、点击用默认程序打开人工验证
+- [x] 登录启动静默逻辑（`wasOpenedAtLogin` → 只菜单栏不弹挂件）代码就绪
+- [ ] 真实登录启动（重启电脑）验证静默启动
+
+### M5. 视觉与稳定
+- [x] macOS 下界面与 Windows 同一套 token/布局；安装后审计覆盖三形态尺寸、弹窗、日期选择器、独立编辑/提示窗口
+- [ ] macOS 内存 / 性能基线（Activity Monitor 三场景；300 MB 指标仅 Windows 实测）
+- [ ] 深色模式视觉（`darkModeSupport: true` 已配置）
+
+### M6. 未验证项汇总（macOS）
+登录项真实安装+重启、下载后 Gatekeeper 放行、菜单栏图标视觉/多屏/Spaces、真实 Finder 拖拽、GitHub Actions `build-mac` 实跑、卸载后数据保留、macOS 内存/性能、应用菜单与 Dock 视觉人工确认。人工步骤见 `docs/acceptance/M7-MACOS-ACCEPTANCE.md` §H。

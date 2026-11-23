@@ -1,13 +1,13 @@
 # 桌面待办 · 项目说明（规格 + 可交互原型）
 
-> 更新日期：2026-11-22 · 状态：**可交互原型 v1.1 已完成；Electron + SQLite 实现与 exe 打包已完成（验收见 [acceptance/M6-ACCEPTANCE.md](acceptance/M6-ACCEPTANCE.md)）**
+> 更新日期：2026-11-23 · 状态：**可交互原型 v1.1 已完成；Electron + SQLite 实现已完成，Windows exe 与 macOS dmg 均已打包（Windows 验收见 [acceptance/M6-ACCEPTANCE.md](acceptance/M6-ACCEPTANCE.md)，macOS 验收见 [acceptance/M7-MACOS-ACCEPTANCE.md](acceptance/M7-MACOS-ACCEPTANCE.md)）**
 > 用途：项目说明与实施入口。工程目录以 `09-PROJECT-STRUCTURE.md` 为准；新会话直接读取 `06-IMPLEMENTATION-BRIEF.md` 的绝对路径。
 
 ---
 
 ## 1. 一句话
 
-一个 Windows 桌面 TODO 小工具：**桌面挂件为主入口**，随时看见今天要做什么、随手勾；每条任务可以直接挂**网页链接、文件夹/文件路径（含 UNC 共享盘）**，点一下就打开对应位置；**纯本地、内网可用、不联网**。
+一个 Windows / macOS 桌面 TODO 小工具：**桌面挂件为主入口**，随时看见今天要做什么、随手勾；每条任务可以直接挂**网页链接、文件夹/文件路径（Windows 含 UNC 共享盘，macOS 为绝对 POSIX 路径）**，点一下就打开对应位置；**纯本地、内网可用、不联网**。系统要求：Windows 10 1903+ / Windows 11（x64）；macOS 12+（Apple 芯片 arm64；Intel 芯片 Mac 不在支持范围）。
 
 ## 2. 现在就可以体验（可交互原型 v1.1）
 
@@ -61,6 +61,7 @@
 | 23 | **独立透明窗口内浮层用紧凑阴影** | 挂件 / 胶囊 / 编辑 / 提示窗口内的 modal、popover、toast 使用 `--shadow-*-window`；不透明的完整窗口保留 `--shadow-*` |
 | 24 | **原生对话框改为应用内提示** | 快捷键冲突 / 数据库异常使用 472 宽独立提示窗口 + 自建 NoticeModal；仅提示窗口加载失败 2.5s 回退原生 dialog；文件选择器保持原生 |
 | 25 | **挂件内编辑用独立桌面级窗口** | 挂件内点击任务打开 550 宽（502 + 24×2）独立透明窗口、按内容高度居中；X / 取消 / 保存 / Esc / 删除后关闭，挂件保持原样 |
+| 26 | **Windows / macOS 双平台** | 同一套功能与数据模型；Windows 保持托盘 / 任务栏 / UNC 链接语义，macOS 映射为菜单栏图标（左键单击弹菜单）、Dock 默认隐藏（完整窗口打开时显示）、登录项「登录时自动启动」、本地链接走绝对 POSIX 路径与 `file:///` 本机 URL。平台映射见 01 §3，链接口径见 03 §5，安装与已知限制见 README；Windows 交付不因 macOS 版本改动 |
 
 ## 4. 视觉基准
 
@@ -113,5 +114,6 @@
 
 ## 8. 下一步
 
-- 体验 v1.1 原型与已打包桌面版，把不顺手的地方反馈出来；实现与验收记录见 [acceptance/M6-ACCEPTANCE.md](acceptance/M6-ACCEPTANCE.md)
+- 体验 v1.1 原型与已打包桌面版（Windows exe 与 macOS dmg），把不顺手的地方反馈出来；实现与验收记录见 [acceptance/M6-ACCEPTANCE.md](acceptance/M6-ACCEPTANCE.md)（Windows）与 [acceptance/M7-MACOS-ACCEPTANCE.md](acceptance/M7-MACOS-ACCEPTANCE.md)（macOS）
+- macOS 版本已完成：macOS 12+ 只提供 Apple 芯片（arm64）dmg（Intel 芯片 Mac 不在支持范围），安装、Gatekeeper 放行与平台差异见 `../README.md`（系统要求、安装、已知限制）
 - 后续按反馈迭代；原型改动同步回 `design/`（静态原型 + 截图 + 整页长图），避免文档与产物脱节

@@ -123,3 +123,58 @@
 - electron-builder 在 tag 构建时会 `Implicit publishing triggered by git tag`，即使没配置 publish 也会尝试发布 GitHub Release；缺少 GH_TOKEN 时两个 exe 已成功打包仍会 `exit 1`。CI 用 `softprops/action-gh-release` 发布时，打包命令必须加 `--publish never`。
 - 公开仓库可用未认证 API 读 Actions runs / releases；但 job 日志接口未认证返回 403，需要认证（本机可临时用系统 Git 的 GCM 凭据取 token，token 不得写盘或回显）。
 - 修复后重跑 tag 构建：提交修复 → `git tag -f v1.0.0` + `git push origin v1.0.0 --force` 重新触发；tag 必须等于 `v` + package.json version。CI 打包约 3 分钟（electron 下载 + NSIS + portable 压缩）。
+
+## macOS 版本构建/运行坑（2026-11-23，macOS 26.5 arm64 验收）
+
+### Electron.app 解包：extract-zip 在受限环境只解出部分内容
+
+- 现象：用 Node `extract-zip` 解 `electron-v40.10.2-darwin-arm64.zip` 时，产物 `Electron.app` 不完整（缺少 Frameworks/符号链接或直接中断），启动即失败。
+- 原因：本机 DSH 受限会话对解包大小/路径有限制；zip 里的符号链接与权限位也会被通用解压库丢失。
+- 规避：改用 `python3 scripts/fetch-native-assets.py`（内置 zipfile + symlink/权限处理）或系统 `ditto -x -k <zip> <dir>`（macOS 原生命令，完整保留 bundle 结构）。打包链路以 Python 脚本为准。
+
+### Python `zipfile` 默认丢符号链接与执行位
+
+- 现象：解出的 `Electron.app` 里 `Versions/Current` 等符号链接变成普通文件、`Contents/MacOS/Electron` 丢 `+x`，启动报 `Permission denied` 或「应用已损坏」。
+- 原因：`zipfile.extract` 不还原 Unix mode 与 symlink。
+- 规避：`scripts/fetch-native-assets.py` 的 `extract_zip_into` 按 `external_attr` 判断 `S_ISLNK` 并用 `os.symlink` 重建，其余文件用 `os.chmod(S_IMODE(mode))` 还原权限位；macOS 包还写 `path.txt = Electron.app/Contents/MacOS/Electron`。
+
+### electron-builder / electron 缓存目录与 HOME（受限环境）
+
+- 现象：受限会话下 electron-builder 写默认缓存（`~/Library/Caches/electron`、`~/Library/Caches/electron-builder`）可能不可写或需要额外权限，下载 Electron/dmg 工具链失败。
+- 规避：把 `HOME` 指向独立可写目录（本次 `.tools/home`，位于项目仓库外、不入库），让 electron/electron-builder 缓存落在该目录；CI 与普通用户环境无此问题（CI 用 GitHub 默认缓存）。网络受限时再配 `ELECTRON_MIRROR` / `ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror。
+
+### `npmRebuild: false` + 同批多架构打包会塞错原生模块
+
+- 现象：`electron-builder --mac --arm64 --x64` 一条命令出两个 dmg 时，两个包里的 `better_sqlite3.node` 是同一个架构；另一个架构启动时崩溃（原生模块加载失败）。
+- 原因：`npmRebuild: false` 不重建，`node_modules` 里只有一个 `.node`；electron-builder 不会为每个架构重新取原生模块。
+- 规避：`scripts/dist-mac.cjs` 打包前先 `fetch-native-assets.py --skip-electron --arch arm64` 覆盖 `.node`，再单独 `electron-builder --mac --arm64`。`electron-builder.yml` 的 `mac.target` 只写 arm64。
+- 现状（2026-11-23 更新）：macOS 已仅支持 Apple 芯片（arm64），只放 arm64 `.node`、只打 arm64 dmg；本坑保留为历史结论（若将来恢复多架构打包仍适用）。
+
+### Intel 芯片 Mac / x64 包 / Rosetta 2 不在支持范围（2026-11-23 用户决定）
+
+- 用户明确「不需要考虑 Intel 芯片 Mac 的安装运行」：macOS 版只保留 Apple 芯片（arm64），不构建 x64 包、不提供 Rosetta 2 运行说明、不再做 x64 全量验证。
+- 影响：`electron-builder.yml` 的 `mac.target` 只列 arm64；`scripts/dist-mac.cjs` 只打 arm64（新增 `--dir` 只出解包目录、不生成 dmg）；`package.json` 删除 `dist:mac:all`；CI `build-mac` 只构建/上传 arm64 dmg，Release 说明只提 Apple 芯片；`release/` 里的 x64 dmg 与 x64 解包目录已删除。
+- 判断口径：文档与回答里 Intel、x64、Rosetta 只能出现在「不在支持范围」的否定说明里，不得写成支持能力或待验证项。
+
+### `open --args` / `open --env` 参数与环境不透传
+
+- 现象：用 `open -a "桌面待办" --args --remote-debugging-port=9245` 或 `open --env DESKTOP_TODO_CDP_PORT=9245 ...` 启动后，Chromium 没有监听调试端口，CDP 审计连不上。
+- 原因：本机环境下 `open` 启动已安装 app 时，参数/env 不会透传给 app 的 Chromium 进程。
+- 规避：`src/main/index.ts` 支持环境变量 `DESKTOP_TODO_CDP_PORT`（仅显式设置时追加 `remote-debugging-port`，只监听本机回环）；对已安装 app 审计时用 `DESKTOP_TODO_CDP_PORT=<port> open ...` 或在启动参数里直接给可执行文件传 `--remote-debugging-port`（直接执行 `Contents/MacOS/桌面待办` 而非 `open`）。
+
+### dmg 制作/校验依赖 hdiutil（受限会话需沙箱外权限）
+
+- 现象：受限会话内 `hdiutil create/attach/verify` 被拒绝或无法写挂载点，打包/校验 dmg 失败。
+- 规避：dmg 构建与 `hdiutil verify`/挂载检查在沙箱外或有完整权限的会话执行；普通 macOS 用户与 GitHub Actions `macos-latest` 无此限制。验收时挂载点用独立目录（`.tools/mnt-arm64`、`.tools/mnt-x64`），结束后必须 `hdiutil detach`。
+
+### 审计脚本：CDP 在窗口关闭时挂起
+
+- 现象：审计流程里执行 `window.close()` 关闭编辑/完整窗口后，CDP `Runtime.evaluate` 不再回包，脚本无限等待（审计偶发卡死）。
+- 原因：目标窗口销毁后该 target 的 CDP 连接不再响应；旧脚本发送后只等回包。
+- 规避：`scripts/audit-ui.mjs` 给每条命令加 15s 超时（`SEND_TIMEOUT_MS`），并监听 WebSocket `close` 事件主动结束挂起中的发送；链接行内编辑增加重试。新增会关窗的审计步骤时不要再假设 evaluate 一定回包。
+
+### 未签名 adhoc 状态（Gatekeeper / 登录项）
+
+- 现状：`dmg.sign: false`、无 Developer ID，安装后 `codesign -dv` 显示 `Signature=adhoc`、`flags=0x20002(adhoc,linker-signed)`、`TeamIdentifier=not set`、`Sealed Resources=none`；`spctl -a -vv` 拒绝（`code has no resources but signature indicates they must be present`）。
+- 影响：首次打开被 Gatekeeper 拦截，需右键「打开」或「系统设置 → 隐私与安全性 → 仍要打开」；未签名/非 `/Applications` 运行时 `app.setLoginItemSettings` 可能报 `Unable to set login item: Operation not permitted`（本次受限环境实测）。
+- 不要用「临时关闭 SIP / sudo」绕过验证；放行流程与登录项真实场景按 M7 §H 人工验证步骤执行。
