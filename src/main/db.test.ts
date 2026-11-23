@@ -31,6 +31,13 @@ import { createTask, listTasks } from './repo/tasks'
 import { saveView } from './repo/views'
 import { getBooleanSetting, setSetting } from './settings'
 
+/**
+ * 本地路径夹具：链接目标由 classifyTarget 按运行平台校验，
+ * Windows 用盘符路径、macOS/Linux 用 POSIX 绝对路径，保证测试跨平台跑同一套断言。
+ */
+const LOCAL_FOLDER_LABELED =
+  process.platform === 'win32' ? 'C:\\Users\\me\\Documents\\周报模板' : '/Users/me/Documents/周报模板'
+
 const HOUR = 60 * 60 * 1000
 const originalDbEnv = process.env['DESKTOP_TODO_DB']
 const originalDataDirEnv = process.env['DESKTOP_TODO_DATA_DIR']
@@ -187,7 +194,7 @@ describe('导出 / 导入', () => {
       tagIds: [tag.id, project.id],
       links: [
         { target: 'https://wiki.company.com/ieop/review' },
-        { target: 'C:\\Users\\me\\Documents\\周报模板' }
+        { target: LOCAL_FOLDER_LABELED }
       ]
     })
     saveView({
@@ -331,6 +338,19 @@ describe('路径解析与环境变量', () => {
     process.env['DESKTOP_TODO_DATA_DIR'] = tempDir
     expect(resolveDataDir()).toBe(path.resolve(tempDir))
     expect(resolveDbPath()).toBe(path.join(path.resolve(tempDir), DB_FILE_NAME))
+  })
+
+  it('未设环境变量时数据目录按平台约定解析（Windows %APPDATA%、macOS Application Support）', () => {
+    delete process.env['DESKTOP_TODO_DATA_DIR']
+    const dir = resolveDataDir()
+    expect(path.basename(dir)).toBe('DesktopTodo')
+    if (process.platform === 'darwin') {
+      expect(dir).toBe(path.join(os.homedir(), 'Library', 'Application Support', 'DesktopTodo'))
+    } else if (process.platform === 'win32') {
+      expect(dir.toLowerCase()).toContain('appdata')
+    } else {
+      expect(dir).toBe(path.join(os.homedir(), '.config', 'DesktopTodo'))
+    }
   })
 
   it('openDatabase 支持 :memory:，且 close 不影响后续文件库', () => {

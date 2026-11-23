@@ -21,6 +21,7 @@ import { join } from 'node:path'
 import type { AppNotice, SettingsKey } from '../shared/types'
 import { handleNoticeWindowClosed } from './notices'
 import { logMainError } from './logger'
+import { activateApp, hideDock, showDock } from './macos'
 import {
   getBooleanSetting,
   getNumberSetting,
@@ -412,7 +413,7 @@ function bindBoundsPersistence(win: BrowserWindow, kind: 'manager' | 'widget'): 
 // 透明度 / 置顶
 // ---------------------------------------------------------------------------
 
-/** 非焦点时按设置降低不透明度（仅挂件；Windows 支持 setOpacity） */
+/** 非焦点时按设置降低不透明度（仅挂件；Windows/macOS 均支持 setOpacity） */
 export function applyWidgetOpacity(): void {
   if (quitting || !widgetWindow || widgetWindow.isDestroyed()) return
   // 退出阶段数据库可能已关闭：读取失败时保持当前不透明度，不要把异常抛进 focus/blur 回调
@@ -759,6 +760,9 @@ export function openEditorWindow(taskId: string | null): void {
   win.setVisibleOnAllWorkspaces(false)
   loadView(win, 'editor', taskId ? { task: taskId } : {})
   win.once('ready-to-show', () => {
+    if (win.isDestroyed()) return
+    // macOS：独立编辑弹窗也是应用窗口，先激活应用再显示（与提示窗口一致）
+    activateApp()
     win.show()
     win.focus()
   })
@@ -865,6 +869,8 @@ export function createNoticeWindow(): void {
   loadView(win, 'notice')
   win.once('ready-to-show', () => {
     if (win.isDestroyed()) return
+    // macOS：提示窗口可能在其他应用前台时弹出，先激活应用再显示
+    activateApp()
     win.show()
     win.focus()
   })
@@ -1000,6 +1006,8 @@ export function createWindows(options: CreateWindowsOptions = {}): void {
   // 完整窗口按需创建：常驻挂件时不必承担第二个渲染进程的内存开销
   // （docs/07 H：挂件常驻内存 < 300MB）。首次打开由 showManager() 懒加载。
   bindDisplayListeners()
+  // macOS：只显示桌面形态时不占 Dock（完整窗口打开时再显示，见 revealManager）
+  if (!managerVisible()) hideDock()
 }
 
 export function getWidgetWindow(): BrowserWindow | null {
@@ -1008,6 +1016,11 @@ export function getWidgetWindow(): BrowserWindow | null {
 
 export function getManagerWindow(): BrowserWindow | null {
   return managerWindow
+}
+
+/** 完整窗口当前是否可见（三态互斥下桌面形态与完整窗口不会同时显示） */
+function managerVisible(): boolean {
+  return Boolean(managerWindow && !managerWindow.isDestroyed() && managerWindow.isVisible())
 }
 
 /** 显示桌面形态（挂件/胶囊）；三态互斥：显示时隐藏完整窗口 */
@@ -1019,8 +1032,12 @@ export function showWidget(): void {
   // 显示前确保 bounds 与当前形态一致（例如上次退出时位置数据已更新）
   widgetWindow.setBounds(resolveShapeBounds(widgetMode))
   applyWidgetOpacity()
+  // macOS：从菜单栏图标/全局快捷键唤起时先把应用激活，窗口才能收到键盘输入
+  activateApp()
   widgetWindow.show()
   widgetWindow.focus()
+  // 完整窗口已隐藏：macOS 收起 Dock 图标，只留桌面形态 + 菜单栏图标
+  hideDock()
 }
 
 /**
@@ -1059,6 +1076,9 @@ function revealManager(): void {
     widgetWindow.hide()
   }
   if (win.isMinimized()) win.restore()
+  // macOS：完整窗口是常规窗口，显示 Dock 图标（可 Cmd+Tab 切回）并激活应用
+  showDock()
+  activateApp()
   win.show()
   win.focus()
 }

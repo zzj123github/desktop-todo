@@ -18,6 +18,15 @@ import {
 } from './tasks'
 import { saveView } from './views'
 
+/**
+ * 本地路径夹具：链接目标由 classifyTarget 按运行平台校验，
+ * Windows 用盘符路径、macOS/Linux 用 POSIX 绝对路径，保证测试跨平台跑同一套断言。
+ */
+const LOCAL_FOLDER =
+  process.platform === 'win32' ? 'C:\\Users\\me\\Documents' : '/Users/me/Documents'
+const LOCAL_FOLDER_LABELED =
+  process.platform === 'win32' ? 'C:\\Users\\me\\Documents\\周报模板' : '/Users/me/Documents/周报模板'
+
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
 
@@ -57,7 +66,7 @@ describe('createTask / getTask', () => {
         tagIds: [tagId, projectId],
         links: [
           { target: 'https://wiki.company.com/ieop/review' },
-          { target: 'C:\\Users\\me\\Documents\\周报模板' }
+          { target: LOCAL_FOLDER_LABELED }
         ]
       },
       now
@@ -128,7 +137,7 @@ describe('updateTask', () => {
     const replaced = updateTask(task.id, {
       links: [
         { id: secondId, target: 'https://b.example.com/two-v2', display: '二·改' },
-        { target: 'C:\\Users\\me\\Documents' }
+        { target: LOCAL_FOLDER }
       ]
     })
 

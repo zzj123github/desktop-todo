@@ -20,3 +20,10 @@ nohup.out
 
 # 本地代码索引（codegraph init 生成，每台机器各自重建）
 .codegraph/
+
+# Python 构建脚本缓存（scripts/*.py）
+__pycache__/
+*.pyc
+
+# Electron 单实例锁残留（在项目根直接启动 Electron 时产生）
+Singleton*

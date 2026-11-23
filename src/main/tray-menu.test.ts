@@ -64,6 +64,26 @@ describe('buildTrayMenuTemplate', () => {
     item?.click?.({ checked: false })
     expect(d.actions.setLaunchAtLogin).toHaveBeenLastCalledWith(false)
   })
+
+  it('macOS 用「登录时启动」「退出桌面待办」文案，其余项与 Windows 一致', () => {
+    const template = buildTrayMenuTemplate(deps({ platform: 'darwin' }))
+    expect(template.map((item) => (item.type === 'separator' ? 'separator' : item.label))).toEqual([
+      '隐藏挂件',
+      '快速添加',
+      '打开完整窗口',
+      'separator',
+      '登录时启动',
+      'separator',
+      '退出桌面待办'
+    ])
+    expect(template.find((entry) => entry.label === '登录时启动')?.type).toBe('checkbox')
+  })
+
+  it('未指定平台时输出 Windows 文案（默认行为不变）', () => {
+    const template = buildTrayMenuTemplate(deps({ platform: 'win32' }))
+    expect(template[4].label).toBe('开机自启')
+    expect(template[6].label).toBe('退出')
+  })
 })
 
 describe('formatTrayTooltip', () => {

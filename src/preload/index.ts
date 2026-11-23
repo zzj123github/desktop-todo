@@ -57,6 +57,8 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 }
 
 const api: DesktopTodoApi = {
+  /* 同步暴露进程平台供渲染层适配文案；sandbox: true 的 preload 中 process.platform 可用 */
+  platform: process.platform,
   tasks: {
     list: (input) => ipcRenderer.invoke('tasks:list', input ?? {}),
     create: (input: TaskCreateInput) => ipcRenderer.invoke('tasks:create', input),
