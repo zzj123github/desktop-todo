@@ -104,3 +104,6 @@
 
 2026-11-23 | update | README.md, docs/00-README.md, docs/01-PRD.md, docs/04-TECH-PLAN.md, docs/07-ACCEPTANCE.md, docs/09-PROJECT-STRUCTURE.md, docs/acceptance/M7-MACOS-ACCEPTANCE.md, .agents/memory/{decisions.md,gotchas.md,project-overview.md,open-items.md}, .agents/changelog.md | 按用户要求 macOS 仅支持 Apple 芯片（arm64）：文档/验收记录/记忆移除 Intel/x64/Rosetta 支持表述或标注「不在支持范围」；M7 结论改为通过（arm64 全量证据）、删除 x64 章节与行；README/docs 00/01/04/07/09 的下载、安装、构建命令、产物表、风险表同步为 arm64 only（dist:mac 只出 arm64、`--dir` 只出解包目录、CI build-mac 只出 arm64 dmg）；decisions D24 与 gotchas 更新为 arm64-only 决策与口径 | 用户明确「macOS 版本不需要考虑 Intel 芯片 Mac 的安装运行」，macOS 只保留 Apple 芯片
 2026-11-23 | update | .agents/memory/decisions.md | 合并远端 zzj/master 时把 macOS 决策由 D24 重编号为 D27（远端已有 D24=新功能先做提案原型、D26=阶段门，D25 未使用；本节历史记录里「新增 D24（macOS 方案…）」以本条为准） | rebase 合并远端提交时的冲突处理
+
+2026-11-24 | create | design/proto-v1.6/app/, design/proto-v1.6/screens/ | 提案 v1.6 原型：完整窗口最小化/最大化/关闭按钮，Windows 右上角 46×32 按钮组（关闭红底白叉）、macOS 左上角 12px 红绿灯（悬停符号、失焦变灰、侧栏让出 36px 标题栏）；体验条加 Windows/macOS 预览切换，任务栏加最小化还原入口；8 张 1280×696@2x 截图 | 用户 2026-11-24 要求按系统区分窗口按钮位置与风格
+2026-11-24 | create | design/PROPOSAL-v1.6.md, design/README.md | 提案文档待确认（范围/两平台规格/交互对照/落地映射/风险/4 个待确认问题/验收要点），README 提案登记表新增一行「待确认」 | 阶段门：确认前不改 src/ 与 docs/ 规格
