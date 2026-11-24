@@ -107,3 +107,11 @@
 
 2026-11-24 | create | design/proto-v1.6/app/, design/proto-v1.6/screens/ | 提案 v1.6 原型：完整窗口最小化/最大化/关闭按钮，Windows 右上角 46×32 按钮组（关闭红底白叉）、macOS 左上角 12px 红绿灯（悬停符号、失焦变灰、侧栏让出 36px 标题栏）；体验条加 Windows/macOS 预览切换，任务栏加最小化还原入口；8 张 1280×696@2x 截图 | 用户 2026-11-24 要求按系统区分窗口按钮位置与风格
 2026-11-24 | create | design/PROPOSAL-v1.6.md, design/README.md | 提案文档待确认（范围/两平台规格/交互对照/落地映射/风险/4 个待确认问题/验收要点），README 提案登记表新增一行「待确认」 | 阶段门：确认前不改 src/ 与 docs/ 规格
+2026-11-24 17:40 | pause | .agents/HANDOFF-v1.6.md, .agents/memory/open-items.md | 用户要求暂停并换工具继续：写交接文档（已完成/未完成/确切下一步/环境坑）并在 open-items 登记未完成项 | 代码已实施并验证（tsc 0 错误、247 单测、真机 CDP 16/16），文档与原型基线同步、dmg 打包、提交未完成
+2026-11-24 17:44 | update | docs/02-DESIGN-SPEC.md, docs/08-UI-ENGINEERING-SPEC.md | 补窗口按钮规格：02 §4.2 加窗口按钮段（两平台位置/风格/让位/交互），08 新增 §3.14 WindowControls（容器、尺寸、颜色、状态来源、可访问性、关闭语义、负向约束） | 确认后实施，规格需与代码同步
+2026-11-24 17:45 | package | release/DesktopTodo-1.0.0-arm64.dmg | 重新打包 macOS arm64 dmg：120,645,659 B，SHA-256 372e3aa1…，hdiutil verify VALID；首轮 electron-builder 下载 ETIMEDOUT，加 ELECTRON_MIRROR / ELECTRON_BUILDER_BINARIES_MIRROR 后成功 | 用户「完成后直接更新一个新的安装包，我本地安装验证结果」
+
+2026-11-24 17:21 | confirm | design/PROPOSAL-v1.6.md | 用户确认提案（原话：确认提案 / 按提案实施），进入实施 | 阶段门通过
+2026-11-24 | implement | src/main/{windows,ipc}.ts, src/preload/index.ts, src/shared/types.ts, src/renderer/src/{components/WindowControls.tsx,components/Icons.tsx,app/Manager.tsx,styles/app.css,i18n/zh.ts} | 完整窗口最小化/最大化/关闭：Windows 右上角 46×32、macOS 红绿灯；关闭=hide 回桌面；mac 绿灯单击全屏 / ⌥ 缩放；最大化/全屏态不写 managerBounds；window:state 推送 | 用户确认提案后实施
+2026-11-24 17:58 | promote | design/app/, design/README.md, design/static-prototype.html, design/app-{manager,shapes}.png, design/app-fullpage.webp, design/PROPOSAL-v1.6.md | 提案 v1.6 提升为基线：app/ ← proto-v1.6/app/（v1.6）、静态原型 v2.5（图注/确认决策补窗口按钮）、重导 manager/shapes（Windows 平台、FakeDate 2026-11-21 20:58）与 fullpage webp（2708×16383）；提案状态改「已确认 · 已提升」 | HANDOFF §4 下一步
+2026-11-24 17:58 | update | .agents/memory/decisions.md, .agents/memory/open-items.md, .agents/HANDOFF-v1.6.md | 决策 D28（两平台窗口按钮 + 全屏/缩放分工 + 最大化不写库）；open-items / HANDOFF 标记原型与记录完成，保留 Windows 实机缺口 | 交接收尾

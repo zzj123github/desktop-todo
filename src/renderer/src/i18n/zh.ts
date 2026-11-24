@@ -140,6 +140,17 @@ export const zh = {
     addTask: '添加任务'
   },
 
+  /** 完整窗口的自绘窗口按钮（design/PROPOSAL-v1.6.md） */
+  windowControls: {
+    group: '窗口控制',
+    minimize: '最小化',
+    maximize: '最大化',
+    restore: '还原',
+    fullscreen: isMac ? '全屏' : '最大化',
+    exitFullscreen: isMac ? '退出全屏' : '还原',
+    close: '关闭'
+  },
+
   manager: {
     newTask: '新建',
     search: '搜索',

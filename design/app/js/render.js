@@ -153,7 +153,6 @@ R.main = function(){
     + '<button type="button" class="icon-btn" data-act="to-capsule" title="收起到胶囊" aria-label="收起到胶囊">'+R.icon('minus')+'</button>'
     + '</div>'
     + '<button type="button" class="btn-pri" data-act="new-task">'+R.icon('plus')+'新建</button>'
-    + '<button type="button" class="icon-btn mhead-close" data-act="close-window" title="关闭完整窗口，回到桌面" aria-label="关闭完整窗口">'+R.icon('x')+'</button>'
     + '</div></div>';
   html += '<div class="tabs" role="tablist">'
     + R.tabBtn('all','全部',tabs.all)

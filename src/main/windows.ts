@@ -18,7 +18,7 @@
  */
 import { app, BrowserWindow, screen, type Rectangle } from 'electron'
 import { join } from 'node:path'
-import type { AppNotice, SettingsKey } from '../shared/types'
+import type { AppNotice, SettingsKey, WindowControlAction, WindowControlState } from '../shared/types'
 import { handleNoticeWindowClosed } from './notices'
 import { logMainError } from './logger'
 import { activateApp, hideDock, showDock } from './macos'
@@ -336,8 +336,10 @@ function displayIdFor(bounds: Rectangle): number {
 function persistBounds(kind: 'widget' | 'capsule' | 'manager'): void {
   const win = kind === 'manager' ? managerWindow : widgetWindow
   if (!win || win.isDestroyed()) return
-  const bounds = win.getBounds()
   if (kind === 'manager') {
+    // 最大化 / 全屏是临时态：不能把它当成用户设的窗口尺寸写库（还原后仍回到原尺寸）
+    if (win.isMaximized() || win.isFullScreen()) return
+    const bounds = win.getBounds()
     writeBounds('managerBounds', {
       x: bounds.x,
       y: bounds.y,
@@ -347,6 +349,7 @@ function persistBounds(kind: 'widget' | 'capsule' | 'manager'): void {
     })
     return
   }
+  const bounds = win.getBounds()
   // 程序化切换形态/高度后的 moved 事件不落盘（位置已由 setBounds 主动写入）
   if (Date.now() < suppressBoundsPersistUntil) return
   // 桌面形态（挂件/胶囊）共用同一位置：高 DPI 下 getBounds 可能回读 ±1px 或中间态，
@@ -914,6 +917,57 @@ export function getNoticeWindow(): BrowserWindow | null {
   return noticeWindow
 }
 
+// ---------------------------------------------------------------------------
+// 完整窗口的自绘窗口按钮（最小化 / 最大化 / 全屏）
+//
+// 完整窗口 frame:false 且没有系统标题栏，最小化/最大化/关闭只能由渲染层按钮发起。
+// 方案与视觉见 design/PROPOSAL-v1.6.md；规格见 docs/02 §窗口按钮、docs/08 §3.14。
+// ---------------------------------------------------------------------------
+
+export function getManagerWindowState(): WindowControlState {
+  const win = managerWindow
+  if (!win || win.isDestroyed()) return { maximized: false, fullscreen: false }
+  return { maximized: win.isMaximized(), fullscreen: win.isFullScreen() }
+}
+
+/** 状态变化后推给渲染层：图标（最大化 ⇄ 还原）与 aria-pressed 跟系统一致 */
+function broadcastManagerWindowState(): void {
+  const win = managerWindow
+  if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return
+  win.webContents.send('window:state', getManagerWindowState())
+}
+
+/**
+ * 执行窗口按钮动作。窗口不存在时静默忽略（按钮只在完整窗口里渲染）。
+ * - minimize：进任务栏 / Dock；
+ * - toggle-maximize：最大化 ⇄ 还原（macOS 上即「缩放」，也是 ⌥ 单击绿灯的行为）；
+ * - toggle-fullscreen：全屏 ⇄ 退出全屏（macOS 绿色按钮单击）。
+ */
+export function controlManagerWindow(action: WindowControlAction): void {
+  const win = managerWindow
+  if (!win || win.isDestroyed()) return
+  switch (action) {
+    case 'minimize':
+      win.minimize()
+      break
+    case 'toggle-maximize':
+      if (win.isMaximized()) win.unmaximize()
+      else win.maximize()
+      break
+    case 'toggle-fullscreen':
+      win.setFullScreen(!win.isFullScreen())
+      break
+  }
+}
+
+function bindManagerWindowStateEvents(win: BrowserWindow): void {
+  win.on('maximize', broadcastManagerWindowState)
+  win.on('unmaximize', broadcastManagerWindowState)
+  win.on('enter-full-screen', broadcastManagerWindowState)
+  win.on('leave-full-screen', broadcastManagerWindowState)
+  win.on('restore', broadcastManagerWindowState)
+}
+
 function createManagerWindow(): BrowserWindow {
   const saved = readBounds('managerBounds')
   const bounds = saved
@@ -946,6 +1000,7 @@ function createManagerWindow(): BrowserWindow {
     }
   })
   attachDevToolsShortcut(win)
+  bindManagerWindowStateEvents(win)
   win.on('close', (event) => {
     if (quitting) return
     event.preventDefault()

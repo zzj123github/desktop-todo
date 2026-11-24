@@ -120,6 +120,13 @@ const api: DesktopTodoApi = {
     dragMove: (input: { dx: number; dy: number }) => ipcRenderer.invoke('widget:dragMove', input),
     endDrag: () => ipcRenderer.invoke('widget:endDrag')
   },
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),
+    toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
+    getState: () => ipcRenderer.invoke('window:getState'),
+    onStateChange: (cb) => subscribe('window:state', cb)
+  },
   editor: {
     open: (input?: { taskId?: string | null }) => ipcRenderer.invoke('editor:open', input ?? {}),
     close: () => ipcRenderer.invoke('editor:close'),

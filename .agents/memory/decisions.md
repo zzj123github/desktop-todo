@@ -198,3 +198,14 @@
 - 决策 10 · **CI 增加 `build-mac` 与 `release-notes`**：`build-mac` 在 `macos-latest`（timeout 60min）跑 tag 校验 + typecheck + test + `node scripts/dist-mac.cjs` + 校验 arm64 dmg + 上传 artifact，tag 时 `softprops/action-gh-release` 发布 arm64 dmg，Release 说明只提 Apple 芯片；`release-notes` 用 `needs: [build-win, build-mac]` 在两个平台构建后统一写 Release 说明，避免两个并行发布作业互相覆盖 body。理由：macOS dmg 只能在 macOS 上构建；发布说明需要汇总双平台。
 - 验证方式（2026-11-23，macOS 26.5 arm64）：`tsc --noEmit` 0 错误；`node scripts/run-tests.cjs run` 18 文件 247 用例通过；arm64 dmg `hdiutil verify` VALID、SHA-256 与尺寸记录在 M7 §D1；Info.plist/包内架构/签名状态已复核；安装到 `/Applications` 后 `open` 启动、真实数据目录写入；对安装后 arm64 app 跑 CDP 全量 UI 审计 74 项 ALL PASS。Intel 芯片 Mac / x64 包 / Rosetta 2 不在支持范围（未构建、未验证 x64）。
 - 已知边界：未签名未公证（Gatekeeper 拦截）；登录项/菜单栏视觉/真实 Finder 拖拽/Gatekeeper 放行流程/CI `build-mac` 未人工或未实跑验证，详见 `docs/acceptance/M7-MACOS-ACCEPTANCE.md` §G/§H 与 `memory/open-items.md`。
+
+## D28 · 2026-11-24 · 完整窗口两平台窗口按钮（最小化 / 最大化·全屏 / 关闭）
+
+- 背景：`frame: false` 自绘完整窗口缺少系统惯例的最小化、最大化与关闭入口；用户要求按系统区分位置与风格（Windows 右上角 / macOS 红绿灯）。提案 `PROPOSAL-v1.6` 于 2026-11-24 用户确认后实施。
+- 决策 1 · **同一 DOM、按平台切换样式**：`Manager` 根节点 `data-platform`；Windows 右上角三枚 46×32（关闭悬停 `#C42B1C`），主区 `padding-top:32px`；macOS 左上角 12px 红绿灯（悬停显符号、失焦 `#D8D4CB`），侧栏 `padding-top:36px`。挂件 / 胶囊 / 编辑弹窗 / 提示窗口不加窗口按钮。
+- 决策 2 · **关闭语义不变**：关闭按钮走 `window.close()`，主进程拦截为 hide + 回桌面形态（与 Esc 一致），不退出应用。
+- 决策 3 · **macOS 绿灯：单击全屏，⌥ 单击缩放**：绿灯外观与文案只跟随全屏态；Windows 最大化按钮图标 / `aria-label` / `aria-pressed` 跟随 `maximized`。
+- 决策 4 · **最大化 / 全屏态不持久化 bounds**：`persistBounds` 在 maximized / fullscreen 时跳过写入 `managerBounds`，避免下次启动把最大尺寸当作用户尺寸。
+- 验证：`tsc --noEmit` 0 错误；247 单测通过；macOS 开发版 CDP 16/16；原型提升后 manager/shapes/fullpage 重导；Windows 实机点击仍为已知缺口。
+- 影响：`windows.ts` / `ipc.ts` / preload / `WindowControls.tsx` / `docs/02` §4.2 / `docs/08` §3.14 / `design/app` v1.6。
+

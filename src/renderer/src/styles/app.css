@@ -1114,3 +1114,44 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 .link-row .lr-edit .lr-target-input:focus,
 .link-row .lr-edit .lr-title-input:focus{outline:none;border-color:var(--accent)}
 .link-row .lr-edit input::placeholder{color:var(--faint)}
+
+/* ── 完整窗口的自绘窗口按钮（design/PROPOSAL-v1.6.md · docs/02 §窗口按钮 · docs/08 §3.14）
+   frame:false 的完整窗口没有系统标题栏，最小化 / 最大化 / 关闭由渲染层绘制，
+   位置与样式按平台区分：Windows 右上角按钮组、macOS 左上角红绿灯。 */
+.wc{position:absolute;inset:0;pointer-events:none;z-index:30}
+.wc > *{pointer-events:auto}
+
+/* Windows：贴窗口右上角的 46×32 直角按钮组 */
+.mgr[data-platform="win"] .wc-mac{display:none}
+.mgr[data-platform="win"] .wc-win{position:absolute;top:0;right:0;display:flex}
+.mgr[data-platform="win"] .wcb{
+  width:46px;height:32px;padding:0;border:0;background:transparent;color:#7B7466;
+  display:flex;align-items:center;justify-content:center;cursor:default;
+  transition:background .1s,color .1s
+}
+.mgr[data-platform="win"] .wcb svg{width:10px;height:10px}
+.mgr[data-platform="win"] .wcb:hover{background:rgba(31,30,29,.07);color:var(--ink)}
+.mgr[data-platform="win"] .wcb:active{background:rgba(31,30,29,.13)}
+.mgr[data-platform="win"] .wcb:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mgr[data-platform="win"] .wcb-close:hover{background:#C42B1C;color:#FFFDFA}
+.mgr[data-platform="win"] .wcb-close:active{background:#B0271A}
+/* 顶部 32px 让给标题栏条：按钮不压标题行、tab 与列表 */
+.mgr[data-platform="win"] .main{padding-top:32px}
+
+/* macOS：贴窗口左上角的 12px 红绿灯，悬停显示符号，失焦变中性灰 */
+.mgr[data-platform="mac"] .wc-win{display:none}
+.mgr[data-platform="mac"] .wc-mac{position:absolute;top:18px;left:20px;display:flex;gap:8px}
+.mgr[data-platform="mac"] .tl{
+  width:12px;height:12px;border-radius:50%;border:0;padding:0;cursor:default;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .12s
+}
+.mgr[data-platform="mac"] .tl svg{width:12px;height:12px;color:rgba(0,0,0,.55);opacity:0;transition:opacity .1s}
+.mgr[data-platform="mac"] .wc-mac:hover .tl svg{opacity:1}
+.mgr[data-platform="mac"] .tl-close{background:#FF5F57}
+.mgr[data-platform="mac"] .tl-min{background:#FEBC2E}
+.mgr[data-platform="mac"] .tl-max{background:#28C840}
+.mgr[data-platform="mac"] .tl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mgr[data-platform="mac"] .wc-mac.is-blur .tl{background:#D8D4CB}
+/* 红绿灯独占一条 36px 标题栏，侧栏品牌行落在其下（Big Sur 起的侧栏应用做法） */
+.mgr[data-platform="mac"] .sidebar{padding-top:36px}

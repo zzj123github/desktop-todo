@@ -102,7 +102,7 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
         <b>静态原型 · 与可交互版同步</b>
         <span>可交互版：design/app/index.html</span>
         <span>规格：docs/08-UI-ENGINEERING-SPEC.md</span>
-        <span>更新：2026-11-22 · 静态原型 v2.4 · 视觉定稿</span>
+        <span>更新：2026-11-24 · 静态原型 v2.5 · 视觉定稿</span>
       </div>
       <div class="chips">
         <span class="chip"><i class="dot"></i>网页 / 文件夹 / UNC</span>
@@ -130,7 +130,7 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
     <div class="grid-2">
       <figure class="wide">
         <div class="shot"><img src="app-manager.png" alt="完整窗口 · 今天视图"></div>
-        <figcaption><span class="cap-no">01</span><div><b>完整窗口 · 管理视图</b><span>桌面形态下打开的管理窗口：左侧导航（收件箱 / 今天 / 已逾期 / 即将到期 / 已完成 / 项目 / 标签）+ 主区今天视图；标题行右侧是进度环、收起到挂件 / 收起到胶囊、新建与关闭。打开窗口时挂件与胶囊自动让位，三者同一时刻只出现一个。</span></div></figcaption>
+        <figcaption><span class="cap-no">01</span><div><b>完整窗口 · 管理视图</b><span>桌面形态下打开的管理窗口：左侧导航（收件箱 / 今天 / 已逾期 / 即将到期 / 已完成 / 项目 / 标签）+ 主区今天视图；右上角是 Windows 惯例窗口按钮组（最小化 / 最大化 / 关闭，46×32，主区上方让出 32px）；标题行右侧是进度环、收起到挂件 / 收起到胶囊、新建。打开窗口时挂件与胶囊自动让位，三者同一时刻只出现一个。</span></div></figcaption>
       </figure>
 
       <figure>
@@ -156,7 +156,7 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
     <div class="grid-2">
       <figure class="wide">
         <div class="shot"><img src="app-shapes.png" alt="完整窗口标题行与形态按钮"></div>
-        <figcaption><span class="cap-no">04</span><div><b>完整窗口 · 标题行形态按钮</b><span>进度环右侧新增两个图标按钮：收起到挂件、收起到胶囊；再右侧是新建与关闭。关闭 X 或 Esc 只回到桌面，不退出应用；标题行按钮把窗口收成挂件或胶囊；双击挂件标题、双击胶囊打开完整窗口。</span></div></figcaption>
+        <figcaption><span class="cap-no">04</span><div><b>完整窗口 · 窗口按钮与形态切换</b><span>右上角 Windows 窗口按钮（— □ ✕，关闭悬停红底白叉）与标题行形态按钮并存：进度环右侧是收起到挂件 / 收起到胶囊，再右侧是新建。关闭按钮或 Esc 只回到桌面，不退出应用；形态按钮把窗口收成挂件或胶囊；双击挂件标题、双击胶囊打开完整窗口。macOS 上同位置改为左上角红绿灯（侧栏让出 36px）。</span></div></figcaption>
       </figure>
 
       <figure class="wide">
@@ -311,6 +311,7 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
           <li><span class="k">链接标题与地址</span><span>默认自动生成（URL 去协议截 44 字 / 路径取最后一段）；点击标题或路径进入同一行内编辑，标题与地址一起改，留空回退自动标题，Esc 取消</span></li>
           <li><span class="k">使用说明</span><span>侧栏 footer「设置」之上；六节只读说明，X / 知道了 / Esc 关闭，点遮罩不关</span></li>
           <li><span class="k">投影</span><span>桌面形态无外投影，用 1px 内描边收边</span></li>
+          <li><span class="k">窗口按钮</span><span>完整窗口按系统惯例：Windows 右上角 46×32 / macOS 左上角红绿灯；关闭回桌面；挂件与胶囊不加</span></li>
           <li><span class="k">快捷时间</span><span>只显示 2 个，按当前时间动态计算</span></li>
           <li><span class="k">逾期</span><span>到期时间早于当前即逾期，同日已过也显示</span></li>
           <li><span class="k">过去时间</span><span>选择器置灰，键入过去值会被拦截</span></li>
@@ -327,7 +328,7 @@ figcaption span{display:block;font-size:11.5px;line-height:1.6;color:var(--muted
     </div>
     <div class="right">
       DESKTOP TODO / WINDOWS<br>
-      2026-11-22 · LOCAL ONLY
+      2026-11-24 · LOCAL ONLY
     </div>
   </footer>
 

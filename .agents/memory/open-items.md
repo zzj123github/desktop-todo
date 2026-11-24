@@ -97,3 +97,14 @@
 | macOS 内存 / 性能 | 未测量（Windows 软件合成结论不迁移） | Activity Monitor 三场景基线与 docs/07 §H 300 MB 指标对照（M7 §H9） |
 | 深色模式视觉 | 未人工验证 | 系统外观切深色，检查三形态与独立编辑/提示窗口（M7 §H10） |
 | 本地链接限制（记录，非缺陷） | Composer 行内混排 POSIX 路径不自动识别；旧 Windows 数据里的 `C:\` 链接在 macOS 提示不支持 | 按 `docs/03` §5 口径使用（整行粘贴或走编辑弹窗） |
+
+## v1.6 完整窗口按钮（2026-11-24 17:58 续完）
+
+已完成：规格 docs/02§4.2 + docs/08§3.14；代码实施与 macOS CDP 16/16；dmg `release/DesktopTodo-1.0.0-arm64.dmg`（120,645,659 B，SHA-256 `372e3aa1139b6bc79c5b4c9e9695d1b5e78ad6bd95d2834dd29ae76f6b938e68`）；原型基线提升为 app v1.6 / static v2.5 并重导截图；记录 D28 + changelog；提案状态已确认。
+
+仍开放：
+
+| 项 | 状态 | 建议验证 |
+| --- | --- | --- |
+| Windows 实机点击窗口按钮 | 未在 Windows 上点过（仅 CSS/结构 + 原型截图 + macOS 真机） | 在 Windows 安装包上点最小化/最大化/关闭，核对任务栏还原与关闭回桌面 |
+| 安装后 .app 再跑 CDP（可选） | dmg 已生成；安装后全量复跑未做 | `DESKTOP_TODO_CDP_PORT=9241` + 安装后 `open`，跑 `.agents/tmp/check-app-v1.6.mjs` |
