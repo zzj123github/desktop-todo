@@ -10,9 +10,10 @@
  * 一个 CPU 架构，所以打包前必须显式放入 arm64 产物（Windows 版走同一套预编译流程）。
  *
  * 用法（在项目根执行，仅 macOS）：
- *   node scripts/dist-mac.cjs                 # 构建 + 打 dmg
- *   node scripts/dist-mac.cjs --dir           # 只出解包目录 release/mac-arm64，不生成 dmg（调试用）
+ *   node scripts/dist-mac.cjs                 # patch +1 → 构建 + 打 dmg → 删旧包
+ *   node scripts/dist-mac.cjs --dir           # 只出解包目录 release/mac-arm64，不生成 dmg、不升版（调试用）
  *   node scripts/dist-mac.cjs --skip-build    # 跳过 electron-vite build（out/ 已是最新）
+ *   node scripts/dist-mac.cjs --no-bump       # 不升 package.json 版本（同版本重打）
  *
  * 产物：release/DesktopTodo-<version>-arm64.dmg
  * 未做代码签名（与 Windows 交付一致）：首次打开需右键「打开」或系统设置放行，见 README。
@@ -21,6 +22,7 @@ const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const { root } = require('./electron-runtime.cjs')
+const { bumpPatchVersion, cleanOldReleaseArtifacts, currentVersion } = require('./release-version.cjs')
 
 const ARCH = 'arm64'
 
@@ -39,15 +41,22 @@ function run(command, args) {
 function parseArgs(argv) {
   let skipBuild = false
   let dirOnly = false
+  let noBump = false
   for (const arg of argv) {
     if (arg === '--skip-build') skipBuild = true
     else if (arg === '--dir') dirOnly = true
-    else fail(`未知参数：${arg}（可用：--skip-build / --dir）`)
+    else if (arg === '--no-bump') noBump = true
+    else fail(`未知参数：${arg}（可用：--skip-build / --dir / --no-bump）`)
   }
-  return { skipBuild, dirOnly }
+  return { skipBuild, dirOnly, noBump }
 }
 
-const { skipBuild, dirOnly } = parseArgs(process.argv.slice(2))
+const { skipBuild, dirOnly, noBump } = parseArgs(process.argv.slice(2))
+
+// 正式 dmg：默认末位版本 +1；--dir 调试不升版；--no-bump 同版本重打
+if (!dirOnly && !noBump) {
+  bumpPatchVersion()
+}
 
 if (process.platform !== 'darwin') {
   fail('macOS 安装包只能在 macOS 上构建（dmg 需要 hdiutil）；当前不是 macOS')
@@ -90,7 +99,7 @@ if (dirOnly) {
   process.exit(0)
 }
 
-const version = require(path.join(root, 'package.json')).version
+const version = currentVersion()
 const artifact = path.join(root, 'release', `DesktopTodo-${version}-${ARCH}.dmg`)
 if (!fs.existsSync(artifact)) {
   fail(`安装包未生成：${path.relative(root, artifact)}`)
@@ -99,3 +108,4 @@ const size = fs.statSync(artifact).size
 console.log(
   `\n[dist-mac] 产物：${path.relative(root, artifact)}  ${size} B（${(size / 1024 / 1024).toFixed(1)} MiB）`
 )
+cleanOldReleaseArtifacts(version)

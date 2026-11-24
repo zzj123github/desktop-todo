@@ -115,3 +115,5 @@
 2026-11-24 | implement | src/main/{windows,ipc}.ts, src/preload/index.ts, src/shared/types.ts, src/renderer/src/{components/WindowControls.tsx,components/Icons.tsx,app/Manager.tsx,styles/app.css,i18n/zh.ts} | 完整窗口最小化/最大化/关闭：Windows 右上角 46×32、macOS 红绿灯；关闭=hide 回桌面；mac 绿灯单击全屏 / ⌥ 缩放；最大化/全屏态不写 managerBounds；window:state 推送 | 用户确认提案后实施
 2026-11-24 17:58 | promote | design/app/, design/README.md, design/static-prototype.html, design/app-{manager,shapes}.png, design/app-fullpage.webp, design/PROPOSAL-v1.6.md | 提案 v1.6 提升为基线：app/ ← proto-v1.6/app/（v1.6）、静态原型 v2.5（图注/确认决策补窗口按钮）、重导 manager/shapes（Windows 平台、FakeDate 2026-11-21 20:58）与 fullpage webp（2708×16383）；提案状态改「已确认 · 已提升」 | HANDOFF §4 下一步
 2026-11-24 17:58 | update | .agents/memory/decisions.md, .agents/memory/open-items.md, .agents/HANDOFF-v1.6.md | 决策 D28（两平台窗口按钮 + 全屏/缩放分工 + 最大化不写库）；open-items / HANDOFF 标记原型与记录完成，保留 Windows 实机缺口 | 交接收尾
+
+2026-11-24 20:55 | chore | scripts/{release-version,dist-mac,dist-win}.cjs, package.json, .cursor/rules/release-package.mdc | 安装包约定：每次正式打包 patch +1，出包后删除 release/ 旧版 DesktopTodo 产物；mac/win 统一走脚本；本次升至 1.0.1 并重打 arm64 dmg | 用户要求「打新包后删旧包、末位版本号 +1」

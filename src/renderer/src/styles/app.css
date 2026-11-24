@@ -1123,13 +1123,16 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 
 /* Windows：贴窗口右上角的 46×32 直角按钮组 */
 .mgr[data-platform="win"] .wc-mac{display:none}
-.mgr[data-platform="win"] .wc-win{position:absolute;top:0;right:0;display:flex}
+.mgr[data-platform="win"] .wc-win{
+  position:absolute;top:0;right:0;display:flex;align-items:center;height:32px
+}
 .mgr[data-platform="win"] .wcb{
   width:46px;height:32px;padding:0;border:0;background:transparent;color:#7B7466;
   display:flex;align-items:center;justify-content:center;cursor:default;
+  flex:none;line-height:0;box-sizing:border-box;
   transition:background .1s,color .1s
 }
-.mgr[data-platform="win"] .wcb svg{width:10px;height:10px}
+.mgr[data-platform="win"] .wcb svg{width:10px;height:10px;display:block}
 .mgr[data-platform="win"] .wcb:hover{background:rgba(31,30,29,.07);color:var(--ink)}
 .mgr[data-platform="win"] .wcb:active{background:rgba(31,30,29,.13)}
 .mgr[data-platform="win"] .wcb:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
@@ -1140,14 +1143,23 @@ button,input,textarea,select,a,[role='button'],[tabindex]{-webkit-app-region:no-
 
 /* macOS：贴窗口左上角的 12px 红绿灯，悬停显示符号，失焦变中性灰 */
 .mgr[data-platform="mac"] .wc-win{display:none}
-.mgr[data-platform="mac"] .wc-mac{position:absolute;top:18px;left:20px;display:flex;gap:8px}
+.mgr[data-platform="mac"] .wc-mac{
+  position:absolute;top:18px;left:20px;right:auto;bottom:auto;
+  display:flex;align-items:center;gap:8px;height:12px
+}
 .mgr[data-platform="mac"] .tl{
-  width:12px;height:12px;border-radius:50%;border:0;padding:0;cursor:default;
+  width:12px;height:12px;border-radius:50%;border:0;padding:0;margin:0;cursor:default;
   display:flex;align-items:center;justify-content:center;
+  flex:none;line-height:0;overflow:hidden;box-sizing:border-box;
   transition:background .12s
 }
-.mgr[data-platform="mac"] .tl svg{width:12px;height:12px;color:rgba(0,0,0,.55);opacity:0;transition:opacity .1s}
-.mgr[data-platform="mac"] .wc-mac:hover .tl svg{opacity:1}
+/* 符号用 12 viewBox 原尺寸绘制（stroke 1.2 ≈ 系统红绿灯粗细），悬停才显 */
+.mgr[data-platform="mac"] .tl .tl-ic{
+  width:12px;height:12px;display:block;flex:none;
+  fill:none;stroke:rgba(0,0,0,.55);stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;
+  opacity:0;transition:opacity .1s
+}
+.mgr[data-platform="mac"] .wc-mac:hover .tl .tl-ic{opacity:1}
 .mgr[data-platform="mac"] .tl-close{background:#FF5F57}
 .mgr[data-platform="mac"] .tl-min{background:#FEBC2E}
 .mgr[data-platform="mac"] .tl-max{background:#28C840}

@@ -178,3 +178,9 @@
 - 现状：`dmg.sign: false`、无 Developer ID，安装后 `codesign -dv` 显示 `Signature=adhoc`、`flags=0x20002(adhoc,linker-signed)`、`TeamIdentifier=not set`、`Sealed Resources=none`；`spctl -a -vv` 拒绝（`code has no resources but signature indicates they must be present`）。
 - 影响：首次打开被 Gatekeeper 拦截，需右键「打开」或「系统设置 → 隐私与安全性 → 仍要打开」；未签名/非 `/Applications` 运行时 `app.setLoginItemSettings` 可能报 `Unable to set login item: Operation not permitted`（本次受限环境实测）。
 - 不要用「临时关闭 SIP / sudo」绕过验证；放行流程与登录项真实场景按 M7 §H 人工验证步骤执行。
+
+## 安装包版本与旧包（2026-11-24）
+
+- 正式打包必须走 `pnpm dist:mac` / `pnpm dist:win`（内部 `scripts/release-version.cjs`）：先把 `package.json` patch +1，成功出包后再删 `release/` 里其他版本的 `DesktopTodo-*`。
+- 不要手改版本后直接 `electron-builder`，也不要在 `release/` 里堆多个版本的 dmg/exe。
+- 同版本重打用 `--no-bump`；`dist-mac --dir` 只出解包目录、不升版。
