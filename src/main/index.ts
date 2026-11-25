@@ -12,11 +12,12 @@
 import { app, dialog } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { join } from 'node:path'
+import { installApplicationMenu } from './app-menu'
 import { checkpoint, closeDatabase, getDbError, isDbHealthy, openDatabase } from './db'
 import { formatErrorDetail, logMainError } from './logger'
 import { registerIpcHandlers } from './ipc'
 import { disposeNotices, initNotices, postNotice } from './notices'
-import { syncLaunchAtLogin } from './login'
+import { syncLaunchAtLogin, wasLaunchedAtLogin } from './login'
 import { runSeed } from './seed'
 import { disposeShortcuts, setupShortcuts } from './shortcuts'
 import { createTray, destroyTray } from './tray'
@@ -46,13 +47,34 @@ const APP_USER_MODEL_ID = 'com.lazasons.desktoptodo'
  *             文本、圆角、阴影视觉一致，空闲 CPU 10s 仅 0.02s。
  * 透明挂件窗口 + 本机 GPU 合成的固定开销是主要来源，因此默认走软件合成。
  * 需要硬件加速时设置环境变量 DESKTOP_TODO_GPU=1（用于对比或高刷场景）。
+ *
+ * macOS 保持 Electron 默认（硬件合成）：上述内存结论只在 Windows/ANGLE D3D11 上实测；
+ * macOS 的窗口合成走 Core Animation，关掉硬件加速会让透明窗口与滚动动画降级，
+ * 且 Apple 芯片统一内存下该优化收益不明确。需要对比时用 DESKTOP_TODO_GPU=1 即可照旧。
  */
 function applyRenderingPolicy(): void {
   if (process.env.DESKTOP_TODO_GPU === '1') return
+  if (process.platform !== 'win32') return
   app.disableHardwareAcceleration()
 }
 
 applyRenderingPolicy()
+
+/**
+ * 打包版自动化验收用的调试端口（可选，默认不开启）。
+ *
+ * macOS 上通过 `open --args` 启动 .app 时，部分环境不会把 CLI 参数透传给 Chromium，
+ * 验收脚本无法用 `--remote-debugging-port` 连上打包版。这里支持显式设置环境变量
+ * DESKTOP_TODO_CDP_PORT=<端口> 注入同一个 Chromium 开关（只监听本机回环地址），
+ * 与直接传 --remote-debugging-port 等价；不设置时行为完全不变。
+ */
+function applyDebugPortFromEnv(): void {
+  const port = (process.env['DESKTOP_TODO_CDP_PORT'] || '').trim()
+  if (!/^\d{1,5}$/.test(port)) return
+  app.commandLine.appendSwitch('remote-debugging-port', port)
+}
+
+applyDebugPortFromEnv()
 
 /** 是否带 --silent（开机自启静默进托盘） */
 function hasFlag(flag: string): boolean {
@@ -144,12 +166,21 @@ function runSeedMode(): void {
 function bootstrap(): void {
   app.setAppUserModelId(APP_USER_MODEL_ID)
 
-  const silent = hasFlag('--silent')
+  // 开机/登录静默启动：Windows 由登录项传 --silent；macOS 登录项无法传参数，
+  // 用 wasOpenedAtLogin 判断（见 login.ts），两者都只进托盘/菜单栏，不弹挂件。
+  const silent = hasFlag('--silent') || wasLaunchedAtLogin()
   const seedMode = hasFlag('--seed')
 
   if (seedMode) {
     runSeedMode()
     return
+  }
+
+  // macOS：安装应用菜单（「编辑」菜单是 ⌘C/⌘V/⌘A 生效的前提，另含 ⌘Q/⌘W/⌘M）
+  try {
+    installApplicationMenu()
+  } catch (error) {
+    reportFatal('安装应用菜单失败', error)
   }
 
   const result = openDatabase()
@@ -239,6 +270,11 @@ function bootstrap(): void {
   app.on('activate', () => {
     const widget = getWidgetWindow()
     const manager = getManagerWindow()
+    // macOS：完整窗口可见时点 Dock 图标应聚焦它，而不是切回桌面形态
+    if (manager && !manager.isDestroyed() && manager.isVisible()) {
+      manager.focus()
+      return
+    }
     if (!widget && !manager) createWindows({ silent })
     else showWidget()
   })

@@ -25,6 +25,7 @@ import { SettingsModal } from './SettingsModal'
 import { HelpModal } from './HelpModal'
 import { FilterBar } from './FilterBar'
 import { ViewMenu } from '../components/ViewMenu'
+import { WindowControls } from '../components/WindowControls'
 import { useToast } from '../components/Toast'
 import { useFilter, useNow, useSettings, useTags, useTasks, useTimeUsage, useViews } from '../hooks'
 import {
@@ -42,6 +43,7 @@ import { atFuture, monthDay, weekday } from '../lib/date'
 import { isFilterActive, removeChip } from '../lib/filters'
 import { zh } from '../i18n/zh'
 import { isLinkUnavailable } from '../lib/links'
+import { isMacOS } from '../lib/platform'
 
 const ALL_FILTER: FilterDTO = {
   status: 'all',
@@ -461,8 +463,9 @@ export function Manager(): ReactElement {
 
   return (
     <div className="manager-scene">
-      <div className="mgr">
+      <div className="mgr" data-platform={isMacOS() ? 'mac' : 'win'}>
         <div className="mgr-drag" aria-hidden="true" />
+        <WindowControls />
         <aside className="sidebar">
           <div className="brand">
             <span className="brand-icon" aria-hidden="true">

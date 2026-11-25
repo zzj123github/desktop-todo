@@ -1508,4 +1508,6 @@ function init(){
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+/* 提案 v1.6：窗口按钮脚本复用同一个 toast（只在本提案副本里暴露） */
+window.__protoToast = toast;
 })();

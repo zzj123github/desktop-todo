@@ -1,6 +1,6 @@
 {
   "name": "desktop-todo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "桌面待办 · 纯本地桌面任务清单",
   "main": "./out/main/index.js",
   "author": "lazasons",
@@ -16,9 +16,10 @@
     "seed": "node scripts/seed.cjs",
     "rebuild:native": "electron-builder install-app-deps",
     "icons": "python scripts/make-icons.py",
-    "dist:win": "electron-vite build && electron-builder --win",
-    "dist:portable": "electron-vite build && electron-builder --win portable",
-    "dist:nsis": "electron-vite build && electron-builder --win nsis",
+    "dist:win": "node scripts/dist-win.cjs",
+    "dist:portable": "node scripts/dist-win.cjs portable",
+    "dist:nsis": "node scripts/dist-win.cjs nsis",
+    "dist:mac": "node scripts/dist-mac.cjs",
     "audit": "node scripts/audit-ui.mjs"
   },
   "dependencies": {

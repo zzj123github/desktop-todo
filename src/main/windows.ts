@@ -18,9 +18,10 @@
  */
 import { app, BrowserWindow, screen, type Rectangle } from 'electron'
 import { join } from 'node:path'
-import type { AppNotice, SettingsKey } from '../shared/types'
+import type { AppNotice, SettingsKey, WindowControlAction, WindowControlState } from '../shared/types'
 import { handleNoticeWindowClosed } from './notices'
 import { logMainError } from './logger'
+import { activateApp, hideDock, showDock } from './macos'
 import {
   getBooleanSetting,
   getNumberSetting,
@@ -335,8 +336,10 @@ function displayIdFor(bounds: Rectangle): number {
 function persistBounds(kind: 'widget' | 'capsule' | 'manager'): void {
   const win = kind === 'manager' ? managerWindow : widgetWindow
   if (!win || win.isDestroyed()) return
-  const bounds = win.getBounds()
   if (kind === 'manager') {
+    // 最大化 / 全屏是临时态：不能把它当成用户设的窗口尺寸写库（还原后仍回到原尺寸）
+    if (win.isMaximized() || win.isFullScreen()) return
+    const bounds = win.getBounds()
     writeBounds('managerBounds', {
       x: bounds.x,
       y: bounds.y,
@@ -346,6 +349,7 @@ function persistBounds(kind: 'widget' | 'capsule' | 'manager'): void {
     })
     return
   }
+  const bounds = win.getBounds()
   // 程序化切换形态/高度后的 moved 事件不落盘（位置已由 setBounds 主动写入）
   if (Date.now() < suppressBoundsPersistUntil) return
   // 桌面形态（挂件/胶囊）共用同一位置：高 DPI 下 getBounds 可能回读 ±1px 或中间态，
@@ -412,7 +416,7 @@ function bindBoundsPersistence(win: BrowserWindow, kind: 'manager' | 'widget'): 
 // 透明度 / 置顶
 // ---------------------------------------------------------------------------
 
-/** 非焦点时按设置降低不透明度（仅挂件；Windows 支持 setOpacity） */
+/** 非焦点时按设置降低不透明度（仅挂件；Windows/macOS 均支持 setOpacity） */
 export function applyWidgetOpacity(): void {
   if (quitting || !widgetWindow || widgetWindow.isDestroyed()) return
   // 退出阶段数据库可能已关闭：读取失败时保持当前不透明度，不要把异常抛进 focus/blur 回调
@@ -759,6 +763,9 @@ export function openEditorWindow(taskId: string | null): void {
   win.setVisibleOnAllWorkspaces(false)
   loadView(win, 'editor', taskId ? { task: taskId } : {})
   win.once('ready-to-show', () => {
+    if (win.isDestroyed()) return
+    // macOS：独立编辑弹窗也是应用窗口，先激活应用再显示（与提示窗口一致）
+    activateApp()
     win.show()
     win.focus()
   })
@@ -865,6 +872,8 @@ export function createNoticeWindow(): void {
   loadView(win, 'notice')
   win.once('ready-to-show', () => {
     if (win.isDestroyed()) return
+    // macOS：提示窗口可能在其他应用前台时弹出，先激活应用再显示
+    activateApp()
     win.show()
     win.focus()
   })
@@ -908,6 +917,57 @@ export function getNoticeWindow(): BrowserWindow | null {
   return noticeWindow
 }
 
+// ---------------------------------------------------------------------------
+// 完整窗口的自绘窗口按钮（最小化 / 最大化 / 全屏）
+//
+// 完整窗口 frame:false 且没有系统标题栏，最小化/最大化/关闭只能由渲染层按钮发起。
+// 方案与视觉见 design/PROPOSAL-v1.6.md；规格见 docs/02 §窗口按钮、docs/08 §3.14。
+// ---------------------------------------------------------------------------
+
+export function getManagerWindowState(): WindowControlState {
+  const win = managerWindow
+  if (!win || win.isDestroyed()) return { maximized: false, fullscreen: false }
+  return { maximized: win.isMaximized(), fullscreen: win.isFullScreen() }
+}
+
+/** 状态变化后推给渲染层：图标（最大化 ⇄ 还原）与 aria-pressed 跟系统一致 */
+function broadcastManagerWindowState(): void {
+  const win = managerWindow
+  if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return
+  win.webContents.send('window:state', getManagerWindowState())
+}
+
+/**
+ * 执行窗口按钮动作。窗口不存在时静默忽略（按钮只在完整窗口里渲染）。
+ * - minimize：进任务栏 / Dock；
+ * - toggle-maximize：最大化 ⇄ 还原（macOS 上即「缩放」，也是 ⌥ 单击绿灯的行为）；
+ * - toggle-fullscreen：全屏 ⇄ 退出全屏（macOS 绿色按钮单击）。
+ */
+export function controlManagerWindow(action: WindowControlAction): void {
+  const win = managerWindow
+  if (!win || win.isDestroyed()) return
+  switch (action) {
+    case 'minimize':
+      win.minimize()
+      break
+    case 'toggle-maximize':
+      if (win.isMaximized()) win.unmaximize()
+      else win.maximize()
+      break
+    case 'toggle-fullscreen':
+      win.setFullScreen(!win.isFullScreen())
+      break
+  }
+}
+
+function bindManagerWindowStateEvents(win: BrowserWindow): void {
+  win.on('maximize', broadcastManagerWindowState)
+  win.on('unmaximize', broadcastManagerWindowState)
+  win.on('enter-full-screen', broadcastManagerWindowState)
+  win.on('leave-full-screen', broadcastManagerWindowState)
+  win.on('restore', broadcastManagerWindowState)
+}
+
 function createManagerWindow(): BrowserWindow {
   const saved = readBounds('managerBounds')
   const bounds = saved
@@ -940,6 +1000,7 @@ function createManagerWindow(): BrowserWindow {
     }
   })
   attachDevToolsShortcut(win)
+  bindManagerWindowStateEvents(win)
   win.on('close', (event) => {
     if (quitting) return
     event.preventDefault()
@@ -1000,6 +1061,8 @@ export function createWindows(options: CreateWindowsOptions = {}): void {
   // 完整窗口按需创建：常驻挂件时不必承担第二个渲染进程的内存开销
   // （docs/07 H：挂件常驻内存 < 300MB）。首次打开由 showManager() 懒加载。
   bindDisplayListeners()
+  // macOS：只显示桌面形态时不占 Dock（完整窗口打开时再显示，见 revealManager）
+  if (!managerVisible()) hideDock()
 }
 
 export function getWidgetWindow(): BrowserWindow | null {
@@ -1008,6 +1071,11 @@ export function getWidgetWindow(): BrowserWindow | null {
 
 export function getManagerWindow(): BrowserWindow | null {
   return managerWindow
+}
+
+/** 完整窗口当前是否可见（三态互斥下桌面形态与完整窗口不会同时显示） */
+function managerVisible(): boolean {
+  return Boolean(managerWindow && !managerWindow.isDestroyed() && managerWindow.isVisible())
 }
 
 /** 显示桌面形态（挂件/胶囊）；三态互斥：显示时隐藏完整窗口 */
@@ -1019,8 +1087,12 @@ export function showWidget(): void {
   // 显示前确保 bounds 与当前形态一致（例如上次退出时位置数据已更新）
   widgetWindow.setBounds(resolveShapeBounds(widgetMode))
   applyWidgetOpacity()
+  // macOS：从菜单栏图标/全局快捷键唤起时先把应用激活，窗口才能收到键盘输入
+  activateApp()
   widgetWindow.show()
   widgetWindow.focus()
+  // 完整窗口已隐藏：macOS 收起 Dock 图标，只留桌面形态 + 菜单栏图标
+  hideDock()
 }
 
 /**
@@ -1059,6 +1131,9 @@ function revealManager(): void {
     widgetWindow.hide()
   }
   if (win.isMinimized()) win.restore()
+  // macOS：完整窗口是常规窗口，显示 Dock 图标（可 Cmd+Tab 切回）并激活应用
+  showDock()
+  activateApp()
   win.show()
   win.focus()
 }

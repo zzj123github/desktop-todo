@@ -3,7 +3,7 @@
 ## 1. 技术选择
 
 - **SQLite**（better-sqlite3，同步 API 简单、事务快）；WAL 模式；单文件。
-- 位置：`%APPDATA%\DesktopTodo\data.db`；同目录 `data.db-wal`、`data.db-shm`。
+- 位置按平台：Windows `%APPDATA%\DesktopTodo\data.db`；macOS `~/Library/Application Support/DesktopTodo/data.db`（由 `src/main/db.ts` 的 `resolveDataDir()` 按 `process.platform` 选择）。同目录 `data.db-wal`、`data.db-shm`。
 - 首次启动自动建库 + 迁移；不自动写入演示数据（seed 仅开发脚本用）。
 - 所有写操作包事务；删除任务级联删除链接与标签关联。
 
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS links (
   id              TEXT PRIMARY KEY,
   task_id         TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
   kind            TEXT NOT NULL,              -- 'url' | 'folder' | 'file'
-  target          TEXT NOT NULL,              -- https://... 或 C:\... 或 \\server\share\...
+  target          TEXT NOT NULL,              -- https://... / C:\... 或 \\server\share\...（win32）/ /Users/...（darwin）
   display         TEXT NOT NULL DEFAULT '',
   sort_order      INTEGER NOT NULL DEFAULT 0,
   last_checked_at INTEGER
@@ -108,7 +108,9 @@ CREATE TABLE IF NOT EXISTS settings (
 
 ## 5. 链接（links）
 
-### 类型识别
+`links.target` 存平台原生字符串，数据库结构不变；**识别、规范化、默认显示名与打开方式按运行平台切换**（主进程 `src/main/opener.ts` 负责识别与打开，渲染层 `src/renderer/src/lib/parseQuick.ts` / `links.ts` 做输入预判；两处识别函数都可注入平台，单测同跑 win32 / darwin）。Windows 与 macOS 各自只接受本平台可用的目标；另一平台的路径会被判不支持并提示，不崩溃。
+
+### 类型识别（Windows / win32）
 | 输入 | kind | 打开方式 |
 |------|------|----------|
 | `http://` / `https://` | url | `shell.openExternal` |
@@ -117,13 +119,28 @@ CREATE TABLE IF NOT EXISTS settings (
 | 裸域名 `wiki.company.com/...` | 自动补 `https://` → url | `shell.openExternal` |
 | 其他（如 `mailto:`） | 拒绝，提示不支持 | — |
 
+### 类型识别（macOS / darwin）
+| 输入 | kind | 打开方式 |
+|------|------|----------|
+| `http://` / `https://` | url | `shell.openExternal` |
+| 本机 `file:///...` URL（如 `file:///Users/...`、`file:///Volumes/...`；host 为空或 `localhost`） | 先 `decodeURIComponent` 转本地 POSIX 路径，再按下面判断 | `shell.openPath` |
+| 绝对 POSIX 路径：以单个 `/` 开头（如 `/Users/...`、`/Volumes/...`，可含中文/空格） | folder/file（结尾分隔符优先，否则按扩展名判断） | `shell.openPath`（访达 / 默认程序） |
+| 裸域名 `wiki.company.com/...` | 自动补 `https://` → url | `shell.openExternal` |
+| Windows 盘符 `C:\...`、UNC `\\server\share\...`、`/cygdrive/...`、`file:///C:/...` | 拒绝（unsupported；界面提示不支持的链接格式） | — |
+| 相对路径、`%ENV%`、`mailto:` 等非 http(s) 协议、非本机 file URL（`file://server/share/...`） | 拒绝（unsupported） | — |
+| `javascript:` / `data:` / `vbscript:` / `cmd:` / `powershell:` 等危险协议 | 拒绝（blocked） | — |
+
+两平台共有：只允许 http/https 与当前平台的绝对本地路径；危险协议一律 blocked；相对路径、环境变量与非 http(s) 协议一律 unsupported。
+
 ### 路径规范
-- 保存前 `path.normalize`，统一反斜杠；去首尾引号/空白；保留 UNC；不展开环境变量（`%USERPROFILE%` 不识别，提示用户给绝对路径）。
-- 显示名默认：文件夹/文件的 basename（去扩展名），网页取 hostname。
-- 不做相对路径（工作目录不固定）。
+- 两平台共有：保存前去首尾空白与成对引号（中英文引号）；不做相对路径（工作目录不固定）；不展开环境变量（`%USERPROFILE%` 不识别，提示用户给绝对路径）；默认显示名：文件夹/文件的 basename（去扩展名），网页取 hostname。
+- Windows：`path.win32.normalize` 统一反斜杠；保留 UNC；`/cygdrive/...` 可转为盘符路径（可选）。
+- macOS：`path.posix.normalize` 保留正斜杠；绝对路径必须以单个 `/` 开头（`//server/share`、`/cygdrive/...` 按 Windows 语义判不支持）；本机 `file:///...` 先 `decodeURIComponent` 为本地路径再按上述规则处理；macOS 无 UNC 概念，相关界面文案按平台切换。
+- 拖拽：Windows 资源管理器 / macOS Finder 拖入文件或文件夹 → 自动生成当前平台的绝对路径链接；拖入网址 → 网页链接。macOS 真实 Finder 拖拽未人工验证（见 README 已知限制）。
+- 快速输入（Composer）：macOS 下「整行只有一个本地路径」会识别为链接；行内混排文本里的 POSIX 路径不会自动拆出，需单独粘贴或走编辑弹窗。
 
 ### 失效处理
-1. 点击链接 → 主进程异步 `fs.promises.access`（UNC 加 800ms 超时）。
+1. 点击链接 → 主进程异步 `fs.promises.access`（本地路径统一 800ms 超时；Windows 的 UNC 同样适用）。
 2. 不存在 → 返回 `{ok:false, reason:'missing', target}`；渲染层 toast：「找不到该位置」+「重新选择」（文件/文件夹选择器，回填 target）+「删除链接」。
 3. `shell.openPath` 返回非空错误字符串（如没有关联程序）→ toast 原文，不崩溃。
 4. 每次成功打开更新 `last_checked_at`。
@@ -152,6 +169,7 @@ CREATE TABLE IF NOT EXISTS settings (
   "views": [ { "name": "采购本周", "filter": { } } ],
   "settings": { } }
 ```
+- 示例中的 `target` 为 Windows 形式；macOS 导出为 `/Users/...` 这类 POSIX 路径字符串，字段结构与 JSON 结构完全相同（见 §5）。
 - 导入：校验 version → 事务内清空并重建（导入前 UI 明确提示覆盖）；导入后刷新所有窗口。
 - 备份建议：程序退出前 `PRAGMA wal_checkpoint(TRUNCATE)`；设置里提供「打开数据目录」让用户自行复制 db。
 

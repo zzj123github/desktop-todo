@@ -520,7 +520,7 @@ export function EditorModal({
 
       <div className="form-field">
         <div className="field-label">
-          {zh.editor.linksLabel} <span className="opt">{'网页 / 文件夹 / UNC / 文件'}</span>
+          {zh.editor.linksLabel} <span className="opt">{zh.editor.linksTypes}</span>
         </div>
         <div className="link-list">
           {links.length === 0 ? <div className="m-empty">{zh.editor.emptyLinks}</div> : null}

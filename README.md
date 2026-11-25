@@ -1,6 +1,6 @@
 # 桌面待办
 
-一个常驻桌面的轻量任务管理工具：桌面挂件、可收起的胶囊、完整管理窗口三种形态，纯本地 SQLite 存储，不联网、无账号。
+一个常驻桌面的轻量任务管理工具：桌面挂件、可收起的胶囊、完整管理窗口三种形态，纯本地 SQLite 存储，不联网、无账号。支持 Windows 10 1903+/11（x64）与 macOS 12+（Apple 芯片 arm64；Intel 芯片 Mac 不在支持范围）。
 
 - 挂件：352px 宽，默认停靠主屏右侧，默认展示「今天」，回车即添加。
 - 胶囊：284×54，收起后与挂件共用同一位置（按就近基准角保持不动），整块可单击展开、可拖动。
@@ -24,15 +24,23 @@
 安装包发布在 GitHub Releases：
 
 - 下载页：https://github.com/kkk-kppi/desktop-todo/releases
-- 推送 `v*` tag 后，GitHub Actions 会自动构建并上传两个包：
-  - `DesktopTodo-<version>-portable.exe`：便携版，双击即用
-  - `DesktopTodo-<version>-setup.exe`：安装版，按向导安装
+- 推送 `v*` tag 后，GitHub Actions 会自动构建并上传 Windows 与 macOS 两套包：
+  - Windows（x64）：
+    - `DesktopTodo-<version>-portable.exe`：便携版，双击即用
+    - `DesktopTodo-<version>-setup.exe`：安装版，按向导安装
+  - macOS（Apple 芯片 arm64）：
+    - `DesktopTodo-<version>-arm64.dmg`：Apple 芯片（M1/M2/M3/M4…）；Intel 芯片 Mac 不在支持范围
 
-本机自行构建：`pnpm install && pnpm dist:win`，产物输出到 `release/`。
+本机自行构建：Windows 用 `pnpm install && pnpm dist:win`；macOS 用 `pnpm install && pnpm dist:mac`（只出 Apple 芯片 arm64 包），产物都输出到 `release/`。
 
 ## 安装
 
-系统要求：Windows 10 1903+ / Windows 11（x64）。
+系统要求：
+
+- **Windows**：Windows 10 1903+ / Windows 11（x64）。
+- **macOS**：macOS 12+，仅 Apple 芯片（arm64）；Intel 芯片 Mac 不在支持范围（不提供 x64 包，也不需要 Rosetta 2）。
+
+### Windows（x64）
 
 - **便携版**：`DesktopTodo-1.0.0-portable.exe`，双击即可运行，无需安装、无需管理员权限。
 - **安装版**：`DesktopTodo-1.0.0-setup.exe`，按向导安装（默认每用户安装，可选择安装目录）。
@@ -52,9 +60,24 @@
 
 这是未签名应用的正常提示，程序不联网、不写入系统目录（安装版仅写入安装目录与当前用户数据目录）。
 
+### macOS（12+）
+
+1. 下载 Apple 芯片（arm64）的 dmg：`DesktopTodo-1.0.0-arm64.dmg`。
+2. 打开 dmg，把「桌面待办.app」拖入「应用程序」文件夹（dmg 内右侧是 Applications 快捷方式）。
+3. 首次启动会在 `~/Library/Application Support/DesktopTodo/` 创建数据库；程序为单实例，重复启动只会唤起已有实例的挂件（菜单栏图标 + 桌面挂件）。
+
+**Gatekeeper 放行（未签名、未公证）**：应用未做代码签名与公证，首次打开会被 Gatekeeper 拦截，按以下任一方式放行：
+
+- 在「应用程序」里**右键点「桌面待办」→「打开」→ 再点「打开」**；
+- 或打开「系统设置 → 隐私与安全性」，在「安全性」区找到被拦截的应用提示，点「仍要打开」。
+
+这是未签名应用的正常提示；程序不联网，数据只写入当前用户目录（见「数据与备份」）。macOS 12+ 只提供 Apple 芯片（arm64）包；Intel 芯片 Mac 不在支持范围，不提供 x64 包与 Rosetta 运行说明。
+
 ## 数据与备份
 
-- 数据目录：`%APPDATA%\DesktopTodo\`（设置 → 「数据目录」可直接打开）
+- 数据目录按平台：
+  - Windows：`%APPDATA%\DesktopTodo\`（设置 → 「数据目录」可直接打开）
+  - macOS：`~/Library/Application Support/DesktopTodo/`（设置 → 「数据目录」可直接打开）
 - 数据库：`data.db`（SQLite，WAL 模式），另有 `data.db-wal` / `data.db-shm`
 - 备份：
   - 设置 → 「导出为 JSON 备份文件」，得到可读的完整备份；
@@ -69,8 +92,9 @@
 - 位置基准：挂件与胶囊共用同一位置；切换形态或高度变化时，按窗口所在象限保持基准角不动（左上/右上/左下/右下，默认右上）。
 - 完整窗口：点击任务行在窗口内编辑；勾选完成；「新建」或 Ctrl+N 新建；Ctrl+F 搜索；Esc 关闭窗口（回托盘）。
 - 挂件：点击任务行会打开**独立的桌面级编辑窗口**（550 宽、按内容高度居中，与原型一致）；X / 取消 / 保存 / Esc / 删除后关闭，挂件位置不变。
-- 链接：任务可挂多个网页、文件夹、网络共享路径；支持把文件/文件夹/网址直接拖进编辑面板或主区。失效路径会提示「找不到该位置」，可重新选择或删除。
-- 托盘：单击显示/隐藏挂件，双击打开完整窗口；右键菜单可快速添加、切换开机自启、退出。
+- 链接：任务可挂多个网页、文件夹、网络共享路径；支持把文件/文件夹/网址直接拖进编辑面板或主区。Windows 支持盘符、UNC、网络共享路径；macOS 支持绝对 POSIX 路径（如 `/Users/...`）与 `file:///` 本机 URL（从 Finder 拖入文件可识别），无 UNC 概念。失效路径会提示「找不到该位置」，可重新选择或删除。
+- 托盘（Windows）：单击显示/隐藏挂件，双击打开完整窗口；右键菜单可快速添加、切换开机自启、退出。
+- 菜单栏（macOS）：左键单击菜单栏图标弹出菜单——显示/隐藏挂件、快速添加、打开完整窗口、登录时启动、退出桌面待办；Dock 默认隐藏，打开完整窗口时显示（可用 Cmd+Tab 切回），收起完整窗口后隐藏。
 - 筛选：状态、日期、标签、优先级、关键词五维筛选，可保存为「桌面视图」在挂件/完整窗口标题旁切换。
 
 ### 全局快捷键（设置中可关闭）
@@ -82,6 +106,8 @@
 | Alt+1 ~ Alt+5 | 依次切换到 收件箱 / 今天 / 已逾期 / 即将到期 / 已完成 |
 
 窗口内快捷键：Ctrl+N 新建、Ctrl+F 搜索、Esc 关闭/收起。
+
+macOS 上同一组快捷键注册不变（`CommandOrControl` 映射为 ⌘，`Alt` 映射为 ⌥），界面文案显示为 ⌘⇧Space（快速添加）、⌥H（显隐挂件）、⌥1–5（切换视图），窗口内为 ⌘N / ⌘F。
 
 ## 开发与构建
 
@@ -95,6 +121,7 @@ pnpm audit                  # 真实 UI 交互审计（需先用 CDP 端口启�
 pnpm dist:win               # 打包 portable + NSIS 到 release/
 pnpm dist:portable          # 只打便携版
 pnpm dist:nsis              # 只打安装包
+pnpm dist:mac               # macOS：打包 Apple 芯片（arm64）dmg（仅 macOS 可执行）
 
 # 真实 UI 交互审计（挂件/胶囊/完整窗口/弹层/键盘，74 项断言）：
 # 1) 先带 CDP 端口启动：node scripts/dev-launch.cjs -- --remote-debugging-port=9241
@@ -102,11 +129,13 @@ pnpm dist:nsis              # 只打安装包
 #    审计会临时创建「审计*」任务/项目/标签并在结束时清理，同时恢复被切换的设置。
 ```
 
+macOS 开发与构建：`pnpm dev` / `pnpm test` 在 macOS 直接可用（`scripts/electron-runtime.cjs` 在 macOS 直接使用 `node_modules` 内 `Electron.app`，不复制到工作区外）；`pnpm dist:mac` 打 Apple 芯片（arm64）dmg，`node scripts/dist-mac.cjs --dir` 只出解包目录 `release/mac-arm64/`、不生成 dmg（调试用）。`scripts/dist-mac.cjs` 会先取 arm64 的 better-sqlite3 预编译 `.node`（`npmRebuild: false`，一个 `.node` 只对应一个架构）再执行 `electron-builder --mac --arm64`；dmg 依赖 `hdiutil`，只能在 macOS 上构建。
+
 开发调试：`pnpm dev` 启动后，在任一应用窗口（挂件 / 胶囊 / 完整窗口 / 编辑弹窗）按 **F12** 打开或关闭分离式 DevTools（DevTools 打开时不抢焦点，再按 F12 即可关闭；若焦点已切到 DevTools 窗口，点回应用窗口再按 F12）。该快捷键仅开发模式注册，打包版按 F12 无行为。主进程日志输出在 `pnpm dev` 终端；未捕获异常 / 未处理 Promise 拒绝会额外写入 `%APPDATA%\DesktopTodo\logs\main.log`（超过 512KB 轮转为 `main.old.log`，便于用户复现后取证）。
 
 技术栈：Electron 40 + React 18 + TypeScript + better-sqlite3 + electron-vite + electron-builder + Vitest。
 
-构建产物：
+Windows 构建产物（`pnpm dist:win`）：
 
 | 文件 | 说明 |
 | --- | --- |
@@ -114,7 +143,14 @@ pnpm dist:nsis              # 只打安装包
 | `release/DesktopTodo-1.0.0-setup.exe` | NSIS 安装包，约 101.3 MiB（106,249,746 B） |
 | `release/win-unpacked/` | 解包目录（调试用） |
 
-本机无 MSVC 环境时，better-sqlite3 使用与 Electron ABI 匹配的预编译产物：`python scripts/fetch-native-assets.py`（脚本从 npmmirror 镜像取 Electron 与预编译 `.node`）。打包配置已设 `npmRebuild: false`，直接用预编译产物。
+macOS 构建产物（`pnpm dist:mac`，尺寸为本次实测）：
+
+| 文件 | 说明 |
+| --- | --- |
+| `release/DesktopTodo-1.0.0-arm64.dmg` | Apple 芯片（arm64）dmg，120,670,172 B（115.1 MiB），拖入「应用程序」安装 |
+| `release/mac-arm64/` | 解包目录（调试用；`node scripts/dist-mac.cjs --dir` 只出该目录） |
+
+本机无 MSVC 环境时，better-sqlite3 使用与 Electron ABI 匹配的预编译产物：`python scripts/fetch-native-assets.py`（脚本从 npmmirror 镜像取 Electron 与预编译 `.node`；macOS 上用 `python3` 并以 `--arch arm64` 指定 Apple 芯片架构）。打包配置已设 `npmRebuild: false`，直接用预编译产物。
 
 打包时若 GitHub 直连不可用，需要通过镜像下载 Electron / NSIS 资源：
 
@@ -124,45 +160,55 @@ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-
 pnpm dist:win
 ```
 
-验收记录与截图：`docs/acceptance/M6-ACCEPTANCE.md`、`docs/acceptance/screens/`。
+macOS 打包同样适用这两个镜像变量（把命令换成 `pnpm dist:mac`）；预编译原生模块也可单独执行 `python3 scripts/fetch-native-assets.py --arch arm64`（支持 curl 回退与 `--local` 离线安装）。图标重生成：`python3 scripts/make-icons.py`（产出 Windows ico、macOS 1024 应用图标与菜单栏模板图）。
+
+验收记录与截图：Windows `docs/acceptance/M6-ACCEPTANCE.md`、macOS `docs/acceptance/M7-MACOS-ACCEPTANCE.md`；截图目录 `docs/acceptance/screens/`。
 
 开发环境注意：如果终端里存在 `ELECTRON_RUN_AS_NODE=1`（某些编辑器/终端会注入），需要清除后再启动，否则 Electron 会被当作 Node 运行。`scripts/dev-launch.cjs` 已处理。
 
 ## 目录
 
 ```
-src/main/      主进程：窗口、托盘、快捷键、自启、SQLite、IPC、链接打开
+src/main/      主进程：窗口、托盘/菜单栏、应用菜单、快捷键、自启、SQLite、IPC、链接打开
 src/preload/   contextBridge 白名单 API
 src/renderer/  React 界面（挂件 / 胶囊 / 完整窗口 / 快速添加共用同一 bundle）
 src/shared/    跨层类型（纯类型，无运行时代码）
-scripts/       构建/启动/测试/截图/图标等辅助脚本
+scripts/       构建/启动/测试/截图/图标/打包等辅助脚本
 docs/          规格与验收文档
 design/        UI 契约（tokens.css）与交互原型
 ```
 
 ## 性能与内存
 
-应用默认**关闭硬件加速**（主进程 `app.disableHardwareAcceleration()`）：本机 Windows 11 + AMD 显卡 + 175% DPI 下，透明挂件窗口的 GPU 合成会让 GPU 进程常驻 110～240 MB 私有内存，含完整窗口时 6 个进程合计约 416 MB；改用软件合成后视觉一致（文字/圆角/阴影逐像素比对），空闲 CPU 10 秒仅 0.02 秒，内存明显下降：
+应用在 **Windows 上默认关闭硬件加速**（主进程 `applyRenderingPolicy()` 只在 `process.platform === 'win32'` 时调用 `app.disableHardwareAcceleration()`；macOS 保留 Electron 默认的硬件合成）：本机 Windows 11 + AMD 显卡 + 175% DPI 下，透明挂件窗口的 GPU 合成会让 GPU 进程常驻 110～240 MB 私有内存，含完整窗口时 6 个进程合计约 416 MB；改用软件合成后视觉一致（文字/圆角/阴影逐像素比对），空闲 CPU 10 秒仅 0.02 秒，内存明显下降：
 
-| 场景 | 硬件合成（旧） | 软件合成（默认，本次交付） |
+| 场景（Windows 实测） | 硬件合成（旧） | 软件合成（默认，本次交付） |
 | --- | --- | --- |
 | 仅挂件常驻 | 5 进程 private 243.6 MB / working set 404.5 MB | 5 进程 private **149.3 MB** / working set 339.3 MB |
 | 挂件 + 完整窗口 | 6 进程 private 416.0 MB / working set 638.1 MB | 6 进程 private **198.8 MB** / working set 489.5 MB |
 
-如某台机器上希望启用硬件加速（例如需要更顺滑的滚动/动画），设置环境变量 `DESKTOP_TODO_GPU=1` 后启动即可；此时内存占用会回到上表旧值。
+如某台 Windows 机器上希望启用硬件加速（例如需要更顺滑的滚动/动画），设置环境变量 `DESKTOP_TODO_GPU=1` 后启动即可；此时内存占用会回到上表旧值。macOS 默认即为硬件合成，上表内存数据仅来自 Windows 实测，macOS 未单独测量内存指标。
 
 ## 已知限制
 
-- 仅 Windows x64；未做代码签名，首次运行有 SmartScreen 提示。
+- 支持 Windows 10 1903+/11 x64 与 macOS 12+ Apple 芯片 arm64（Intel 芯片 Mac 不在支持范围）；两平台均未做代码签名：Windows 首次运行有 SmartScreen 提示，macOS 首次打开有 Gatekeeper 拦截（放行步骤见「安装」）。
 - 纯本地，无云同步、无系统通知、无自动更新（与规格一致）。
-- 网络共享路径（UNC）在打开前有 800ms 探测超时，断网或共享不可达时会提示失效。
+- macOS：未签名、未公证，首次打开被 Gatekeeper 拦截；安装后启动已验证，但下载后的 Gatekeeper 放行流程未做人工验证。
+- macOS 仅支持 Apple 芯片（arm64）：Intel 芯片 Mac 不在支持范围，不提供 x64 包、不再验证 Rosetta 2 运行。
+- macOS 登录项未在真实安装场景验证：未签名应用或不在 `/Applications` 时可能注册失败；macOS 13+ 可在「系统设置 → 通用 → 登录项」手动添加。
+- macOS 菜单栏图标的视觉细节、多显示器 / Spaces 行为、真实 Finder 拖拽未做人工验证。
+- GitHub Actions 的 macOS 构建作业（`build-mac`）本次未实际运行，配置已就绪，首次 tag 发布时需验证 dmg 产物与上传。
+- macOS 本地链接只支持绝对 POSIX 路径与 `file:///` 本机 URL；Windows 盘符/UNC 路径会被判不支持；Composer 行内混排的 POSIX 路径不自动识别（需单独粘贴或走编辑弹窗）。
+- Windows 网络共享路径（UNC）在打开前有 800ms 探测超时，断网或共享不可达时会提示失效；macOS 无 UNC 概念。
 - 未签名 + 部分杀软可能对便携版做启发式拦截，可加入白名单后使用。
 - 高 DPI（125%/150%/175%）下窗口尺寸按 DIP 取整，个别窗口高度可能有 ±1px 差异；形态切换时基准角坐标在 175% DPI 下可能有 ≤1 DIP 的物理取整偏差（相对位置不变）。
 - 挂件 / 胶囊窗口比可见卡片四周各多 2px 透明像素（高 DPI 裁切补偿）：鼠标落在最外侧 2px 内时仍会命中应用窗口，属预期行为；可见卡片尺寸始终为 352 / 284×54。
 - 胶囊单击需 250ms 判定窗口（用于区分双击打开完整窗口），属交互设计而非延迟缺陷。
-- 默认使用软件合成（见「性能与内存」）：若显式设置 `DESKTOP_TODO_GPU=1`，内存会回升到表中原有水平。
+- Windows 默认使用软件合成（见「性能与内存」）：若显式设置 `DESKTOP_TODO_GPU=1`，内存会回升到表中原有水平；macOS 保留硬件合成。
 
-## 交付物校验（2026-11-22 20:37 重新打包）
+## 交付物校验
+
+### Windows（2026-11-22 20:37 重新打包）
 
 | 文件 | 大小 | SHA-256 |
 | --- | --- | --- |
@@ -199,3 +245,13 @@ design/        UI 契约（tokens.css）与交互原型
 - 设置失焦透明度（90%/80%）后拖动挂件或胶囊，释放后立即恢复设定透明度（不再需要点一下别处）。
 
 桌面交付目录 `C:\Users\lazasons\Desktop\桌面待办-交付物\` 内即为本次校验的两个文件与 `使用说明.txt`。
+
+### macOS（2026-11-23 构建）
+
+| 文件 | 大小 | SHA-256 |
+| --- | --- | --- |
+| `DesktopTodo-1.0.0-arm64.dmg` | 120,670,172 B（115.1 MiB） | `ea668f6de62d6603066a0cdb0a6559579d0059bbd09487d53ab6097475bcf616` |
+
+- 构建环境：macOS 26.5 arm64；打包命令 `pnpm dist:mac`（`scripts/dist-mac.cjs`，仅 arm64）。
+- 校验：`tsc --noEmit` 0 错误；单测 18 文件 / 247 用例全过（macOS arm64）；安装后应用 CDP 全量 UI 审计 74 项 ALL PASS；Intel 芯片 Mac / x64 包 / Rosetta 2 不在支持范围（未构建、未验证 x64）。菜单栏图标视觉、多显示器/Spaces、真实 Finder 拖拽、下载后 Gatekeeper 放行等人工项见「已知限制」与 `docs/acceptance/M7-MACOS-ACCEPTANCE.md`。
+- Windows exe 本次未重打，Windows 校验值保持上表不变。

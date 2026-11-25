@@ -56,7 +56,9 @@ import {
   broadcast,
   closeEditorWindow,
   endCapsuleDrag,
+  controlManagerWindow,
   getManagerWindow,
+  getManagerWindowState,
   getWidgetWindow,
   isQuitting,
   moveCapsuleDrag,
@@ -101,6 +103,10 @@ export const IPC_CHANNELS = [
   'app:openDataDir',
   'app:exportData',
   'app:importData',
+  'window:minimize',
+  'window:toggleMaximize',
+  'window:toggleFullscreen',
+  'window:getState',
   'widget:setHeight',
   'widget:setCollapsed',
   'widget:saveCapsulePosition',
@@ -447,6 +453,24 @@ export function registerIpcHandlers(): void {
   handle('app:showManager', () => {
     showManager()
   })
+
+  // --- 完整窗口的自绘窗口按钮（design/PROPOSAL-v1.6.md）------------------
+  handle('window:minimize', () => {
+    controlManagerWindow('minimize')
+    return { ok: true as const }
+  })
+
+  handle('window:toggleMaximize', () => {
+    controlManagerWindow('toggle-maximize')
+    return { ok: true as const }
+  })
+
+  handle('window:toggleFullscreen', () => {
+    controlManagerWindow('toggle-fullscreen')
+    return { ok: true as const }
+  })
+
+  handle('window:getState', () => getManagerWindowState())
 
   handle('app:showWidget', (input) => {
     const payload = input === undefined ? {} : asRecord(input)

@@ -1,0 +1,24 @@
+---
+description: 打安装包时末位版本 +1，并删除旧包
+alwaysApply: true
+---
+
+# 安装包版本与旧包清理
+
+用户约定（2026-11-24）：**每打一版新安装包**，必须：
+
+1. **末位版本号 +1**：`package.json` 的 `x.y.z` → `x.y.(z+1)`（例 `1.0.0` → `1.0.1`）。
+2. **删除旧包**：`release/` 里不等于当前版本的 `DesktopTodo-*-*.dmg` / `.exe` 及其 `.blockmap` 全部删掉，只保留本次版本产物。
+
+## 必须走脚本（不要手改版本后直接 electron-builder）
+
+- macOS：`pnpm dist:mac` → `scripts/dist-mac.cjs`（默认自动 bump + 出包后 clean）
+- Windows：`pnpm dist:win` / `dist:portable` / `dist:nsis` → `scripts/dist-win.cjs`
+- 共用逻辑：`scripts/release-version.cjs`
+
+例外：
+
+- `--no-bump`：同版本重打（排障）
+- `dist-mac --dir`：只出解包目录，不升版、不删包
+
+打完后向用户回报：**绝对路径、新版本号、文件大小、SHA-256**。

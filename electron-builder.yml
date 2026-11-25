@@ -9,15 +9,23 @@ files:
   - resources/**/*
   - package.json
 asar: true
-# 本机无 MSVC，better-sqlite3 使用 electron-ABI 预编译产物（见 scripts/fetch-native-assets.py），
-# 打包阶段不再执行 native 重建，避免 electron-builder 去 GitHub 取编译工具链。
+# 本机无 MSVC / 不使用 electron-builder 自带原生重建：better-sqlite3 使用与 Electron ABI
+# 匹配的预编译产物（见 scripts/fetch-native-assets.py：Windows 取 win32-x64、
+# macOS 取 darwin-arm64；Intel 芯片 Mac 不在支持范围），打包阶段不再执行 native 重建，
+# 避免 electron-builder 去 GitHub 取编译工具链。
 npmRebuild: false
 asarUnpack:
   - '**/*.node'
-# 托盘图标放在 asar 外，打包后由 tray.ts 从 process.resourcesPath 读取（dev 态读 build/）
+# 托盘图标放在 asar 外，打包后由 tray.ts 从 process.resourcesPath 读取（dev 态读 build/）：
+# - Windows：tray.ico（彩色）
+# - macOS：trayTemplate.png / @2x（菜单栏模板图标，黑 + alpha，系统自动适配深浅色）
 extraResources:
   - from: build/tray.ico
     to: tray.ico
+  - from: build/trayTemplate.png
+    to: trayTemplate.png
+  - from: build/trayTemplate@2x.png
+    to: trayTemplate@2x.png
 win:
   icon: build/icon.ico
   target:
@@ -39,3 +47,36 @@ nsis:
   shortcutName: 桌面待办
   artifactName: DesktopTodo-${version}-setup.exe
   deleteAppDataOnUninstall: false
+# macOS：dmg（拖入「应用程序」安装），仅 Apple 芯片（arm64）。
+# Intel 芯片 Mac 不在支持范围：不构建 x64 包、不提供 Rosetta 运行说明。
+# 与 Windows 交付一致，未做代码签名，首次打开需右键「打开」或在
+# 「系统设置 → 隐私与安全性」点「仍要打开」（见 README）。
+# 原生模块 better-sqlite3 一个 .node 只对应一个架构，打包前由
+# scripts/fetch-native-assets.py --arch arm64 取与 Electron ABI 匹配的预编译产物
+# （入口 scripts/dist-mac.cjs；npmRebuild: false，不执行原生重建）。
+mac:
+  icon: build/icon.png
+  category: public.app-category.productivity
+  darkModeSupport: true
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  extendInfo:
+    NSHighResolutionCapable: true
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  artifactName: DesktopTodo-${version}-${arch}.dmg
+dmg:
+  sign: false
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 140
+      y: 190
+    - x: 400
+      y: 190
+      type: link
+      path: /Applications
+  artifactName: DesktopTodo-${version}-${arch}.dmg

@@ -35,6 +35,10 @@ export type IconName =
   | 'refresh'
   | 'link'
   | 'notes'
+  | 'window-min'
+  | 'window-max'
+  | 'window-restore'
+  | 'window-expand'
 
 const PATHS: Record<IconName, ReactElement> = {
   grid: (
@@ -228,6 +232,21 @@ const PATHS: Record<IconName, ReactElement> = {
       <path d="M3 6h.01" />
       <path d="M3 12h.01" />
       <path d="M3 18h.01" />
+    </>
+  ),
+  // 窗口按钮（docs/02 §窗口按钮）：Windows 用细线方框，macOS 全屏用角箭头
+  'window-min': <path d="M5 12h14" />,
+  'window-max': <rect x="5" y="5" width="14" height="14" rx="1" />,
+  'window-restore': (
+    <>
+      <rect x="5" y="8" width="11" height="11" rx="1" />
+      <path d="M8 8V6a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-2" />
+    </>
+  ),
+  'window-expand': (
+    <>
+      <path d="M14 10l6-6" />
+      <path d="M15 4h5v5" />
     </>
   )
 }

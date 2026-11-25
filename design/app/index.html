@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23D97757'/%3E%3Cpath d='M9 16.5l5 5L23 11' stroke='%23fff' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <title>桌面待办 · 交互原型</title>
-<link rel="stylesheet" href="../ui/tokens.css">
+<link rel="stylesheet" href="../../ui/tokens.css">
 <link rel="stylesheet" href="css/app.css?v=1795266200000">
 <link rel="stylesheet" href="css/adjust.css?v=2">
+<link rel="stylesheet" href="css/window-controls.css?v=1">
 </head>
 <body>
 <div id="root" class="root is-desktop">
@@ -21,6 +22,9 @@
       <button class="tb-btn" aria-label="搜索" data-act="noop"><svg class="ic"><use href="#i-search"/></svg></button>
       <button class="tb-btn" aria-label="文件资源管理器" data-act="noop"><svg class="ic"><use href="#i-folder"/></svg></button>
       <div class="tb-sep"></div>
+      <button class="tb-app" id="tbApp" data-act="restore-manager" hidden aria-label="还原桌面待办窗口">
+        <span class="tb-app-ic"><svg class="ic"><use href="#i-check"/></svg></span><span>桌面待办</span>
+      </button>
       <div class="tb-pin">桌面上一直看得见 · 点一下就能回到工作现场</div>
       <div class="tb-right">
         <div class="tb-clock"><div id="tbTime">15:49</div><div id="tbDate">2026/11/21</div></div>
@@ -33,6 +37,22 @@
     <div class="mgr" id="mgr">
       <aside class="sidebar" id="sidebar"></aside>
       <main class="main" id="main"></main>
+
+      <!-- 窗口按钮（提案 v1.6）：按平台切换位置与样式 -->
+      <div class="wc" id="winCtl">
+        <!-- Windows：贴窗口右上角，方形悬停区 -->
+        <div class="wc-win" role="group" aria-label="窗口控制">
+          <button type="button" class="wcb" data-act="win-min" title="最小化" aria-label="最小化"><svg class="ic" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 5h10"/></svg></button>
+          <button type="button" class="wcb" data-act="win-max" title="最大化" aria-label="最大化"><svg class="ic i-max" viewBox="0 0 10 10" aria-hidden="true"><rect x="0.5" y="0.5" width="9" height="9"/></svg><svg class="ic i-restore" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5v-2h7v7h-2"/><rect x="0.5" y="2.5" width="7" height="7"/></svg></button>
+          <button type="button" class="wcb wcb-close" data-act="close-window" data-wc="close" title="关闭" aria-label="关闭"><svg class="ic" viewBox="0 0 10 10" aria-hidden="true"><path d="M0.6 0.6l8.8 8.8M9.4 0.6L0.6 9.4"/></svg></button>
+        </div>
+        <!-- macOS：贴窗口左上角的红绿灯 -->
+        <div class="wc-mac" role="group" aria-label="窗口控制">
+          <button type="button" class="tl tl-close" data-act="close-window" data-wc="close" title="关闭" aria-label="关闭"><svg class="ic" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.4 3.4l5.2 5.2M8.6 3.4L3.4 8.6"/></svg></button>
+          <button type="button" class="tl tl-min" data-act="win-min" title="最小化" aria-label="最小化"><svg class="ic" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.8 6h6.4"/></svg></button>
+          <button type="button" class="tl tl-max" data-act="win-max" title="全屏（⌥ 单击缩放）" aria-label="全屏"><svg class="ic" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 7.4L7.4 3M3 3h4.4v4.4"/></svg></button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -50,6 +70,10 @@
       <span class="db-ver">可交互演示</span>
     </div>
     <div class="db-actions">
+      <div class="db-seg" role="group" aria-label="切换窗口按钮预览平台（仅原型）">
+        <button type="button" class="db-seg-btn on" data-plat="win" title="Windows 风格窗口按钮">Windows</button>
+        <button type="button" class="db-seg-btn" data-plat="mac" title="macOS 风格窗口按钮">macOS</button>
+      </div>
       <button class="db-btn" data-act="help" title="使用说明与快捷键"><svg class="ic"><use href="#i-help"/></svg><span>怎么玩</span></button>
       <button class="db-btn" data-act="reset" title="恢复演示数据"><svg class="ic"><use href="#i-refresh"/></svg><span>重置演示</span></button>
     </div>
@@ -92,5 +116,6 @@
 <script src="js/core.js?v=1795266200000"></script>
 <script src="js/render.js?v=1795266200000"></script>
 <script src="js/interactions.js?v=1795266200000"></script>
+<script src="js/window-controls.js?v=1"></script>
 </body>
 </html>

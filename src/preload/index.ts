@@ -57,6 +57,8 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 }
 
 const api: DesktopTodoApi = {
+  /* 同步暴露进程平台供渲染层适配文案；sandbox: true 的 preload 中 process.platform 可用 */
+  platform: process.platform,
   tasks: {
     list: (input) => ipcRenderer.invoke('tasks:list', input ?? {}),
     create: (input: TaskCreateInput) => ipcRenderer.invoke('tasks:create', input),
@@ -117,6 +119,13 @@ const api: DesktopTodoApi = {
     beginDrag: () => ipcRenderer.invoke('widget:beginDrag'),
     dragMove: (input: { dx: number; dy: number }) => ipcRenderer.invoke('widget:dragMove', input),
     endDrag: () => ipcRenderer.invoke('widget:endDrag')
+  },
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),
+    toggleFullscreen: () => ipcRenderer.invoke('window:toggleFullscreen'),
+    getState: () => ipcRenderer.invoke('window:getState'),
+    onStateChange: (cb) => subscribe('window:state', cb)
   },
   editor: {
     open: (input?: { taskId?: string | null }) => ipcRenderer.invoke('editor:open', input ?? {}),

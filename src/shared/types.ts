@@ -175,7 +175,38 @@ export interface AppNotice {
   acknowledgeLabel?: string
 }
 
+/**
+ * 运行平台快照。preload 同步暴露 `process.platform`；shared 层只做类型，
+ * 不 import electron / node，因此在这里列出与 NodeJS.Platform 一致的字面量联合供各层复用。
+ */
+export type DesktopPlatform =
+  | 'aix'
+  | 'android'
+  | 'darwin'
+  | 'freebsd'
+  | 'haiku'
+  | 'linux'
+  | 'openbsd'
+  | 'sunos'
+  | 'win32'
+  | 'cygwin'
+  | 'netbsd'
+
+/**
+ * 完整窗口的自绘窗口按钮动作（docs/02 §窗口按钮、docs/08 §3.10）。
+ * macOS 绿色按钮单击走全屏、⌥ 单击走缩放（= 最大化），因此最大化与全屏分开。
+ */
+export type WindowControlAction = 'minimize' | 'toggle-maximize' | 'toggle-fullscreen'
+
+/** 完整窗口当前的窗口状态（渲染层据此切换最大化 / 还原图标与 aria-pressed） */
+export interface WindowControlState {
+  maximized: boolean
+  fullscreen: boolean
+}
+
 export interface DesktopTodoApi {
+  /** 当前运行平台（preload 启动时确定的只读快照，用于渲染层文案/快捷键适配） */
+  platform: DesktopPlatform
   tasks: {
     list(input?: { filter?: FilterDTO; viewId?: string }): Promise<TaskDTO[]>
     create(input: TaskCreateInput): Promise<TaskDTO>
@@ -228,6 +259,17 @@ export interface DesktopTodoApi {
     dragMove(input: { dx: number; dy: number }): Promise<{ ok: true }>
     /** 胶囊拖动结束：落盘位置 */
     endDrag(): Promise<{ ok: true }>
+  }
+  /** 完整窗口的自绘窗口按钮（最小化 / 最大化 / 关闭） */
+  window: {
+    minimize(): Promise<{ ok: true }>
+    /** 最大化 ⇄ 还原 */
+    toggleMaximize(): Promise<{ ok: true }>
+    /** 全屏 ⇄ 退出全屏（macOS 绿色按钮单击） */
+    toggleFullscreen(): Promise<{ ok: true }>
+    getState(): Promise<WindowControlState>
+    /** 窗口状态变化（最大化 / 全屏被系统或快捷键改变时同步图标） */
+    onStateChange(cb: (state: WindowControlState) => void): () => void
   }
   editor: {
     /** 打开任务编辑弹窗（挂件内点击任务时使用；taskId 为空表示新建） */
