@@ -1,0 +1,12 @@
+# Xcode 构建产物与用户状态
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# 本地验证截图（可由模拟器重新导出）
+screens/
+
+.DS_Store

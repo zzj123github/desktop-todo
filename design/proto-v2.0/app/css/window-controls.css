@@ -1,0 +1,77 @@
+/* =========================================================
+   window-controls.css · 提案 v1.6：窗口最小化 / 最大化 / 关闭
+   ---------------------------------------------------------
+   只作用于完整窗口（.mgr）；挂件、胶囊、编辑弹窗不加窗口按钮。
+   - Windows：贴窗口右上角，46×32 直角悬停区，关闭悬停红底白叉
+   - macOS：贴窗口左上角的 12px 红绿灯，悬停才显示符号，失焦变灰
+   颜色一律引用 design/ui/tokens.css 的变量，仅红绿灯三色是系统色。
+   ========================================================= */
+
+/* ---------- 公共容器 ---------- */
+.mgr{position:relative} /* 窗口卡成为按钮组的定位父级 */
+.mgr .wc{position:absolute;inset:0;pointer-events:none;z-index:30}
+.mgr .wc > *{pointer-events:auto}
+.mgr .wc .ic{fill:none;stroke:currentColor;stroke-linecap:butt;stroke-linejoin:miter}
+
+/* ================= Windows ================= */
+.mgr[data-platform="win"] .wc-mac{display:none}
+.mgr[data-platform="win"] .wc-win{position:absolute;top:0;right:0;display:flex}
+.mgr[data-platform="win"] .wcb{
+  width:46px;height:32px;padding:0;border:0;background:transparent;color:#7B7466;
+  display:flex;align-items:center;justify-content:center;cursor:default;
+  transition:background .1s,color .1s;
+}
+.mgr[data-platform="win"] .wcb .ic{width:10px;height:10px;stroke-width:1}
+.mgr[data-platform="win"] .wcb:hover{background:rgba(31,30,29,.07);color:var(--ink)}
+.mgr[data-platform="win"] .wcb:active{background:rgba(31,30,29,.13)}
+.mgr[data-platform="win"] .wcb:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mgr[data-platform="win"] .wcb-close:hover{background:#C42B1C;color:#FFFDFA}
+.mgr[data-platform="win"] .wcb-close:active{background:#B0271A}
+/* 标题栏条：窗口按钮占住顶部 32px，主区内容整体落到其下方 */
+.mgr[data-platform="win"] .main{padding-top:32px}
+/* 最大化 / 还原图标切换 */
+.mgr[data-platform="win"] .wcb .i-restore{display:none}
+.wc-maxed .mgr[data-platform="win"] .wcb .i-max{display:none}
+.wc-maxed .mgr[data-platform="win"] .wcb .i-restore{display:block}
+
+/* ================= macOS ================= */
+.mgr[data-platform="mac"] .wc-win{display:none}
+.mgr[data-platform="mac"] .wc-mac{position:absolute;top:18px;left:20px;display:flex;gap:8px}
+.mgr[data-platform="mac"] .tl{
+  width:12px;height:12px;border-radius:50%;border:0;padding:0;cursor:default;
+  display:flex;align-items:center;justify-content:center;position:relative;
+  transition:background .12s;
+}
+.mgr[data-platform="mac"] .tl .ic{width:12px;height:12px;stroke-width:1.2;color:rgba(0,0,0,.55);opacity:0;transition:opacity .1s}
+.mgr[data-platform="mac"] .wc-mac:hover .tl .ic{opacity:1}
+.mgr[data-platform="mac"] .tl-close{background:#FF5F57}
+.mgr[data-platform="mac"] .tl-min{background:#FEBC2E}
+.mgr[data-platform="mac"] .tl-max{background:#28C840}
+.mgr[data-platform="mac"] .tl:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 窗口失焦：红绿灯退成中性灰（macOS 系统行为） */
+.mgr[data-platform="mac"] .wc-mac.is-blur .tl{background:#D8D4CB}
+/* 侧栏顶部让出标题栏：红绿灯独占一条 36px 的顶栏，品牌行落在其下 */
+.mgr[data-platform="mac"] .sidebar{padding-top:36px}
+
+/* ================= 最大化 / 还原（两平台共用） ================= */
+.manager-scene.wc-maxed{padding:0 0 46px} /* 让出模拟任务栏：最大化只铺满工作区 */
+.manager-scene.wc-maxed .mgr{width:100%;height:100%;border-radius:0;box-shadow:none}
+/* 最大化时原型自身的体验条会压住窗口，隐藏掉 */
+#root:has(.manager-scene.wc-maxed) .demo-bar{display:none}
+.mgr.wc-no-anim{animation:none}
+
+/* ================= 最小化（原型模拟） ================= */
+.mgr.wc-minimizing{transform:translateY(40px) scale(.94);opacity:0;
+  transition:transform .22s cubic-bezier(.4,0,.2,1),opacity .22s}
+.mgr.wc-restoring{animation:wcRestore .24s cubic-bezier(.2,.8,.3,1)}
+@keyframes wcRestore{from{transform:translateY(40px) scale(.94);opacity:0}to{transform:none;opacity:1}}
+
+/* 任务栏里的最小化入口（原型模拟还原） */
+.taskbar .tb-app{display:flex;align-items:center;gap:7px;height:34px;padding:0 11px 0 8px;
+  border:0;border-radius:7px;background:rgba(255,255,255,.14);color:#fff;font-size:11.5px;
+  cursor:pointer;transition:background .12s}
+.taskbar .tb-app:hover{background:rgba(255,255,255,.24)}
+.taskbar .tb-app[hidden]{display:none}
+.tb-app-ic{width:19px;height:19px;border-radius:5px;background:#D97757;color:#FFFDFA;
+  display:flex;align-items:center;justify-content:center;flex:none}
+.tb-app-ic .ic{width:12px;height:12px;stroke-width:2.4}

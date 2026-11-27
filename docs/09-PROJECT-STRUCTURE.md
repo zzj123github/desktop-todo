@@ -17,6 +17,7 @@ desktop-todo/
 ├─ .gitignore                # M0
 ├─ docs/                     # 规格文档，唯一实施读取源
 ├─ design/                   # 视觉与交互参考，实施时只读
+├─ DeskTodoiOS/              # iOS 原生工程（SwiftUI + WidgetKit，独立 Xcode 项目，见 §9）
 ├─ src/                      # 应用源码
 │  ├─ main/                  # Electron 主进程
 │  │  └─ repo/               # SQLite 数据访问
@@ -50,6 +51,7 @@ desktop-todo/
 | `.gitignore` | 是 | M0 | 忽略生成物与本地数据 |
 | `docs/` | 是 | 已有 | 00–09 编号规格；06 是实施说明，09 是本文 |
 | `design/` | 是 | 已有 | 原型与视觉基准；不参与运行时，不被 `src/` 导入 |
+| `DeskTodoiOS/` | 是 | iOS v1 | iOS 原生工程（SwiftUI + SwiftData + WidgetKit）；独立 Xcode 项目，不与桌面 `src/` 互相导入，见 §9 |
 | `src/` | 是 | 已有空目录 | 应用源码，边界见第 2 节 |
 | `build/` | 是 | 已有空目录 | 打包用图标等构建资产；**不是**打包输出 |
 | `resources/` | 是 | 已有 | 打包进应用的静态资源；当前只有 `seed.json` |
@@ -264,3 +266,26 @@ find docs -maxdepth 1 -type f | sort
 | `docs/assets/seed.json` | `resources/seed.json` | 已迁移 |
 
 以上旧路径不再创建；引用统一使用新路径。
+
+## 9. iOS 原生工程（DeskTodoiOS/）
+
+iOS App 是独立于桌面 Electron 的原生工程，2026-11-27 经 PROPOSAL-v2.0 确认后纳入仓库顶层。
+
+```text
+DeskTodoiOS/
+├─ DeskTodo.xcodeproj/       # 手写 project.pbxproj（文件系统同步组，objectVersion 77）
+├─ DeskTodo/                 # App target（SwiftUI 界面 + SwiftData 模型 + 通知）
+│  ├─ Assets.xcassets/       # AppIcon / AccentColor
+│  └─ DeskTodo.entitlements  # App Group
+├─ Shared/                   # App 与小组件共用（Theme tokens / 日期解析 / Priority / 快照模型）
+├─ DeskTodoWidget/           # WidgetKit 扩展（小/中/锁屏），Info.plist + entitlements
+└─ .gitignore                # 忽略 build/、screens/、xcuserdata 等生成物
+```
+
+边界与约定：
+- 技术栈 SwiftUI + SwiftData（iOS 17+），WidgetKit 小组件，UserNotifications 到期提醒；纯本地，无云同步。
+- 设计 token 1:1 映射自 `design/ui/tokens.css`（`Shared/Theme.swift`），不新增颜色体系；视觉与交互基准见 `design/proto-v2.0/ios/`。
+- App 与小组件经 App Group（`group.com.desktodo.ios`）快照共享数据；`Shared/` 同时编入两个 target。
+- `DeskTodoiOS/` 与桌面 `src/` 互不导入；桌面规格（02/08）不约束 iOS 内部结构，iOS 内部以本节约定为准。
+- `build/`（DerivedData）、`screens/`（模拟器验证截图）、`xcuserdata/` 不提交，由 `DeskTodoiOS/.gitignore` 忽略。
+- 构建：`xcodebuild -project DeskTodo.xcodeproj -scheme DeskTodo -destination 'generic/platform=iOS Simulator' build`；或用 Xcode 打开工程选模拟器运行。

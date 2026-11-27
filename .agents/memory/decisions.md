@@ -209,3 +209,10 @@
 - 验证：`tsc --noEmit` 0 错误；247 单测通过；macOS 开发版 CDP 16/16；原型提升后 manager/shapes/fullpage 重导；Windows 实机点击仍为已知缺口。
 - 影响：`windows.ts` / `ipc.ts` / preload / `WindowControls.tsx` / `docs/02` §4.2 / `docs/08` §3.14 / `design/app` v1.6。
 
+
+## 2026-11-27 · iOS App 技术决策（PROPOSAL-v2.0 已确认）
+- 工程位置：`/Users/Admin1/Documents/测试项目/desktop-todo/DeskTodoiOS/`，独立于桌面 Electron 仓库，避免改动桌面 `src/` 与 `docs/09` 目录规范。
+- 无 xcodegen/tuist/xcodeproj-gem/brew → 手写 `project.pbxproj`，采用 Xcode 文件系统同步组（PBXFileSystemSynchronizedRootGroup, objectVersion 77）自动纳入 .swift。
+- 栈：SwiftUI + SwiftData（iOS 17+），WidgetKit 小组件，UserNotifications 到期提醒，UIImpactFeedbackGenerator 触感。
+- 设计 token 从 `design/ui/tokens.css` 1:1 映射为 SwiftUI Color/Font 常量（Theme.swift），不新增颜色体系。
+- v1 范围：五槽 Tab（今天/视图/＋/已完成/设置）、小+中+锁屏小组件、仅浅色、纯本地、左滑完成/删除。

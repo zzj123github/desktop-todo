@@ -117,3 +117,6 @@
 2026-11-24 17:58 | update | .agents/memory/decisions.md, .agents/memory/open-items.md, .agents/HANDOFF-v1.6.md | 决策 D28（两平台窗口按钮 + 全屏/缩放分工 + 最大化不写库）；open-items / HANDOFF 标记原型与记录完成，保留 Windows 实机缺口 | 交接收尾
 
 2026-11-24 20:55 | chore | scripts/{release-version,dist-mac,dist-win}.cjs, package.json, .cursor/rules/release-package.mdc | 安装包约定：每次正式打包 patch +1，出包后删除 release/ 旧版 DesktopTodo 产物；mac/win 统一走脚本；本次升至 1.0.1 并重打 arm64 dmg | 用户要求「打新包后删旧包、末位版本号 +1」
+2026-11-27 | create | design/proto-v2.0/{app,ios,screens}/, design/PROPOSAL-v2.0.md, design/README.md | iOS App 提案 v2.0（待确认）：完整复制基线 app/ 到 proto-v2.0/app/；新建 ios/ 可交互原型（共用 tokens.css，App 四页签+中央陶土＋、底部 Sheet、claude 风格内嵌日历、主屏幕小/中小组件、锁屏胶囊，桌面三形态映射）；无头 Chrome @2x 截 7 场景零控制台报错；README 提案表登记「待确认」 | 用户已装 Xcode，要求按当前风格做 iOS 原型；阶段门：确认前不改 src/ 与 docs/ 规格与 tokens
+- update: 2026-11-27 用户确认「按你推荐的方案执行」，PROPOSAL-v2.0 状态置为已确认；6 问取推荐值（五槽 Tab / 小+中+锁屏小组件 / v1 仅浅色 / 纯本地 SwiftData / 纳入左滑完成删除 / SwiftUI iOS17+）。新增独立实施工程 `../DeskTodoiOS/`（SwiftUI，不改动桌面 src/）。
+- feat: 2026-11-27 完成 iOS App v1 实施（`../DeskTodoiOS/`，SwiftUI+SwiftData iOS17+）。手写 project.pbxproj（文件系统同步组）；App 五槽 Tab（今天/视图/＋/已完成/设置）、自然语言快速添加、编辑/链接、五维筛选、项目标签管理（重命名/删除撤销）、自绘日期选择器、左滑完成/删除、到期通知、JSON 导出/重置；WidgetKit 小/中/锁屏小组件经 App Group 快照共享数据。xcodebuild 模拟器编译通过，iPhone 17 模拟器截图验证今天/视图/设置/添加页与小组件数据链路。
